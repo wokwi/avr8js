@@ -452,42 +452,65 @@ export function avrInstruction(cpu: ICPU) {
 
   /* STY, 1000 001r rrrr 1000 */
   if ((opcode & 0xfe0f) === 0x8208) {
-    /* not implemented */
+    cpu.writeData(cpu.dataView.getUint16(28, true), cpu.data[(opcode & 0x1f0) >> 4]);
   }
 
   /* STY, 1001 001r rrrr 1001 */
   if ((opcode & 0xfe0f) === 0x9209) {
-    /* not implemented */
+    const i = cpu.data[(opcode & 0x1f0) >> 4];
+    const y = cpu.dataView.getUint16(28, true);
+    cpu.writeData(y, i);
+    cpu.dataView.setUint16(28, y + 1, true);
   }
 
   /* STY, 1001 001r rrrr 1010 */
   if ((opcode & 0xfe0f) === 0x920a) {
-    /* not implemented */
+    const i = cpu.data[(opcode & 0x1f0) >> 4];
+    const y = cpu.dataView.getUint16(28, true) - 1;
+    cpu.dataView.setUint16(28, y, true);
+    cpu.writeData(y, i);
+    cpu.cycles++;
   }
 
-  /* STY, 10q0 qq1r rrrr 1qqq */
+  /* STDY, 10q0 qq1r rrrr 1qqq */
   if ((opcode & 0xd208) === 0x8208) {
-    /* not implemented */
+    cpu.writeData(
+      cpu.dataView.getUint16(28, true) +
+        ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)),
+      cpu.data[(opcode & 0x1f0) >> 4]
+    );
+    cpu.cycles++;
   }
 
   /* STZ, 1000 001r rrrr 0000 */
   if ((opcode & 0xfe0f) === 0x8200) {
-    /* not implemented */
+    cpu.writeData(cpu.dataView.getUint16(30, true), cpu.data[(opcode & 0x1f0) >> 4]);
   }
 
   /* STZ, 1001 001r rrrr 0001 */
   if ((opcode & 0xfe0f) === 0x9201) {
-    /* not implemented */
+    const z = cpu.dataView.getUint16(30, true);
+    cpu.writeData(z, cpu.data[(opcode & 0x1f0) >> 4]);
+    cpu.dataView.setUint16(30, z + 1, true);
   }
 
   /* STZ, 1001 001r rrrr 0010 */
   if ((opcode & 0xfe0f) === 0x9202) {
-    /* not implemented */
+    const i = cpu.data[(opcode & 0x1f0) >> 4];
+    const z = cpu.dataView.getUint16(30, true) - 1;
+    cpu.dataView.setUint16(30, z, true);
+    cpu.writeData(z, i);
+    cpu.cycles++;
   }
 
-  /* STZ, 10q0 qq1r rrrr 0qqq */
+  /* STDZ, 10q0 qq1r rrrr 0qqq */
   if ((opcode & 0xd208) === 0x8200) {
-    /* not implemented */
+    cpu.writeData(
+      cpu.dataView.getUint16(30, true) +
+        ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)),
+      cpu.data[(opcode & 0x1f0) >> 4]
+    );
+    cpu.cycles++;
   }
 
   /* SUB, 0001 10rd dddd rrrr */
