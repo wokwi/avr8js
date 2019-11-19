@@ -58,6 +58,39 @@ describe('avrInstruction', () => {
     expect(cpu.data[28]).toEqual(0xff);
   });
 
+  it('should execute `LD r1, X` instruction', () => {
+    loadProgram('1c90');
+    cpu.data[0xc0] = 0x15;
+    cpu.data[26] = 0xc0; // X <- 0xc0
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[1]).toEqual(0x15);
+    expect(cpu.data[26]).toEqual(0xc0); // verify that X was unchanged
+  });
+
+  it('should execute `LD r17, X+` instruction', () => {
+    loadProgram('1d91');
+    cpu.data[0xc0] = 0x15;
+    cpu.data[26] = 0xc0; // X <- 0x9a
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0xc0]).toEqual(0x15);
+    expect(cpu.data[26]).toEqual(0xc1); // verify that X was incremented
+  });
+
+  it('should execute `LD r1, -X` instruction', () => {
+    loadProgram('1e90');
+    cpu.data[0x98] = 0x22;
+    cpu.data[26] = 0x99; // X <- 0x99
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[1]).toEqual(0x22);
+    expect(cpu.data[26]).toEqual(0x98); // verify that X was decremented
+  });
+
   it('should execute `RJMP 2` instruction', () => {
     loadProgram('01c0');
     avrInstruction(cpu);
@@ -87,7 +120,7 @@ describe('avrInstruction', () => {
     expect(cpu.data[26]).toEqual(0x9b); // verify that X was incremented
   });
 
-  it('should execute `ST X-, r17` instruction', () => {
+  it('should execute `ST -X, r17` instruction', () => {
     loadProgram('1e93');
     cpu.data[17] = 0x88; // r17 <- 0x88
     cpu.data[26] = 0x99; // X <- 0x99
@@ -95,6 +128,6 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x98]).toEqual(0x88);
-    expect(cpu.data[26]).toEqual(0x98); // verify that X was unchanged
+    expect(cpu.data[26]).toEqual(0x98); // verify that X was decremented
   });
 });
