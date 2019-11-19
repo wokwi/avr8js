@@ -73,7 +73,14 @@ export function avrInstruction(cpu: ICPU) {
 
   /* CALL, 1001 010k kkkk 111k kkkk kkkk kkkk kkkk */
   if ((opcode & 0xfe0e) === 0x940e) {
-    /* not implemented */
+    const k = cpu.progMem[cpu.pc + 1] | ((opcode & 1) << 16) | ((opcode & 0x1f0) << 13);
+    const ret = cpu.pc + 2;
+    const sp = cpu.dataView.getUint16(93, true);
+    cpu.data[sp] = 255 & ret;
+    cpu.data[sp - 1] = (ret >> 8) & 255;
+    cpu.dataView.setUint16(93, sp - 2, true);
+    cpu.pc = k - 1;
+    cpu.cycles += 4;
   }
 
   /* CBI, 1001 1000 AAAA Abbb */
@@ -168,7 +175,15 @@ export function avrInstruction(cpu: ICPU) {
 
   /* INC, 1001 010d dddd 0011 */
   if ((opcode & 0xfe0f) === 0x9403) {
-    /* not implemented */
+    const d = cpu.data[(opcode & 0x1f0) >> 4];
+    const r = (d + 1) & 255;
+    cpu.data[(opcode & 0x1f0) >> 4] = r;
+    let sreg = cpu.data[95];
+    sreg = (sreg & 0xfd) | (0 === r ? 2 : 0);
+    sreg = (sreg & 0xfb) | (0 !== (128 & r) ? 4 : 0);
+    sreg = (sreg & 0xf7) | (127 === d ? 8 : 0);
+    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    cpu.data[95] = sreg;
   }
 
   /* JMP, 1001 010k kkkk 110k kkkk kkkk kkkk kkkk */
@@ -376,12 +391,19 @@ export function avrInstruction(cpu: ICPU) {
 
   /* RET, 1001 0101 0000 1000 */
   if (opcode === 0x9508) {
-    /* not implemented */
+    const i = cpu.dataView.getUint16(93, true) + 2;
+    cpu.dataView.setUint16(93, i, true);
+    cpu.pc = (cpu.data[i - 1] << 8) + cpu.data[i] - 1;
+    cpu.cycles += 4;
   }
 
   /* RETI, 1001 0101 0001 1000 */
   if (opcode === 0x9518) {
-    /* not implemented */
+    const i = cpu.dataView.getUint16(93, true) + 2;
+    cpu.dataView.setUint16(93, i, true);
+    cpu.pc = (cpu.data[i - 1] << 8) + cpu.data[i] - 1;
+    cpu.cycles += 4;
+    cpu.data[95] |= 0x80; // Enable interrupts
   }
 
   /* RJMP, 1100 kkkk kkkk kkkk */
@@ -392,7 +414,16 @@ export function avrInstruction(cpu: ICPU) {
 
   /* ROR, 1001 010d dddd 0111 */
   if ((opcode & 0xfe0f) === 0x9407) {
-    /* not implemented */
+    const d = cpu.data[(opcode & 0x1f0) >> 4];
+    const r = (d >>> 1) | ((cpu.data[95] & 1) << 7);
+    cpu.data[(opcode & 0x1f0) >> 4] = r;
+    let sreg = cpu.data[95];
+    sreg = (sreg & 0xfd) | (0 === r ? 2 : 0);
+    sreg = (sreg & 0xfb) | (0 !== (128 & r) ? 4 : 0);
+    sreg = (sreg & 0xfe) | (1 & d ? 1 : 0);
+    sreg = (sreg & 0xf7) | (((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0);
+    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    cpu.data[95] = sreg;
   }
 
   /* SBC, 0000 10rd dddd rrrr */

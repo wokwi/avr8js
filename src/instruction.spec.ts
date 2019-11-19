@@ -15,6 +15,16 @@ describe('avrInstruction', () => {
     }
   }
 
+  it('should execute `CALL` instruction', () => {
+    loadProgram('0e945c00');
+    cpu.data[93] = 150; // SP <- 50
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x5c);
+    expect(cpu.data[150]).toEqual(2); // return addr
+    expect(cpu.data[93]).toEqual(148); // SP should be decremented
+    expect(cpu.cycles).toEqual(5);
+  });
+
   it('should execute `CPC r27, r18` instruction', () => {
     loadProgram('b207');
     cpu.data[18] = 0x1;
@@ -34,20 +44,31 @@ describe('avrInstruction', () => {
     expect(cpu.data[95]).toEqual(53); // SREG 00110101 - HSNC
   });
 
+  it('should execute `INC r5` instruction', () => {
+    loadProgram('5394');
+    cpu.data[5] = 0x7f;
+    avrInstruction(cpu);
+    expect(cpu.data[5]).toEqual(0x80);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(0x0c); // SREG 00001100 NV
+  });
+
+  it('should execute `INC r5` instruction when r5 == 0xff', () => {
+    loadProgram('5394');
+    cpu.data[5] = 0xff;
+    avrInstruction(cpu);
+    expect(cpu.data[5]).toEqual(0);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(2); // SREG 00000010 - Z
+  });
+
   it('should execute `JMP 0xb8` instruction', () => {
     loadProgram('0c945c00');
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x5c);
     expect(cpu.cycles).toEqual(3);
-  });
-
-  it('should execute `OUT 0x3f, r1` instruction', () => {
-    loadProgram('1fbe');
-    cpu.data[1] = 0x5a; // r1 <- 0x5a
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(0x1);
-    expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[0x5f]).toEqual(0x5a);
   });
 
   it('should execute `LDI r28, 0xff` instruction', () => {
@@ -179,11 +200,51 @@ describe('avrInstruction', () => {
     expect(cpu.data[30]).toEqual(0x80); // verify that Z was unchanged
   });
 
+  it('should execute `OUT 0x3f, r1` instruction', () => {
+    loadProgram('1fbe');
+    cpu.data[1] = 0x5a; // r1 <- 0x5a
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0x5f]).toEqual(0x5a);
+  });
+
+  it('should execute `RET` instruction', () => {
+    loadProgram('0895');
+    cpu.data[93] = 0x90; // SP <- 0x90
+    cpu.data[0x92] = 16;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(16);
+    expect(cpu.cycles).toEqual(5);
+    expect(cpu.data[93]).toEqual(0x92); // SP should increment
+  });
+
+  it('should execute `RETI` instruction', () => {
+    loadProgram('1895');
+    cpu.data[93] = 0xc0; // SP <- 0xc0
+    cpu.data[0xc2] = 200;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(200);
+    expect(cpu.cycles).toEqual(5);
+    expect(cpu.data[93]).toEqual(0xc2); // SP should increment
+    expect(cpu.data[95]).toEqual(0x80); // SREG 10000000 I
+  });
+
   it('should execute `RJMP 2` instruction', () => {
     loadProgram('01c0');
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(2);
     expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should execute `ROR r0` instruction', () => {
+    loadProgram('0794');
+    cpu.data[0] = 0x11; // r0 <- 0x11
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0]).toEqual(0x08); // r0 should be right-shifted
+    expect(cpu.data[95]).toEqual(0x19); // SREG 00011001 SVI
   });
 
   it('should execute `ST X, r1` instruction', () => {
