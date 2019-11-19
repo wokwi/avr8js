@@ -15,14 +15,75 @@ describe('avrInstruction', () => {
     }
   }
 
+  it('should execute `BCLR 2` instruction', () => {
+    loadProgram('a894');
+    cpu.data[95] = 0xff; // SREG <- 0xff
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(0xfb);
+  });
+
+  it('should execute `BLD r4, 7` instruction', () => {
+    loadProgram('47f8');
+    cpu.data[4] = 0x15; // r <- 0x15
+    cpu.data[95] = 0x40; // SREG <- 0x40
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[4]).toEqual(0x95);
+    expect(cpu.data[95]).toEqual(0x40);
+  });
+
+  it('should execute `BRBC 0, +8` instruction when SREG.C is clear', () => {
+    loadProgram('20f4');
+    cpu.data[95] = 0x8; // SREG <- 0b00001000 (V)
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1 + 8 / 2);
+    expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should execute `BRBC 0, +8` instruction when SREG.C is set', () => {
+    loadProgram('20f4');
+    cpu.data[95] = 0x1; // SREG <- 0b00000001 (C)
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+  });
+
+  it('should execute `BRBS 3, 92` instruction when SREG.V is set', () => {
+    loadProgram('73f1');
+    cpu.data[95] = 0x8; // SREG <- 0b00001000 (V)
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1 + 92 / 2);
+    expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should execute `BRBS 3, -4` instruction when SREG.V is set', () => {
+    loadProgram('0000f3f3');
+    cpu.data[95] = 0x8; // SREG <- 0b00001000 (V)
+    avrInstruction(cpu);
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0);
+    expect(cpu.cycles).toEqual(3); // 1 for NOP, 2 for BRBS
+  });
+
+  it('should execute `BRBS 3, -4` instruction when SREG.V is clear', () => {
+    loadProgram('f3f3');
+    cpu.data[95] = 0x0; // SREG <- 0x0
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+  });
+
   it('should execute `CALL` instruction', () => {
     loadProgram('0e945c00');
     cpu.data[93] = 150; // SP <- 50
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x5c);
+    expect(cpu.cycles).toEqual(5);
     expect(cpu.data[150]).toEqual(2); // return addr
     expect(cpu.data[93]).toEqual(148); // SP should be decremented
-    expect(cpu.cycles).toEqual(5);
   });
 
   it('should execute `CPC r27, r18` instruction', () => {
