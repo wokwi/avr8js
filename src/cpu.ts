@@ -1,6 +1,6 @@
 /**
  * AVR 8 CPU data structures
- * Part of avr8js
+ * Part of AVR8js
  *
  * Copyright (C) 2019, Uri Shaked
  */
@@ -46,5 +46,21 @@ export class CPU implements ICPU {
       hook(value, this.data[addr], addr);
     }
     this.data[addr] = value;
+  }
+
+  get SP() {
+    return this.dataView.getUint16(93, true);
+  }
+
+  set SP(value: number) {
+    this.dataView.setUint16(93, value, true);
+  }
+
+  get SREG() {
+    return this.data[95];
+  }
+
+  get interruptsEnabled() {
+    return this.SREG & 0x80 ? true : false;
   }
 }
