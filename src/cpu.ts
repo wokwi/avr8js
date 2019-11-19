@@ -1,3 +1,10 @@
+/**
+ * AVR 8 CPU data structures
+ * Part of avr8js
+ *
+ * Copyright (C) 2019, Uri Shaked
+ */
+
 import { u16, u8 } from './types';
 
 export interface ICPU {
