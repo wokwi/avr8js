@@ -15,6 +15,25 @@ describe('avrInstruction', () => {
     }
   }
 
+  it('should execute `CPC r27, r18` instruction', () => {
+    loadProgram('b207');
+    cpu.data[18] = 0x1;
+    cpu.data[27] = 0x1;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(0); // SREG 00000000
+  });
+
+  it('should execute `CPI r26, 0x9` instruction', () => {
+    loadProgram('a930');
+    cpu.data[26] = 0x8;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(53); // SREG 00110101 - HSNC
+  });
+
   it('should execute `JMP 0xb8` instruction', () => {
     loadProgram('0c945c00');
     avrInstruction(cpu);
@@ -77,24 +96,5 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x98]).toEqual(0x88);
     expect(cpu.data[26]).toEqual(0x98); // verify that X was unchanged
-  });
-
-  it('should execute `CPI r26, 0x9` instruction', () => {
-    loadProgram('a930');
-    cpu.data[26] = 0x8;
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[95]).toEqual(53); // SREG 00110101 - HSNC
-  });
-
-  it('should execute `CPC r27, r18` instruction', () => {
-    loadProgram('b207');
-    cpu.data[18] = 0x1;
-    cpu.data[27] = 0x1;
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[95]).toEqual(0); // SREG 00000000
   });
 });
