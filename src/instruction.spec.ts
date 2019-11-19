@@ -72,11 +72,11 @@ describe('avrInstruction', () => {
   it('should execute `LD r17, X+` instruction', () => {
     loadProgram('1d91');
     cpu.data[0xc0] = 0x15;
-    cpu.data[26] = 0xc0; // X <- 0x9a
+    cpu.data[26] = 0xc0; // X <- 0xc0
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(2);
-    expect(cpu.data[0xc0]).toEqual(0x15);
+    expect(cpu.data[17]).toEqual(0x15);
     expect(cpu.data[26]).toEqual(0xc1); // verify that X was incremented
   });
 
@@ -89,6 +89,94 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
     expect(cpu.data[1]).toEqual(0x22);
     expect(cpu.data[26]).toEqual(0x98); // verify that X was decremented
+  });
+
+  it('should execute `LD r8, Y` instruction', () => {
+    loadProgram('8880');
+    cpu.data[0xc0] = 0x15;
+    cpu.data[28] = 0xc0; // Y <- 0xc0
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[8]).toEqual(0x15);
+    expect(cpu.data[28]).toEqual(0xc0); // verify that Y was unchanged
+  });
+
+  it('should execute `LD r3, Y+` instruction', () => {
+    loadProgram('3990');
+    cpu.data[0xc0] = 0x15;
+    cpu.data[28] = 0xc0; // Y <- 0xc0
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[3]).toEqual(0x15);
+    expect(cpu.data[28]).toEqual(0xc1); // verify that Y was incremented
+  });
+
+  it('should execute `LD r0, -Y` instruction', () => {
+    loadProgram('0a90');
+    cpu.data[0x98] = 0x22;
+    cpu.data[28] = 0x99; // Y <- 0x99
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[0]).toEqual(0x22);
+    expect(cpu.data[28]).toEqual(0x98); // verify that Y was decremented
+  });
+
+  it('should execute `LDD r4, Y+2` instruction', () => {
+    loadProgram('4a80');
+    cpu.data[0x82] = 0x33;
+    cpu.data[28] = 0x80; // Y <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[4]).toEqual(0x33);
+    expect(cpu.data[28]).toEqual(0x80); // verify that Y was unchanged
+  });
+
+  it('should execute `LD r5, Z` instruction', () => {
+    loadProgram('5080');
+    cpu.data[0xcc] = 0xf5;
+    cpu.data[30] = 0xcc; // Z <- 0xcc
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[5]).toEqual(0xf5);
+    expect(cpu.data[30]).toEqual(0xcc); // verify that Z was unchanged
+  });
+
+  it('should execute `LD r7, Z+` instruction', () => {
+    loadProgram('7190');
+    cpu.data[0xc0] = 0x25;
+    cpu.data[30] = 0xc0; // Z <- 0xc0
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[7]).toEqual(0x25);
+    expect(cpu.data[30]).toEqual(0xc1); // verify that Y was incremented
+  });
+
+  it('should execute `LD r0, -Z` instruction', () => {
+    loadProgram('0290');
+    cpu.data[0x9e] = 0x66;
+    cpu.data[30] = 0x9f; // Z <- 0x9f
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[0]).toEqual(0x66);
+    expect(cpu.data[30]).toEqual(0x9e); // verify that Y was decremented
+  });
+
+  it('should execute `LDD r15, Z+31` instruction', () => {
+    loadProgram('f78c');
+    cpu.data[0x9f] = 0x33;
+    cpu.data[30] = 0x80; // Z <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[15]).toEqual(0x33);
+    expect(cpu.data[30]).toEqual(0x80); // verify that Z was unchanged
   });
 
   it('should execute `RJMP 2` instruction', () => {
@@ -137,14 +225,14 @@ describe('avrInstruction', () => {
     cpu.data[28] = 0x9a; // Y <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(2);
+    expect(cpu.cycles).toEqual(1);
     expect(cpu.data[0x9a]).toEqual(0x5b);
     expect(cpu.data[28]).toEqual(0x9a); // verify that Y was unchanged
   });
 
   it('should execute `ST Y+, r1` instruction', () => {
     loadProgram('1992');
-    cpu.data[1] = 0x5a; // r1 <- 5a
+    cpu.data[1] = 0x5a; // r1 <- 0x5a
     cpu.data[28] = 0x9a; // Y <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
@@ -155,7 +243,7 @@ describe('avrInstruction', () => {
 
   it('should execute `ST -Y, r1` instruction', () => {
     loadProgram('1a92');
-    cpu.data[1] = 0x5a; // r1 <- 5a
+    cpu.data[1] = 0x5a; // r1 <- 0x5a
     cpu.data[28] = 0x9a; // Y <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
@@ -166,7 +254,7 @@ describe('avrInstruction', () => {
 
   it('should execute `STD Y+17, r0` instruction', () => {
     loadProgram('098a');
-    cpu.data[0] = 0xba; // r0 <- ba
+    cpu.data[0] = 0xba; // r0 <- 0xba
     cpu.data[28] = 0x9a; // Y <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
@@ -181,7 +269,7 @@ describe('avrInstruction', () => {
     cpu.data[30] = 0x40; // Z <- 0x40
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(2);
+    expect(cpu.cycles).toEqual(1);
     expect(cpu.data[0x40]).toEqual(0xdf);
     expect(cpu.data[30]).toEqual(0x40); // verify that Z was unchanged
   });

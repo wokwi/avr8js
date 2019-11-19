@@ -210,7 +210,7 @@ export function avrInstruction(cpu: ICPU) {
   /* LDX, 1001 000d dddd 1101 */
   if ((opcode & 0xfe0f) === 0x900d) {
     const x = cpu.dataView.getUint16(26, true);
-    cpu.data[(opcode & 0x1f0) >> 4] = x;
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(x);
     cpu.dataView.setUint16(26, x + 1, true);
     cpu.cycles++;
   }
@@ -225,42 +225,68 @@ export function avrInstruction(cpu: ICPU) {
 
   /* LDY, 1000 000d dddd 1000 */
   if ((opcode & 0xfe0f) === 0x8008) {
-    /* not implemented */
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(cpu.dataView.getUint16(28, true));
   }
 
   /* LDY, 1001 000d dddd 1001 */
   if ((opcode & 0xfe0f) === 0x9009) {
-    /* not implemented */
+    const y = cpu.dataView.getUint16(28, true);
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(y);
+    cpu.dataView.setUint16(28, y + 1, true);
+    cpu.cycles++;
   }
 
   /* LDY, 1001 000d dddd 1010 */
   if ((opcode & 0xfe0f) === 0x900a) {
-    /* not implemented */
+    const y = cpu.dataView.getUint16(28, true) - 1;
+    cpu.dataView.setUint16(28, y, true);
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(y);
+    cpu.cycles += 2;
   }
 
-  /* LDY, 10q0 qq0d dddd 1qqq */
-  if ((opcode & 0xd208) === 0x8008) {
-    /* not implemented */
+  /* LDDY, 10q0 qq0d dddd 1qqq */
+  if (
+    (opcode & 0xd208) === 0x8008 &&
+    (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
+  ) {
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(
+      cpu.dataView.getUint16(28, true) +
+        ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8))
+    );
+    cpu.cycles += 2;
   }
 
   /* LDZ, 1000 000d dddd 0000 */
   if ((opcode & 0xfe0f) === 0x8000) {
-    /* not implemented */
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(cpu.dataView.getUint16(30, true));
   }
 
   /* LDZ, 1001 000d dddd 0001 */
   if ((opcode & 0xfe0f) === 0x9001) {
-    /* not implemented */
+    const z = cpu.dataView.getUint16(30, true);
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(z);
+    cpu.dataView.setUint16(30, z + 1, true);
+    cpu.cycles++;
   }
 
   /* LDZ, 1001 000d dddd 0010 */
   if ((opcode & 0xfe0f) === 0x9002) {
-    /* not implemented */
+    const z = cpu.dataView.getUint16(30, true) - 1;
+    cpu.dataView.setUint16(30, z, true);
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(z);
+    cpu.cycles += 2;
   }
 
-  /* LDZ, 10q0 qq0d dddd 0qqq */
-  if ((opcode & 0xd208) === 0x8000) {
-    /* not implemented */
+  /* LDDZ, 10q0 qq0d dddd 0qqq */
+  if (
+    (opcode & 0xd208) === 0x8000 &&
+    (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
+  ) {
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(
+      cpu.dataView.getUint16(30, true) +
+        ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8))
+    );
+    cpu.cycles += 2;
   }
 
   /* LPM, 1001 0101 1100 1000 */
@@ -473,7 +499,10 @@ export function avrInstruction(cpu: ICPU) {
   }
 
   /* STDY, 10q0 qq1r rrrr 1qqq */
-  if ((opcode & 0xd208) === 0x8208) {
+  if (
+    (opcode & 0xd208) === 0x8208 &&
+    (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
+  ) {
     cpu.writeData(
       cpu.dataView.getUint16(28, true) +
         ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)),
@@ -504,7 +533,10 @@ export function avrInstruction(cpu: ICPU) {
   }
 
   /* STDZ, 10q0 qq1r rrrr 0qqq */
-  if ((opcode & 0xd208) === 0x8200) {
+  if (
+    (opcode & 0xd208) === 0x8200 &&
+    (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
+  ) {
     cpu.writeData(
       cpu.dataView.getUint16(30, true) +
         ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)),
