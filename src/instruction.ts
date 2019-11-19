@@ -425,7 +425,7 @@ export function avrInstruction(cpu: ICPU) {
 
   /* STX */
   if ((opcode & 0xfe0f) === 0x920c) {
-    /* not implemented */
+    cpu.writeData(cpu.dataView.getUint16(26, true), cpu.data[(opcode & 0x1f0) >> 4]);
   }
 
   /* STX */
@@ -436,7 +436,10 @@ export function avrInstruction(cpu: ICPU) {
 
   /* STX */
   if ((opcode & 0xfe0f) === 0x920e) {
-    /* not implemented */
+    const i = cpu.data[(opcode & 0x1f0) >> 4];
+    cpu.dataView.setUint16(26, cpu.dataView.getUint16(26, true) - 1, true);
+    cpu.writeData(cpu.dataView.getUint16(26, true), i);
+    cpu.cycles++;
   }
 
   /* STY */

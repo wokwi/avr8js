@@ -46,15 +46,37 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(2);
   });
 
+  it('should execute `ST X, r1` instruction', () => {
+    loadProgram('1c92');
+    cpu.data[1] = 0x5a; // r1 <- 0x5a
+    cpu.data[26] = 0x9a; // X <- 0x9a
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0x9a]).toEqual(0x5a);
+    expect(cpu.data[26]).toEqual(0x9a); // verify that X was unchanged
+  });
+
   it('should execute `ST X+, r1` instruction', () => {
     loadProgram('1d92');
-    cpu.data[1] = 0x5a; // put the value 5a in r1
-    cpu.data[26] = 0x9a; // X <- 0x19
+    cpu.data[1] = 0x5a; // r1 <- 5a
+    cpu.data[26] = 0x9a; // X <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[0x9a]).toEqual(0x5a);
     expect(cpu.data[26]).toEqual(0x9b); // verify that X was incremented
+  });
+
+  it('should execute `ST X-, r17` instruction', () => {
+    loadProgram('1e93');
+    cpu.data[17] = 0x88; // r17 <- 0x88
+    cpu.data[26] = 0x99; // X <- 0x99
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0x98]).toEqual(0x88);
+    expect(cpu.data[26]).toEqual(0x98); // verify that X was unchanged
   });
 
   it('should execute `CPI r26, 0x9` instruction', () => {
