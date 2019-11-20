@@ -15,6 +15,30 @@ describe('avrInstruction', () => {
     }
   }
 
+  it('should execute `ADC r0, r1` instruction when carry is on', () => {
+    loadProgram('011c');
+    cpu.data[0] = 10; // r0 <- 10
+    cpu.data[1] = 20; // r1 <- 20
+    cpu.data[95] = 0b00000001; // SREG <- -------C
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0]).toEqual(31);
+    expect(cpu.data[95]).toEqual(0); // SREG: --------
+  });
+
+  it('should execute `ADC r0, r1` instruction when carry is on and the result overflows', () => {
+    loadProgram('011c');
+    cpu.data[0] = 10; // r0 <- 10
+    cpu.data[1] = 245; // r1 <- 20
+    cpu.data[95] = 0b00000001; // SREG <- -------C
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0]).toEqual(0);
+    expect(cpu.data[95]).toEqual(0b00100011); // SREG: --H---ZC
+  });
+
   it('should execute `BCLR 2` instruction', () => {
     loadProgram('a894');
     cpu.data[95] = 0xff; // SREG <- 0xff
@@ -102,7 +126,18 @@ describe('avrInstruction', () => {
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[95]).toEqual(0); // SREG 00000000
+    expect(cpu.data[95]).toEqual(0); // SREG clear
+  });
+
+  it('should execute `CPC r24, r1` instruction and set', () => {
+    loadProgram('8105');
+    cpu.data[1] = 0; // r1 <- 0
+    cpu.data[24] = 0; // r24 <- 0
+    cpu.data[95] = 0b10000001; // SREG: I-------C
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(0b10110101); // SREG: I-HS-N-C
   });
 
   it('should execute `CPI r26, 0x9` instruction', () => {
@@ -596,6 +631,16 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[0]).toEqual(0x08); // r0 should be right-shifted
     expect(cpu.data[95]).toEqual(0b00011001); // SREG: SVI
+  });
+
+  it('should execute `SBCI r23, 3`', () => {
+    loadProgram('7340');
+    cpu.data[23] = 3; // r23 <- 3
+    cpu.data[95] = 0b10000001; // SREG <- I------C
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[95]).toEqual(0b10110101); // SREG: I-HS-N-C
   });
 
   it('should execute `SBI 0x0c, 5`', () => {

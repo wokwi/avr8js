@@ -29,14 +29,15 @@ export function avrInstruction(cpu: ICPU) {
   if ((opcode & 0xfc00) === 0x1c00) {
     const d = cpu.data[(opcode & 0x1f0) >> 4];
     const r = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
-    const R = (d + r + (cpu.data[95] & 1)) & 255;
+    const sum = d + r + (cpu.data[95] & 1);
+    const R = sum & 255;
     cpu.data[(opcode & 0x1f0) >> 4] = R;
     let sreg = cpu.data[95] & 0xc0;
     sreg |= R ? 0 : 2;
     sreg |= 128 & R ? 4 : 0;
     sreg |= (R ^ r) & (d ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= (d + r + (sreg & 1)) & 256 ? 1 : 0;
+    sreg |= sum & 256 ? 1 : 0;
     sreg |= 1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
@@ -202,12 +203,10 @@ export function avrInstruction(cpu: ICPU) {
     const arg2 = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     let sreg = cpu.data[95];
     const r = arg1 - arg2 - (sreg & 1);
-    sreg &= 0xc0;
-    sreg |= 0 === r && (sreg >> 1) & 1 ? 2 : 0;
+    sreg = (sreg & 0xc0) | (!r && (sreg >> 1) & 1 ? 2 : 0) | (arg2 + (sreg & 1) > arg1 ? 1 : 0);
     sreg |= 128 & r ? 4 : 0;
     sreg |= (arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= arg2 + (sreg & 1) > arg1 ? 1 : 0;
     sreg |= 1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
@@ -650,11 +649,10 @@ export function avrInstruction(cpu: ICPU) {
     let sreg = cpu.data[95];
     const R = val1 - val2 - (sreg & 1);
     cpu.data[(opcode & 0x1f0) >> 4] = R;
-    sreg = (sreg & 0xc0) | (0 === R && (sreg >> 1) & 1 ? 2 : 0);
+    sreg = (sreg & 0xc0) | (!R && (sreg >> 1) & 1 ? 2 : 0) | (val2 + (sreg & 1) > val1 ? 1 : 0);
     sreg |= 128 & R ? 4 : 0;
     sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= val2 + (sreg & 1) > val1 ? 1 : 0;
     sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
@@ -666,11 +664,10 @@ export function avrInstruction(cpu: ICPU) {
     let sreg = cpu.data[95];
     const R = val1 - val2 - (sreg & 1);
     cpu.data[((opcode & 0xf0) >> 4) + 16] = R;
-    sreg = (sreg & 0xc0) | (0 === R && (sreg >> 1) & 1 ? 2 : 0);
+    sreg = (sreg & 0xc0) | (!R && (sreg >> 1) & 1 ? 2 : 0) | (val2 + (sreg & 1) > val1 ? 1 : 0);
     sreg |= 128 & R ? 4 : 0;
     sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= val2 + (sreg & 1) > val1 ? 1 : 0;
     sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
