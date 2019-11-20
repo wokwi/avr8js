@@ -7,6 +7,20 @@
  */
 
 import { ICPU } from './cpu';
+import { u16 } from './types';
+
+function isTwoWordInstruction(opcode: u16) {
+  return (
+    /* LDS */
+    (opcode & 0xfe0f) === 0x9000 ||
+    /* STS */
+    (opcode & 0xfe0f) === 0x9200 ||
+    /* CALL */
+    (opcode & 0xfe0e) === 0x940e ||
+    /* JMP */
+    (opcode & 0xfe0e) === 0x940c
+  );
+}
 
 export function avrInstruction(cpu: ICPU) {
   const opcode = cpu.progMem[cpu.pc];
@@ -17,13 +31,13 @@ export function avrInstruction(cpu: ICPU) {
     const r = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     const R = (d + r + (cpu.data[95] & 1)) & 255;
     cpu.data[(opcode & 0x1f0) >> 4] = R;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (128 & R ? 4 : 0);
-    sreg = (sreg & 0xf7) | ((R ^ r) & (d ^ R) & 128 ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
-    sreg = (sreg & 0xfe) | ((d + r + (sreg & 1)) & 256 ? 1 : 0);
-    sreg = (sreg & 0xdf) | (1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0);
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= (R ^ r) & (d ^ R) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= (d + r + (sreg & 1)) & 256 ? 1 : 0;
+    sreg |= 1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -32,14 +46,14 @@ export function avrInstruction(cpu: ICPU) {
     const d = cpu.data[(opcode & 0x1f0) >> 4];
     const r = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     const R = (d + r) & 255;
-    let sreg = cpu.data[95];
     cpu.data[(opcode & 0x1f0) >> 4] = R;
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (128 & R ? 4 : 0);
-    sreg = (sreg & 0xf7) | ((R ^ r) & (R ^ d) & 128 ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
-    sreg = (sreg & 0xfe) | ((d + r) & 256 ? 1 : 0);
-    sreg = (sreg & 0xdf) | (1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0);
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= (R ^ r) & (R ^ d) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= (d + r) & 256 ? 1 : 0;
+    sreg |= 1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -49,12 +63,12 @@ export function avrInstruction(cpu: ICPU) {
     const value = cpu.dataView.getUint16(addr, true);
     const R = (value + ((opcode & 0xf) | ((opcode & 0xc0) >> 2))) & 0xffff;
     cpu.dataView.setUint16(addr, R, true);
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (0x8000 & R ? 4 : 0);
-    sreg = (sreg & 0xf7) | (~value & R & 0x8000 ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
-    sreg = (sreg & 0xfe) | (~R & value & 0x8000 ? 1 : 0);
+    let sreg = cpu.data[95] & 0xe0;
+    sreg |= R ? 0 : 2;
+    sreg |= 0x8000 & R ? 4 : 0;
+    sreg |= ~value & R & 0x8000 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= ~R & value & 0x8000 ? 1 : 0;
     cpu.data[95] = sreg;
     cpu.cycles++;
   }
@@ -63,11 +77,10 @@ export function avrInstruction(cpu: ICPU) {
   if ((opcode & 0xfc00) === 0x2000) {
     const R = cpu.data[(opcode & 0x1f0) >> 4] & cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     cpu.data[(opcode & 0x1f0) >> 4] = R;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (128 & R ? 4 : 0);
-    sreg &= 0xf7;
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -75,11 +88,10 @@ export function avrInstruction(cpu: ICPU) {
   if ((opcode & 0xf000) === 0x7000) {
     const R = cpu.data[((opcode & 0xf0) >> 4) + 16] & ((opcode & 0xf) | ((opcode & 0xf00) >> 4));
     cpu.data[((opcode & 0xf0) >> 4) + 16] = R;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (128 & R ? 4 : 0);
-    sreg &= 0xf7;
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -87,13 +99,13 @@ export function avrInstruction(cpu: ICPU) {
   if ((opcode & 0xfe0f) === 0x9405) {
     const value = cpu.data[(opcode & 0x1f0) >> 4];
     const R = (value >>> 1) | (128 & value);
-    let sreg = cpu.data[95];
     cpu.data[(opcode & 0x1f0) >> 4] = R;
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (128 & R ? 4 : 0);
-    sreg = (sreg & 0xfe) | (value & 1);
-    sreg = (sreg & 0xf7) | (((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    let sreg = cpu.data[95] & 0xe0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= value & 1;
+    sreg |= ((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -127,12 +139,14 @@ export function avrInstruction(cpu: ICPU) {
 
   /* BSET, 1001 0100 0sss 1000 */
   if ((opcode & 0xff8f) === 0x9408) {
-    /* not implemented */
+    cpu.data[95] |= 1 << ((opcode & 0x70) >> 4);
   }
 
   /* BST, 1111 101d dddd 0bbb */
   if ((opcode & 0xfe08) === 0xfa00) {
-    /* not implemented */
+    const d = cpu.data[(opcode & 0x1f0) >> 4];
+    const b = opcode & 7;
+    cpu.data[95] = (cpu.data[95] & 0xbf) | ((d >> b) & 1 ? 0x40 : 0);
   }
 
   /* CALL, 1001 010k kkkk 111k kkkk kkkk kkkk kkkk */
@@ -149,17 +163,37 @@ export function avrInstruction(cpu: ICPU) {
 
   /* CBI, 1001 1000 AAAA Abbb */
   if ((opcode & 0xff00) === 0x9800) {
-    /* not implemented */
+    const A = opcode & 0xf8;
+    const b = opcode & 7;
+    const R = cpu.readData((A >> 3) + 32);
+    cpu.writeData((A >> 3) + 32, R & ~(1 << b));
   }
 
   /* COM, 1001 010d dddd 0000 */
   if ((opcode & 0xfe0f) === 0x9400) {
-    /* not implemented */
+    const d = (opcode & 0x1f0) >> 4;
+    const R = 255 - cpu.data[d];
+    cpu.data[d] = R;
+    let sreg = (cpu.data[95] & 0xe1) | 1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* CP, 0001 01rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x1400) {
-    /* not implemented */
+    const val1 = cpu.data[(opcode & 0x1f0) >> 4];
+    const val2 = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
+    const R = val1 - val2;
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= 0 !== ((val1 ^ val2) & (val1 ^ R) & 128) ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= val2 > val1 ? 1 : 0;
+    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* CPC, 0000 01rd dddd rrrr */
@@ -168,12 +202,13 @@ export function avrInstruction(cpu: ICPU) {
     const arg2 = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     let sreg = cpu.data[95];
     const r = arg1 - arg2 - (sreg & 1);
-    sreg = (sreg & 0xfd) | (0 === r && (sreg >> 1) & 1 ? 2 : 0);
-    sreg = (sreg & 0xfb) | (128 & r ? 4 : 0);
-    sreg = (sreg & 0xf7) | ((arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
-    sreg = (sreg & 0xfe) | (arg2 + (sreg & 1) > arg1 ? 1 : 0);
-    sreg = (sreg & 0xdf) | (1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0);
+    sreg &= 0xc0;
+    sreg |= 0 === r && (sreg >> 1) & 1 ? 2 : 0;
+    sreg |= 128 & r ? 4 : 0;
+    sreg |= (arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= arg2 + (sreg & 1) > arg1 ? 1 : 0;
+    sreg |= 1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -182,59 +217,101 @@ export function avrInstruction(cpu: ICPU) {
     const arg1 = cpu.data[((opcode & 0xf0) >> 4) + 16];
     const arg2 = (opcode & 0xf) | ((opcode & 0xf00) >> 4);
     const r = arg1 - arg2;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (0 === r ? 2 : 0);
-    sreg = (sreg & 0xfb) | (128 & r ? 4 : 0);
-    sreg = (sreg & 0xf7) | ((arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
-    sreg = (sreg & 0xfe) | (arg2 > arg1 ? 1 : 0);
-    sreg = (sreg & 0xdf) | (1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0);
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= r ? 0 : 2;
+    sreg |= 128 & r ? 4 : 0;
+    sreg |= (arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= arg2 > arg1 ? 1 : 0;
+    sreg |= 1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
 
   /* CPSE, 0001 00rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x1000) {
-    /* not implemented */
+    if (cpu.data[(opcode & 0x1f0) >> 4] === cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)]) {
+      const nextOpcode = cpu.progMem[cpu.pc + 1];
+      const skipSize = isTwoWordInstruction(nextOpcode) ? 2 : 1;
+      cpu.pc += skipSize;
+      cpu.cycles += skipSize;
+    }
   }
 
   /* DEC, 1001 010d dddd 1010 */
   if ((opcode & 0xfe0f) === 0x940a) {
-    /* not implemented */
+    const value = cpu.data[(opcode & 0x1f0) >> 4];
+    const R = value - 1;
+    cpu.data[(opcode & 0x1f0) >> 4] = R;
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= 128 === value ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* EOR, 0010 01rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x2400) {
-    /* not implemented */
+    const R = cpu.data[(opcode & 0x1f0) >> 4] ^ cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
+    cpu.data[(opcode & 0x1f0) >> 4] = R;
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* FMUL, 0000 0011 0ddd 1rrr */
   if ((opcode & 0xff88) === 0x308) {
-    /* not implemented */
+    const v1 = cpu.data[((opcode & 0x70) >> 4) + 16];
+    const v2 = cpu.data[(opcode & 7) + 16];
+    const R = (v1 * v2) << 1;
+    cpu.dataView.setUint16(0, R, true);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 0 : 2) | ((v1 * v2) & 0x8000 ? 1 : 0);
+    cpu.cycles++;
   }
 
   /* FMULS, 0000 0011 1ddd 0rrr */
   if ((opcode & 0xff88) === 0x380) {
-    /* not implemented */
+    const v1 = cpu.dataView.getInt8(((opcode & 0x70) >> 4) + 16);
+    const v2 = cpu.dataView.getInt8((opcode & 7) + 16);
+    const R = (v1 * v2) << 1;
+    cpu.dataView.setInt16(0, R, true);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 0 : 2) | ((v1 * v2) & 0x8000 ? 1 : 0);
+    cpu.cycles++;
   }
 
   /* FMULSU, 0000 0011 1ddd 1rrr */
   if ((opcode & 0xff88) === 0x388) {
-    /* not implemented */
+    const v1 = cpu.dataView.getInt8(((opcode & 0x70) >> 4) + 16);
+    const v2 = cpu.data[(opcode & 7) + 16];
+    const R = (v1 * v2) << 1;
+    cpu.dataView.setInt16(0, R, true);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 2 : 0) | ((v1 * v2) & 0x8000 ? 1 : 0);
+    cpu.cycles++;
   }
 
   /* ICALL, 1001 0101 0000 1001 */
   if (opcode === 0x9509) {
-    /* not implemented */
+    const retAddr = cpu.pc + 1;
+    const sp = cpu.dataView.getUint16(93, true);
+    cpu.data[sp] = retAddr & 255;
+    cpu.data[sp - 1] = (retAddr >> 8) & 255;
+    cpu.dataView.setUint16(93, sp - 2, true);
+    cpu.pc = cpu.dataView.getUint16(30, true) - 1;
+    cpu.cycles += 2;
   }
 
   /* IJMP, 1001 0100 0000 1001 */
   if (opcode === 0x9409) {
-    /* not implemented */
+    cpu.pc = cpu.dataView.getUint16(30, true) - 1;
+    cpu.cycles++;
   }
 
   /* IN, 1011 0AAd dddd AAAA */
   if ((opcode & 0xf800) === 0xb000) {
-    /* not implemented */
+    const i = cpu.readData(((opcode & 0xf) | ((opcode & 0x600) >> 5)) + 32);
+    cpu.data[(opcode & 0x1f0) >> 4] = i;
   }
 
   /* INC, 1001 010d dddd 0011 */
@@ -242,11 +319,11 @@ export function avrInstruction(cpu: ICPU) {
     const d = cpu.data[(opcode & 0x1f0) >> 4];
     const r = (d + 1) & 255;
     cpu.data[(opcode & 0x1f0) >> 4] = r;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (0 === r ? 2 : 0);
-    sreg = (sreg & 0xfb) | (0 !== (128 & r) ? 4 : 0);
-    sreg = (sreg & 0xf7) | (127 === d ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= r ? 0 : 2;
+    sreg |= 128 & r ? 4 : 0;
+    sreg |= 127 === d ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -407,12 +484,11 @@ export function avrInstruction(cpu: ICPU) {
     const value = cpu.data[(opcode & 0x1f0) >> 4];
     const R = value >>> 1;
     cpu.data[(opcode & 0x1f0) >> 4] = R;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg &= 0xfb;
-    sreg = (sreg & 0xfe) | (value & 1);
-    sreg = (sreg & 0xf7) | (((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    let sreg = cpu.data[95] & 0xe0;
+    sreg |= R ? 0 : 2;
+    sreg |= value & 1;
+    sreg |= ((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -433,8 +509,7 @@ export function avrInstruction(cpu: ICPU) {
   if ((opcode & 0xfc00) === 0x9c00) {
     const R = cpu.data[(opcode & 0x1f0) >> 4] * cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     cpu.dataView.setUint16(0, R, true);
-    cpu.data[95] = (cpu.data[95] & 0xfd) | (0xffff & R ? 0 : 2);
-    cpu.data[95] = (cpu.data[95] & 0xfe) | (0x8000 & R ? 1 : 0);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 0 : 2) | (0x8000 & R ? 1 : 0);
     cpu.cycles++;
   }
 
@@ -443,8 +518,7 @@ export function avrInstruction(cpu: ICPU) {
     const R =
       cpu.dataView.getInt8(((opcode & 0xf0) >> 4) + 16) * cpu.dataView.getInt8((opcode & 0xf) + 16);
     cpu.dataView.setInt16(0, R, true);
-    cpu.data[95] = (cpu.data[95] & 0xfd) | (0xffff & R ? 0 : 2);
-    cpu.data[95] = (cpu.data[95] & 0xfe) | (0x8000 & R ? 1 : 0);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 0 : 2) | (0x8000 & R ? 1 : 0);
     cpu.cycles++;
   }
 
@@ -452,8 +526,7 @@ export function avrInstruction(cpu: ICPU) {
   if ((opcode & 0xff88) === 0x300) {
     const R = cpu.dataView.getInt8(((opcode & 0x70) >> 4) + 16) * cpu.data[(opcode & 7) + 16];
     cpu.dataView.setInt16(0, R, true);
-    cpu.data[95] = (cpu.data[95] & 0xfd) | (0xffff & R ? 0 : 2);
-    cpu.data[95] = (cpu.data[95] & 0xfe) | (0x8000 & R ? 1 : 0);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 0 : 2) | (0x8000 & R ? 1 : 0);
     cpu.cycles++;
   }
 
@@ -463,13 +536,13 @@ export function avrInstruction(cpu: ICPU) {
     const value = cpu.data[d];
     const R = 0 - value;
     cpu.data[d] = R;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (R ? 0 : 2);
-    sreg = (sreg & 0xfb) | (128 & R ? 4 : 0);
-    sreg = (sreg & 0xf7) | (128 === R ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
-    sreg = (sreg & 0xfe) | (R ? 1 : 0);
-    sreg = (sreg & 0xdf) | (1 & (R | value) ? 0x20 : 0);
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= 128 === R ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= R ? 1 : 0;
+    sreg |= 1 & (R | value) ? 0x20 : 0;
     cpu.data[95] = sreg;
   }
 
@@ -480,12 +553,24 @@ export function avrInstruction(cpu: ICPU) {
 
   /* OR, 0010 10rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x2800) {
-    /* not implemented */
+    const R = cpu.data[(opcode & 0x1f0) >> 4] | cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
+    cpu.data[(opcode & 0x1f0) >> 4] = R;
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* SBR, 0110 KKKK dddd KKKK */
   if ((opcode & 0xf000) === 0x6000) {
-    /* not implemented */
+    const R = cpu.data[((opcode & 0xf0) >> 4) + 16] | ((opcode & 0xf) | ((opcode & 0xf00) >> 4));
+    cpu.data[((opcode & 0xf0) >> 4) + 16] = R;
+    let sreg = cpu.data[95] & 0xe1;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* OUT, 1011 1AAr rrrr AAAA */
@@ -495,17 +580,30 @@ export function avrInstruction(cpu: ICPU) {
 
   /* POP, 1001 000d dddd 1111 */
   if ((opcode & 0xfe0f) === 0x900f) {
-    /* not implemented */
+    const value = cpu.dataView.getUint16(93, true) + 1;
+    cpu.dataView.setUint16(93, value, true);
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.data[value];
+    cpu.cycles++;
   }
 
   /* PUSH, 1001 001d dddd 1111 */
   if ((opcode & 0xfe0f) === 0x920f) {
-    /* not implemented */
+    const value = cpu.dataView.getUint16(93, true);
+    cpu.data[value] = cpu.data[(opcode & 0x1f0) >> 4];
+    cpu.dataView.setUint16(93, value - 1, true);
+    cpu.cycles++;
   }
 
   /* RCALL, 1101 kkkk kkkk kkkk */
   if ((opcode & 0xf000) === 0xd000) {
-    /* not implemented */
+    const k = (opcode & 0x7ff) - (opcode & 0x800 ? 0x800 : 0);
+    const retAddr = cpu.pc + 1;
+    const sp = cpu.dataView.getUint16(93, true);
+    cpu.data[sp] = 255 & retAddr;
+    cpu.data[sp - 1] = (retAddr >> 8) & 255;
+    cpu.dataView.setUint16(93, sp - 2, true);
+    cpu.pc += k;
+    cpu.cycles += 3;
   }
 
   /* RET, 1001 0101 0000 1000 */
@@ -536,53 +634,112 @@ export function avrInstruction(cpu: ICPU) {
     const d = cpu.data[(opcode & 0x1f0) >> 4];
     const r = (d >>> 1) | ((cpu.data[95] & 1) << 7);
     cpu.data[(opcode & 0x1f0) >> 4] = r;
-    let sreg = cpu.data[95];
-    sreg = (sreg & 0xfd) | (0 === r ? 2 : 0);
-    sreg = (sreg & 0xfb) | (0 !== (128 & r) ? 4 : 0);
-    sreg = (sreg & 0xfe) | (1 & d ? 1 : 0);
-    sreg = (sreg & 0xf7) | (((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0);
-    sreg = (sreg & 0xef) | (((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0);
+    let sreg = cpu.data[95] & 0xe0;
+    sreg |= r ? 0 : 2;
+    sreg |= 128 & r ? 4 : 0;
+    sreg |= 1 & d ? 1 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ (sreg & 1) ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
   }
 
   /* SBC, 0000 10rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x800) {
-    /* not implemented */
+    const val1 = cpu.data[(opcode & 0x1f0) >> 4];
+    const val2 = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
+    let sreg = cpu.data[95];
+    const R = val1 - val2 - (sreg & 1);
+    cpu.data[(opcode & 0x1f0) >> 4] = R;
+    sreg = (sreg & 0xc0) | (0 === R && (sreg >> 1) & 1 ? 2 : 0);
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= val2 + (sreg & 1) > val1 ? 1 : 0;
+    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    cpu.data[95] = sreg;
   }
 
-  /* SBCI */
+  /* SBCI, 0100 KKKK dddd KKKK */
   if ((opcode & 0xf000) === 0x4000) {
-    /* not implemented */
+    const val1 = cpu.data[((opcode & 0xf0) >> 4) + 16];
+    const val2 = (opcode & 0xf) | ((opcode & 0xf00) >> 4);
+    let sreg = cpu.data[95];
+    const R = val1 - val2 - (sreg & 1);
+    cpu.data[((opcode & 0xf0) >> 4) + 16] = R;
+    sreg = (sreg & 0xc0) | (0 === R && (sreg >> 1) & 1 ? 2 : 0);
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= val2 + (sreg & 1) > val1 ? 1 : 0;
+    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    cpu.data[95] = sreg;
   }
 
-  /* SBI, 0100 KKKK dddd KKKK */
+  /* SBI, 1001 1010 AAAA Abbb */
   if ((opcode & 0xff00) === 0x9a00) {
-    /* not implemented */
+    const target = ((opcode & 0xf8) >> 3) + 32;
+    cpu.writeData(target, cpu.readData(target) | (1 << (opcode & 7)));
+    cpu.cycles++;
   }
 
   /* SBIC, 1001 1001 AAAA Abbb */
   if ((opcode & 0xff00) === 0x9900) {
-    /* not implemented */
+    const value = cpu.readData(((opcode & 0xf8) >> 3) + 32);
+    if (!(value & (1 << (opcode & 7)))) {
+      const nextOpcode = cpu.progMem[cpu.pc + 1];
+      const skipSize = isTwoWordInstruction(nextOpcode) ? 2 : 1;
+      cpu.cycles += skipSize;
+      cpu.pc += skipSize;
+    }
   }
 
   /* SBIS, 1001 1011 AAAA Abbb */
   if ((opcode & 0xff00) === 0x9b00) {
-    /* not implemented */
+    const value = cpu.readData(((opcode & 0xf8) >> 3) + 32);
+    if (value & (1 << (opcode & 7))) {
+      const nextOpcode = cpu.progMem[cpu.pc + 1];
+      const skipSize = isTwoWordInstruction(nextOpcode) ? 2 : 1;
+      cpu.cycles += skipSize;
+      cpu.pc += skipSize;
+    }
   }
 
   /* SBIW, 1001 0111 KKdd KKKK */
   if ((opcode & 0xff00) === 0x9700) {
-    /* not implemented */
+    const i = 2 * ((opcode & 0x30) >> 4) + 24;
+    const a = cpu.dataView.getUint16(i, true);
+    const l = (opcode & 0xf) | ((opcode & 0xc0) >> 2);
+    const R = a - l;
+    cpu.dataView.setUint16(i, R, true);
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 0x8000 & R ? 4 : 0;
+    sreg |= a & ~R & 0x8000 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= l > a ? 1 : 0;
+    sreg |= 1 & ((~a & l) | (l & R) | (R & ~a)) ? 0x20 : 0;
+    cpu.data[95] = sreg;
+    cpu.cycles++;
   }
 
   /* SBRC, 1111 110r rrrr 0bbb */
   if ((opcode & 0xfe08) === 0xfc00) {
-    /* not implemented */
+    if (!(cpu.data[(opcode & 0x1f0) >> 4] & (1 << (opcode & 7)))) {
+      const nextOpcode = cpu.progMem[cpu.pc + 1];
+      const skipSize = isTwoWordInstruction(nextOpcode) ? 2 : 1;
+      cpu.cycles += skipSize;
+      cpu.pc += skipSize;
+    }
   }
 
   /* SBRS, 1111 111r rrrr 0bbb */
   if ((opcode & 0xfe08) === 0xfe00) {
-    /* not implemented */
+    if (cpu.data[(opcode & 0x1f0) >> 4] & (1 << (opcode & 7))) {
+      const nextOpcode = cpu.progMem[cpu.pc + 1];
+      const skipSize = isTwoWordInstruction(nextOpcode) ? 2 : 1;
+      cpu.cycles += skipSize;
+      cpu.pc += skipSize;
+    }
   }
 
   /* SLEEP, 1001 0101 1000 1000 */
@@ -602,7 +759,11 @@ export function avrInstruction(cpu: ICPU) {
 
   /* STS, 1001 001d dddd 0000 kkkk kkkk kkkk kkkk */
   if ((opcode & 0xfe0f) === 0x9200) {
-    /* not implemented */
+    const value = cpu.data[(opcode & 0x1f0) >> 4];
+    const addr = cpu.progMem[cpu.pc + 1];
+    cpu.writeData(addr, value);
+    cpu.pc++;
+    cpu.cycles++;
   }
 
   /* STX, 1001 001r rrrr 1100 */
@@ -697,17 +858,42 @@ export function avrInstruction(cpu: ICPU) {
 
   /* SUB, 0001 10rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x1800) {
-    /* not implemented */
+    const val1 = cpu.data[(opcode & 0x1f0) >> 4];
+    const val2 = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
+    const R = val1 - val2;
+
+    cpu.data[(opcode & 0x1f0) >> 4] = R;
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= val2 > val1 ? 1 : 0;
+    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* SUBI, 0101 KKKK dddd KKKK */
   if ((opcode & 0xf000) === 0x5000) {
-    /* not implemented */
+    const val1 = cpu.data[((opcode & 0xf0) >> 4) + 16];
+    const val2 = (opcode & 0xf) | ((opcode & 0xf00) >> 4);
+    const R = val1 - val2;
+    cpu.data[((opcode & 0xf0) >> 4) + 16] = R;
+    let sreg = cpu.data[95] & 0xc0;
+    sreg |= R ? 0 : 2;
+    sreg |= 128 & R ? 4 : 0;
+    sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
+    sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
+    sreg |= val2 > val1 ? 1 : 0;
+    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    cpu.data[95] = sreg;
   }
 
   /* SWAP, 1001 010d dddd 0010 */
   if ((opcode & 0xfe0f) === 0x9402) {
-    /* not implemented */
+    const d = (opcode & 0x1f0) >> 4;
+    const i = cpu.data[d];
+    cpu.data[d] = ((15 & i) << 4) | ((240 & i) >>> 4);
   }
 
   /* WDR, 1001 0101 1010 1000 */
@@ -717,7 +903,11 @@ export function avrInstruction(cpu: ICPU) {
 
   /* XCH, 1001 001r rrrr 0100 */
   if ((opcode & 0xfe0f) === 0x9204) {
-    /* not implemented */
+    const r = (opcode & 0x1f0) >> 4;
+    const val1 = cpu.data[r];
+    const val2 = cpu.data[cpu.dataView.getUint16(30, true)];
+    cpu.data[cpu.dataView.getUint16(30, true)] = val1;
+    cpu.data[r] = val2;
   }
 
   cpu.pc = (cpu.pc + 1) % cpu.progMem.length;

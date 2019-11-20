@@ -76,6 +76,15 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(1);
   });
 
+  it('should execute `CBI 0x0c, 5`', () => {
+    loadProgram('6598');
+    cpu.data[0x2c] = 0b11111111;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0x2c]).toEqual(0b11011111);
+  });
+
   it('should execute `CALL` instruction', () => {
     loadProgram('0e945c00');
     cpu.data[93] = 150; // SP <- 50
@@ -103,6 +112,61 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[95]).toEqual(0b00110101); // SREG: HSNC
+  });
+
+  it('should execute `CPSE r2, r3` when r2 != r3', () => {
+    loadProgram('2310');
+    cpu.data[2] = 10; // r2 <- 10
+    cpu.data[3] = 11; // r3 <- 11
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+  });
+
+  it('should execute `CPSE r2, r3` when r2 == r3', () => {
+    loadProgram('23101c92');
+    cpu.data[2] = 10; // r2 <- 10
+    cpu.data[3] = 10; // r3 <- 10
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(2);
+    expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should execute `CPSE r2, r3` when r2 == r3 and followed by 2-word instruction', () => {
+    loadProgram('23100e945c00');
+    cpu.data[2] = 10; // r2 <- 10
+    cpu.data[3] = 10; // r3 <- 10
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(3);
+    expect(cpu.cycles).toEqual(3);
+  });
+
+  it('should execute `ICALL` instruction', () => {
+    loadProgram('0995');
+    cpu.data[93] = 0x80;
+    cpu.dataView.setUint16(30, 0x2020, true); // Z <- 0x2020
+    avrInstruction(cpu);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.pc).toEqual(0x2020);
+    expect(cpu.data[0x80]).toEqual(1); // Return address
+    expect(cpu.data[93]).toEqual(0x7e);
+  });
+
+  it('should execute `IJMP` instruction', () => {
+    loadProgram('0994');
+    cpu.dataView.setUint16(30, 0x1040, true); // Z <- 0x1040
+    avrInstruction(cpu);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.pc).toEqual(0x1040);
+  });
+
+  it('should execute `IN r5, 0xb` instruction', () => {
+    loadProgram('5bb0');
+    cpu.data[0x2b] = 0xaf;
+    avrInstruction(cpu);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.data[5]).toEqual(0xaf);
   });
 
   it('should execute `INC r5` instruction', () => {
@@ -453,6 +517,49 @@ describe('avrInstruction', () => {
     expect(cpu.data[0x5f]).toEqual(0x5a);
   });
 
+  it('should execute `POP r26` instruction', () => {
+    loadProgram('af91');
+    cpu.data[93] = 0xff; // SP <- 0xff
+    cpu.data[0x100] = 0x1a;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[26]).toEqual(0x1a);
+    expect(cpu.dataView.getUint16(93, true)).toEqual(0x100); // SP
+  });
+
+  it('should execute `PUSH r11` instruction', () => {
+    loadProgram('bf92');
+    cpu.data[11] = 0x2a;
+    cpu.data[93] = 0xff; // SP <- 0xff
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0xff]).toEqual(0x2a);
+    expect(cpu.dataView.getUint16(93, true)).toEqual(0xfe); // SP
+  });
+
+  it('should execute `RCALL .+6` instruction', () => {
+    loadProgram('03d0');
+    cpu.data[93] = 0x80; // SP <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(4);
+    expect(cpu.cycles).toEqual(4);
+    expect(cpu.dataView.getUint16(0x80, true)).toEqual(1); // RET address
+    expect(cpu.data[93]).toEqual(0x7e); // SP
+  });
+
+  it('should execute `RCALL .-4` instruction', () => {
+    loadProgram('0000fedf');
+    cpu.data[93] = 0x80; // SP <- 0x80
+    avrInstruction(cpu);
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0);
+    expect(cpu.cycles).toEqual(5); // 1 for NOP, 4 for RCALL
+    expect(cpu.dataView.getUint16(0x80, true)).toEqual(2); // RET address
+    expect(cpu.data[93]).toEqual(0x7e); // SP
+  });
+
   it('should execute `RET` instruction', () => {
     loadProgram('0895');
     cpu.data[93] = 0x90; // SP <- 0x90
@@ -489,6 +596,39 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[0]).toEqual(0x08); // r0 should be right-shifted
     expect(cpu.data[95]).toEqual(0b00011001); // SREG: SVI
+  });
+
+  it('should execute `SBI 0x0c, 5`', () => {
+    loadProgram('659a');
+    cpu.data[0x2c] = 0b00001111;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0x2c]).toEqual(0b00101111);
+  });
+
+  it('should execute `SBIS 0x0c, 5` when bit is clear', () => {
+    loadProgram('659b1c92');
+    cpu.data[0x2c] = 0b00001111;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+  });
+
+  it('should execute `SBIS 0x0c, 5` when bit is set', () => {
+    loadProgram('659b1c92');
+    cpu.data[0x2c] = 0b00101111;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(2);
+    expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should execute `SBIS 0x0c, 5` when bit is set and followed by 2-word instruction', () => {
+    loadProgram('659b0e945c00');
+    cpu.data[0x2c] = 0b00101111;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(3);
+    expect(cpu.cycles).toEqual(3);
   });
 
   it('should execute `ST X, r1` instruction', () => {
@@ -610,5 +750,17 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x51]).toEqual(0xcc);
     expect(cpu.data[30]).toEqual(0x50); // verify that Z was unchanged
+  });
+
+  it('should execute `XCH r21` instruction', () => {
+    loadProgram('5493');
+    cpu.data[21] = 0xa1; // r21 <- 0xa1
+    cpu.data[30] = 0x50; // Z <- 0x50
+    cpu.data[0x50] = 0xb9;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[21]).toEqual(0xb9); // r21
+    expect(cpu.data[0x50]).toEqual(0xa1);
   });
 });
