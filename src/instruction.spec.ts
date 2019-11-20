@@ -132,12 +132,60 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
   });
 
+  it('should execute `LAC r19` instruction', () => {
+    loadProgram('3693');
+    cpu.data[19] = 0x02; // r19 <- 0x02
+    cpu.dataView.setUint16(30, 0x100, true); // Z <- 0x100
+    cpu.data[0x100] = 0x96;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[19]).toEqual(0x96);
+    expect(cpu.dataView.getUint16(30, true)).toEqual(0x100);
+    expect(cpu.data[0x100]).toEqual(0x94);
+  });
+
+  it('should execute `LAS r17` instruction', () => {
+    loadProgram('1593');
+    cpu.data[17] = 0x11; // r17 <- 0x11
+    cpu.data[30] = 0x80; // Z <- 0x80
+    cpu.data[0x80] = 0x44;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[17]).toEqual(0x44);
+    expect(cpu.data[30]).toEqual(0x80);
+    expect(cpu.data[0x80]).toEqual(0x55);
+  });
+
+  it('should execute `LAT r0` instruction', () => {
+    loadProgram('0792');
+    cpu.data[0] = 0x33; // r0 <- 0x33
+    cpu.data[30] = 0x80; // Z <- 0x80
+    cpu.data[0x80] = 0x66;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0]).toEqual(0x66);
+    expect(cpu.data[30]).toEqual(0x80);
+    expect(cpu.data[0x80]).toEqual(0x55);
+  });
+
   it('should execute `LDI r28, 0xff` instruction', () => {
     loadProgram('cfef');
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[28]).toEqual(0xff);
+  });
+
+  it('should execute `LDS r5, 0x150` instruction', () => {
+    loadProgram('50905001');
+    cpu.data[0x150] = 0x7a;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x2);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[5]).toEqual(0x7a);
   });
 
   it('should execute `LD r1, X` instruction', () => {
