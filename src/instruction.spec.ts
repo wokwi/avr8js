@@ -37,7 +37,7 @@ describe('avrInstruction', () => {
 
   it('should execute `BRBC 0, +8` instruction when SREG.C is clear', () => {
     loadProgram('20f4');
-    cpu.data[95] = 0x8; // SREG <- 0b00001000 (V)
+    cpu.data[95] = 0b00001000; // SREG: V
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1 + 8 / 2);
     expect(cpu.cycles).toEqual(2);
@@ -45,7 +45,7 @@ describe('avrInstruction', () => {
 
   it('should execute `BRBC 0, +8` instruction when SREG.C is set', () => {
     loadProgram('20f4');
-    cpu.data[95] = 0x1; // SREG <- 0b00000001 (C)
+    cpu.data[95] = 0b00000001; // SREG: C
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
@@ -53,7 +53,7 @@ describe('avrInstruction', () => {
 
   it('should execute `BRBS 3, 92` instruction when SREG.V is set', () => {
     loadProgram('73f1');
-    cpu.data[95] = 0x8; // SREG <- 0b00001000 (V)
+    cpu.data[95] = 0b00001000; // SREG: V
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1 + 92 / 2);
     expect(cpu.cycles).toEqual(2);
@@ -61,7 +61,7 @@ describe('avrInstruction', () => {
 
   it('should execute `BRBS 3, -4` instruction when SREG.V is set', () => {
     loadProgram('0000f3f3');
-    cpu.data[95] = 0x8; // SREG <- 0b00001000 (V)
+    cpu.data[95] = 0b00001000; // SREG: V
     avrInstruction(cpu);
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0);
@@ -102,7 +102,7 @@ describe('avrInstruction', () => {
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[95]).toEqual(53); // SREG 00110101 - HSNC
+    expect(cpu.data[95]).toEqual(0b00110101); // SREG: HSNC
   });
 
   it('should execute `INC r5` instruction', () => {
@@ -112,7 +112,7 @@ describe('avrInstruction', () => {
     expect(cpu.data[5]).toEqual(0x80);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[95]).toEqual(0x0c); // SREG 00001100 NV
+    expect(cpu.data[95]).toEqual(0b00001100); // SREG: NV
   });
 
   it('should execute `INC r5` instruction when r5 == 0xff', () => {
@@ -122,7 +122,7 @@ describe('avrInstruction', () => {
     expect(cpu.data[5]).toEqual(0);
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[95]).toEqual(2); // SREG 00000010 - Z
+    expect(cpu.data[95]).toEqual(0b00000010); // SREG: Z
   });
 
   it('should execute `JMP 0xb8` instruction', () => {
@@ -309,6 +309,141 @@ describe('avrInstruction', () => {
     expect(cpu.data[30]).toEqual(0x80); // verify that Z was unchanged
   });
 
+  it('should execute `LPM` instruction', () => {
+    loadProgram('c895');
+    cpu.progMem[0x40] = 0xa0;
+    cpu.data[30] = 0x80; // Z <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[0]).toEqual(0xa0);
+    expect(cpu.data[30]).toEqual(0x80); // verify that Z was unchanged
+  });
+
+  it('should execute `LPM r2` instruction', () => {
+    loadProgram('2490');
+    cpu.progMem[0x40] = 0xa0;
+    cpu.data[30] = 0x80; // Z <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[2]).toEqual(0xa0);
+    expect(cpu.data[30]).toEqual(0x80); // verify that Z was unchanged
+  });
+
+  it('should execute `LPM r1, Z+` instruction', () => {
+    loadProgram('1590');
+    cpu.progMem[0x40] = 0xa0;
+    cpu.data[30] = 0x80; // Z <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[1]).toEqual(0xa0);
+    expect(cpu.data[30]).toEqual(0x81); // verify that Z was incremented
+  });
+
+  it('should execute `LSR r7` instruction', () => {
+    loadProgram('7694');
+    cpu.data[7] = 0x45; // r7 <- 0x45
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[7]).toEqual(0x22);
+    expect(cpu.data[95]).toEqual(0b00011001); // SREG SVC
+  });
+
+  it('should execute `MOV r7, r8` instruction', () => {
+    loadProgram('782c');
+    cpu.data[8] = 0x45; // r7 <- 0x45
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[7]).toEqual(0x45);
+  });
+
+  it('should execute `MOVW r26, r22` instruction', () => {
+    loadProgram('db01');
+    cpu.data[22] = 0x45; // r22 <- 0x45
+    cpu.data[23] = 0x9a; // r23 <- 0x9a
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[26]).toEqual(0x45);
+    expect(cpu.data[27]).toEqual(0x9a);
+  });
+
+  it('should execute `MUL r5, r6` instruction', () => {
+    loadProgram('569c');
+    cpu.data[5] = 100; // r5 <- 55
+    cpu.data[6] = 5; // r6 <- 5
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.dataView.getUint16(0, true)).toEqual(500);
+    expect(cpu.data[95]).toEqual(0b0); // SREG: 0
+  });
+
+  it('should execute `MUL r5, r6` instruction and update carry flag when numbers are big', () => {
+    loadProgram('569c');
+    cpu.data[5] = 200; // r5 <- 200
+    cpu.data[6] = 200; // r6 <- 200
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.dataView.getUint16(0, true)).toEqual(40000);
+    expect(cpu.data[95]).toEqual(0b00000001); // SREG: C
+  });
+
+  it('should execute `MUL r0, r1` and update the zero flag', () => {
+    loadProgram('569c');
+    cpu.data[0] = 0; // r0 <- 0
+    cpu.data[1] = 9; // r1 <- 9
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.dataView.getUint16(0, true)).toEqual(0);
+    expect(cpu.data[95]).toEqual(0b00000010); // SREG: Z
+  });
+
+  it('should execute `MULS r18, r19` instruction', () => {
+    loadProgram('2302');
+    cpu.data[18] = -5; // r18 <- -5
+    cpu.data[19] = 100; // r19 <- 100
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.dataView.getInt16(0, true)).toEqual(-500);
+    expect(cpu.data[95]).toEqual(0b00000001); // SREG: C
+  });
+
+  it('should execute `MULSU r16, r17` instruction', () => {
+    loadProgram('0103');
+    cpu.data[16] = -5; // r16 <- -5
+    cpu.data[17] = 200; // r17 <- 200
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.dataView.getInt16(0, true)).toEqual(-1000);
+    expect(cpu.data[95]).toEqual(0b00000001); // SREG: C
+  });
+
+  it('should execute `NEG r20` instruction', () => {
+    loadProgram('4195');
+    cpu.data[20] = 0x56; // r20 <- 0x56
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[20]).toEqual(0xaa);
+    expect(cpu.data[95]).toEqual(0b00010101); // SREG: NC
+  });
+
+  it('should execute `NOP` instruction', () => {
+    loadProgram('0000');
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+  });
+
   it('should execute `OUT 0x3f, r1` instruction', () => {
     loadProgram('1fbe');
     cpu.data[1] = 0x5a; // r1 <- 0x5a
@@ -336,7 +471,7 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(200);
     expect(cpu.cycles).toEqual(5);
     expect(cpu.data[93]).toEqual(0xc2); // SP should increment
-    expect(cpu.data[95]).toEqual(0x80); // SREG 10000000 I
+    expect(cpu.data[95]).toEqual(0b10000000); // SREG: I
   });
 
   it('should execute `RJMP 2` instruction', () => {
@@ -353,7 +488,7 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[0]).toEqual(0x08); // r0 should be right-shifted
-    expect(cpu.data[95]).toEqual(0x19); // SREG 00011001 SVI
+    expect(cpu.data[95]).toEqual(0b00011001); // SREG: SVI
   });
 
   it('should execute `ST X, r1` instruction', () => {
