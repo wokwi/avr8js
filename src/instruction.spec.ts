@@ -1,4 +1,4 @@
-import { CPU, ICPU } from './cpu';
+import { CPU } from './cpu';
 import { avrInstruction } from './instruction';
 
 describe('avrInstruction', () => {
@@ -676,6 +676,15 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
   });
 
+  it('should execute `STS 0x151, r31` instruction', () => {
+    loadProgram('f0935101');
+    cpu.data[31] = 0x80; // r31 <- 0x80
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(2);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0x151]).toEqual(0x80);
+  });
+
   it('should execute `ST X, r1` instruction', () => {
     loadProgram('1c92');
     cpu.data[1] = 0x5a; // r1 <- 0x5a
@@ -795,6 +804,15 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x51]).toEqual(0xcc);
     expect(cpu.data[30]).toEqual(0x50); // verify that Z was unchanged
+  });
+
+  it('should execute `SWAP r1` instruction', () => {
+    loadProgram('1294');
+    cpu.data[1] = 0xa5; // r1 <- 0xa5
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[1]).toEqual(0x5a); // r1
   });
 
   it('should execute `XCH r21` instruction', () => {
