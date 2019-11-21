@@ -8,7 +8,9 @@
   "license": "MIT",
   "scripts": {
     "build": "rimraf dist && tsc",
+    "build:demo": "parcel build demo/src/index.html -d demo/dist",
     "prepare": "npm run build",
+    "start": "parcel demo/src/index.html -d demo/build",
     "lint": "tslint --project tsconfig.json",
     "test": "jest"
   },
@@ -21,6 +23,7 @@
     "husky": "^3.0.9",
     "jest": "^24.9.0",
     "lint-staged": "^9.4.2",
+    "parcel-bundler": "^1.12.4",
     "prettier": "^1.19.1",
     "rimraf": "^3.0.0",
     "ts-jest": "^24.1.0",
@@ -43,5 +46,9 @@
   "engines": {
     "node": ">= 8.0.0",
     "npm": ">= 5.0.0"
+  },
+  "dependencies": {},
+  "alias": {
+    "avr8js": "./src"
   }
 }

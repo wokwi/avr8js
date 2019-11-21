@@ -1,0 +1,105 @@
+import { buildHex } from './compile';
+import './index.css';
+import { AVRRunner } from './execute';
+import { formatTime } from './format-time';
+import { LED } from './led';
+
+let editor: any;
+const BLINK_CODE = `
+// Green LED connected to LED_BUILTIN,
+// Red LED connected to pin 12. Enjoy!
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(500);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(500);
+}`.trim();
+
+// Load Editor
+declare var window: any;
+declare var monaco: any;
+window.require.config({
+  paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.0/min/vs' }
+});
+window.require(['vs/editor/editor.main'], () => {
+  editor = monaco.editor.create(document.querySelector('.code-editor'), {
+    value: BLINK_CODE,
+    language: 'cpp',
+    minimap: { enabled: false }
+  });
+});
+
+// Set up LEDs
+const leds = document.querySelector('.leds');
+const led13 = new LED({ color: 'green', lightColor: '#80ff80' });
+const led12 = new LED({ color: 'red', lightColor: '#ff8080' });
+leds.appendChild(led13.el);
+leds.appendChild(led12.el);
+
+// Set up toolbar
+let runner: AVRRunner;
+
+const runButton = document.querySelector('#run-button');
+runButton.addEventListener('click', compileAndRun);
+const stopButton = document.querySelector('#stop-button');
+stopButton.addEventListener('click', stopCode);
+const statusLabel = document.querySelector('#status-label');
+const compilerOutputText = document.querySelector('#compiler-output-text');
+
+function executeProgram(hex: string) {
+  runner = new AVRRunner(hex);
+  const MHZ = 16000000;
+
+  // Hook to PORTB output
+  runner.cpu.writeHooks[0x25] = (value: number) => {
+    const DDRB = runner.cpu.data[0x24];
+    value &= DDRB;
+    const D12bit = 1 << 4;
+    const D13bit = 1 << 5;
+    led12.value = value & D12bit ? true : false;
+    led13.value = value & D13bit ? true : false;
+  };
+
+  runner.execute((cpu) => {
+    const time = formatTime(cpu.cycles / MHZ);
+    statusLabel.textContent = 'Simulation time: ' + time;
+  });
+}
+
+async function compileAndRun() {
+  led12.value = false;
+  led13.value = false;
+
+  runButton.setAttribute('disabled', '1');
+  try {
+    statusLabel.textContent = 'Compiling...';
+    const result = await buildHex(editor.getModel().getValue());
+    compilerOutputText.textContent = result.stderr || result.stdout;
+    if (result.hex) {
+      compilerOutputText.textContent += '\nProgram running...';
+      stopButton.removeAttribute('disabled');
+      executeProgram(result.hex);
+    } else {
+      runButton.removeAttribute('disabled');
+    }
+  } catch (err) {
+    runButton.removeAttribute('disabled');
+    alert('Failed: ' + err);
+  } finally {
+    statusLabel.textContent = '';
+  }
+}
+
+function stopCode() {
+  stopButton.setAttribute('disabled', '1');
+  runButton.removeAttribute('disabled');
+  if (runner) {
+    runner.stop();
+    runner = null;
+  }
+}

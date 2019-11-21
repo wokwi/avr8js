@@ -1,0 +1,48 @@
+body {
+  padding: 0 16px;
+  font-family: 'Roboto', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-container {
+  width: 500px;
+  max-width: 100%;
+}
+
+.toolbar {
+  padding: 4px;
+  display: flex;
+  background-color: #ddd;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.toolbar > button {
+  margin-right: 4px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.code-editor {
+  width: 100%;
+  max-width: 100%;
+  height: 300px;
+  box-sizing: border-box;
+  border: 1px solid grey;
+}
+
+.compiler-output {
+  width: 500px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.compiler-output pre {
+  margin: 0;
+  white-space: pre-line;
+}

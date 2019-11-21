@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "rootDir": "..",
+    "lib": ["dom"],
+    "paths": {
+      "avr8js": ["src"]
+    }
+  },
+  "include": ["fuse.ts", "src/**/*.ts"]
+}
