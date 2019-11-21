@@ -1,3 +1,11 @@
+/**
+ * AVR-8 Interrupt Handling
+ * Part of AVR8js
+ * Reference: http://ww1.microchip.com/downloads/en/devicedoc/atmel-0856-avr-instruction-set-manual.pdf
+ *
+ * Copyright (C) 2019, Uri Shaked
+ */
+
 import { ICPU } from './cpu';
 
 export function avrInterrupt(cpu: ICPU, addr: number) {
