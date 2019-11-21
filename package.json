@@ -9,7 +9,6 @@
   "scripts": {
     "build": "rimraf dist && tsc",
     "prepare": "npm run build",
-    "start": "ts-node src/main.ts",
     "lint": "tslint --project tsconfig.json",
     "test": "jest"
   },
