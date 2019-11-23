@@ -12,7 +12,8 @@
     "prepare": "npm run build",
     "start": "parcel demo/src/index.html -d demo/build",
     "lint": "tslint --project tsconfig.json",
-    "test": "jest"
+    "test": "npm run lint && jest",
+    "test:watch": "jest --watch"
   },
   "files": [
     "dist"

@@ -6,10 +6,24 @@ JavaScript implementation of the AVR 8-bit architecture
 
 ## Running the demo project
 
-The demo project allows you to edit and run Arduino code. It includes 2 simulated LEDs
-connected to pins 12 and 13 (PB4 and PB5). 
+The demo project allows you to edit Arduino code, compile it, and run it in the simulator.
+It also simulates 2 LEDs connected to pins 12 and 13 (PB4 and PB5). 
 
 To run the demo project, check out this repository, run `npm install` and then `npm start`.
+
+## Running the tests
+
+Run the tests once:
+
+```
+npm test
+```
+
+Run the tests of the files you modified since last commit (watch mode):
+
+```
+npm run test:watch
+```
 
 ## License
 
