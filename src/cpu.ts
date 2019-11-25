@@ -19,7 +19,7 @@ export interface ICPU {
   writeData(addr: u16, value: u8): void;
 }
 
-export type ICPUMemoryHook = (value: u8, oldValue: u8, addr: u16) => void;
+export type ICPUMemoryHook = (value: u8, oldValue: u8, addr: u16) => boolean | void;
 export interface ICPUMemoryHooks {
   [key: number]: ICPUMemoryHook;
 }
@@ -43,7 +43,9 @@ export class CPU implements ICPU {
   writeData(addr: number, value: number) {
     const hook = this.writeHooks[addr];
     if (hook) {
-      hook(value, this.data[addr], addr);
+      if (hook(value, this.data[addr], addr)) {
+        return;
+      }
     }
     this.data[addr] = value;
   }

@@ -1,7 +1,7 @@
 import { buildHex } from './compile';
-import './index.css';
 import { AVRRunner } from './execute';
 import { formatTime } from './format-time';
+import './index.css';
 import { LED } from './led';
 
 let editor: any;
@@ -55,16 +55,13 @@ function executeProgram(hex: string) {
   runner = new AVRRunner(hex);
   const MHZ = 16000000;
 
-  // Hook to PORTB output
-  runner.cpu.writeHooks[0x25] = (value: number) => {
-    const DDRB = runner.cpu.data[0x24];
-    value &= DDRB;
+  // Hook to PORTB register
+  runner.portB.addListener((value) => {
     const D12bit = 1 << 4;
     const D13bit = 1 << 5;
     led12.value = value & D12bit ? true : false;
     led13.value = value & D13bit ? true : false;
-  };
-
+  });
   runner.execute((cpu) => {
     const time = formatTime(cpu.cycles / MHZ);
     statusLabel.textContent = 'Simulation time: ' + time;
