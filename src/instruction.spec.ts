@@ -111,6 +111,7 @@ describe('avrInstruction', () => {
 
   it('should execute `CALL` instruction', () => {
     loadProgram('0e945c00');
+    cpu.data[94] = 0;
     cpu.data[93] = 150; // SP <- 50
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x5c);
@@ -178,6 +179,7 @@ describe('avrInstruction', () => {
 
   it('should execute `ICALL` instruction', () => {
     loadProgram('0995');
+    cpu.data[94] = 0;
     cpu.data[93] = 0x80;
     cpu.dataView.setUint16(30, 0x2020, true); // Z <- 0x2020
     avrInstruction(cpu);
@@ -554,6 +556,7 @@ describe('avrInstruction', () => {
 
   it('should execute `POP r26` instruction', () => {
     loadProgram('af91');
+    cpu.data[94] = 0;
     cpu.data[93] = 0xff; // SP <- 0xff
     cpu.data[0x100] = 0x1a;
     avrInstruction(cpu);
@@ -566,6 +569,7 @@ describe('avrInstruction', () => {
   it('should execute `PUSH r11` instruction', () => {
     loadProgram('bf92');
     cpu.data[11] = 0x2a;
+    cpu.data[94] = 0;
     cpu.data[93] = 0xff; // SP <- 0xff
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x1);
@@ -576,6 +580,7 @@ describe('avrInstruction', () => {
 
   it('should execute `RCALL .+6` instruction', () => {
     loadProgram('03d0');
+    cpu.data[94] = 0;
     cpu.data[93] = 0x80; // SP <- 0x80
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(4);
@@ -586,6 +591,7 @@ describe('avrInstruction', () => {
 
   it('should execute `RCALL .-4` instruction', () => {
     loadProgram('0000fedf');
+    cpu.data[94] = 0;
     cpu.data[93] = 0x80; // SP <- 0x80
     avrInstruction(cpu);
     avrInstruction(cpu);
@@ -597,6 +603,7 @@ describe('avrInstruction', () => {
 
   it('should execute `RET` instruction', () => {
     loadProgram('0895');
+    cpu.data[94] = 0;
     cpu.data[93] = 0x90; // SP <- 0x90
     cpu.data[0x92] = 16;
     avrInstruction(cpu);
@@ -607,6 +614,7 @@ describe('avrInstruction', () => {
 
   it('should execute `RETI` instruction', () => {
     loadProgram('1895');
+    cpu.data[94] = 0;
     cpu.data[93] = 0xc0; // SP <- 0xc0
     cpu.data[0xc2] = 200;
     avrInstruction(cpu);

@@ -7,6 +7,8 @@
 
 import { u16, u8 } from './types';
 
+const registerSpace = 0x100;
+
 export interface ICPU {
   readonly data: Uint8Array;
   readonly dataView: DataView;
@@ -25,7 +27,7 @@ export interface ICPUMemoryHooks {
 }
 
 export class CPU implements ICPU {
-  readonly data = new Uint8Array(16384);
+  readonly data: Uint8Array = new Uint8Array(this.sramBytes + registerSpace);
   readonly data16 = new Uint16Array(this.data.buffer);
   readonly dataView = new DataView(this.data.buffer);
   readonly progBytes = new Uint8Array(this.progMem.buffer);
@@ -34,7 +36,14 @@ export class CPU implements ICPU {
   pc = 0;
   cycles = 0;
 
-  constructor(public progMem: Uint16Array) {}
+  constructor(public progMem: Uint16Array, private sramBytes = 8192) {
+    this.reset();
+  }
+
+  reset() {
+    this.data.fill(0);
+    this.SP = this.data.length - 1;
+  }
 
   readData(addr: number) {
     return this.data[addr];

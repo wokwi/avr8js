@@ -5,6 +5,7 @@ describe('avrInterrupt', () => {
   it('should execute interrupt handler', () => {
     const cpu = new CPU(new Uint16Array(0x8000));
     cpu.pc = 0x520;
+    cpu.data[94] = 0;
     cpu.data[93] = 0x80; // SP <- 0x80
     cpu.data[95] = 0b10000001; // SREG <- I------C
     avrInterrupt(cpu, 5);
