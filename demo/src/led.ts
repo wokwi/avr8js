@@ -80,7 +80,6 @@ export interface ILEDOptions {
   lightColor?: string;
 }
 
-const ON_CLASS = 'led-on';
 export class LED {
   readonly el = document.createElement('span');
   private readonly lightEl: SVGElement;
