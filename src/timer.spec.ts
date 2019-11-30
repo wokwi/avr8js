@@ -1,5 +1,5 @@
 import { CPU } from './cpu';
-import { AVRTimer, timer0Config } from './timer';
+import { AVRTimer, timer0Config, timer2Config } from './timer';
 
 describe('timer', () => {
   let cpu: CPU;
@@ -187,5 +187,18 @@ describe('timer', () => {
     expect(cpu.data[0x35]).toEqual(0); // OCFB bit in TIFR should be clear
     expect(cpu.pc).toEqual(0x1e);
     expect(cpu.cycles).toEqual(3);
+  });
+
+  it('timer2 should count every 256 ticks when prescaler is 6 (issue #5)', () => {
+    const timer = new AVRTimer(cpu, timer2Config);
+    cpu.data[0xb1] = 0x6; // TCCR1B.CS <- 6
+
+    cpu.cycles = 511;
+    timer.tick();
+    expect(cpu.data[0xb2]).toEqual(1); // TCNT2 should be 2
+
+    cpu.cycles = 512;
+    timer.tick();
+    expect(cpu.data[0xb2]).toEqual(2); // TCNT2 should be 2
   });
 });

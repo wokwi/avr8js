@@ -9,7 +9,7 @@
 import { CPU } from './cpu';
 import { avrInterrupt } from './interrupt';
 
-const dividers = {
+const timer01Dividers = {
   0: 0,
   1: 1,
   2: 8,
@@ -35,6 +35,17 @@ const OCIEB = 4;
 
 type u8 = number;
 
+interface ITimerDividers {
+  0: number;
+  1: number;
+  2: number;
+  3: number;
+  4: number;
+  5: number;
+  6: number;
+  7: number;
+}
+
 interface AVRTimerConfig {
   bits: 8 | 16;
   captureInterrupt: u8;
@@ -52,6 +63,8 @@ interface AVRTimerConfig {
   TCCRB: u8;
   TCCRC: u8;
   TIMSK: u8;
+
+  dividers: ITimerDividers;
 }
 
 export const timer0Config: AVRTimerConfig = {
@@ -68,7 +81,8 @@ export const timer0Config: AVRTimerConfig = {
   TCCRA: 0x44,
   TCCRB: 0x45,
   TCCRC: 0, // not available
-  TIMSK: 0x6e
+  TIMSK: 0x6e,
+  dividers: timer01Dividers
 };
 
 export const timer1Config: AVRTimerConfig = {
@@ -85,7 +99,8 @@ export const timer1Config: AVRTimerConfig = {
   TCCRA: 0x80,
   TCCRB: 0x81,
   TCCRC: 0x82,
-  TIMSK: 0x6f
+  TIMSK: 0x6f,
+  dividers: timer01Dividers
 };
 
 export const timer2Config: AVRTimerConfig = {
@@ -102,7 +117,17 @@ export const timer2Config: AVRTimerConfig = {
   TCCRA: 0xb0,
   TCCRB: 0xb1,
   TCCRC: 0, // not available
-  TIMSK: 0x70
+  TIMSK: 0x70,
+  dividers: {
+    0: 1,
+    1: 1,
+    2: 8,
+    3: 32,
+    4: 64,
+    5: 128,
+    6: 256,
+    7: 1024
+  }
 };
 
 export class AVRTimer {
@@ -169,7 +194,7 @@ export class AVRTimer {
   }
 
   tick() {
-    const divider = dividers[this.CS];
+    const divider = this.config.dividers[this.CS];
     const delta = this.cpu.cycles - this.lastCycle;
     if (divider && delta >= divider) {
       const counterDelta = Math.floor(delta / divider);
