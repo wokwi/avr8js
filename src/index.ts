@@ -6,7 +6,15 @@ export {
   AVRIOPort,
   GPIOListener,
   AVRPortConfig,
+  portAConfig,
   portBConfig,
   portCConfig,
-  portDConfig
+  portDConfig,
+  portEConfig,
+  portFConfig,
+  portGConfig,
+  portHConfig,
+  portJConfig,
+  portKConfig,
+  portLConfig
 } from './gpio';
