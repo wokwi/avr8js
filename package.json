@@ -13,7 +13,9 @@
     "start": "parcel demo/src/index.html -d demo/build",
     "lint": "tslint --project tsconfig.json",
     "test": "npm run lint && jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "benchmark:prepare": "ts-node --project tsconfig.benchmark.json benchmark/convert-instructions.ts",
+    "benchmark": "ts-node --project tsconfig.benchmark.json benchmark/index.ts"
   },
   "files": [
     "dist"
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@types/jest": "^24.0.23",
     "@types/node": "^12.12.7",
+    "@types/prettier": "^1.19.0",
     "husky": "^3.0.9",
     "jest": "^24.9.0",
     "lint-staged": "^9.4.2",
