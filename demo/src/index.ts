@@ -3,6 +3,7 @@ import { AVRRunner } from './execute';
 import { formatTime } from './format-time';
 import './index.css';
 import { LED } from './led';
+import { CPUPerformance } from './cpu-performance';
 
 let editor: any;
 const BLINK_CODE = `
@@ -68,9 +69,11 @@ function executeProgram(hex: string) {
   runner.usart.onByteTransmit = (value) => {
     serialOutputText.textContent += String.fromCharCode(value);
   };
+  const cpuPerf = new CPUPerformance(runner.cpu, MHZ);
   runner.execute((cpu) => {
     const time = formatTime(cpu.cycles / MHZ);
-    statusLabel.textContent = 'Simulation time: ' + time;
+    const speed = (cpuPerf.update() * 100).toFixed(0);
+    statusLabel.textContent = `Simulation time: ${time} (${speed}%)`;
   });
 }
 
