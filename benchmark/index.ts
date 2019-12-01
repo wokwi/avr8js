@@ -1,31 +1,41 @@
-import { CPU } from '../src/cpu';
+import { CPU, ICPU } from '../src/cpu';
 import { avrInstruction } from '../src/instruction';
 import { createBenchmark } from './benchmark';
-import { instLDY } from './instruction-fn';
+import { permutations } from './permutations';
+import { instructions, executeInstruction } from './instruction-fn';
 
 /* Approach 1: use large Uint16Array with all possible opcodes */
-const instructionMap = new Uint16Array(65536);
-instructionMap[0x8088] = 0x5;
-
-function avrInstructionUintArray(cpu: CPU) {
-  const opcode = cpu.progMem[cpu.pc];
-  const mapped = instructionMap[opcode];
-  switch (mapped) {
-    case 5:
-      instLDY(cpu, opcode);
-      break;
+const instructionArray = new Uint16Array(65536);
+for (let i = 0; i < instructions.length; i++) {
+  const { pattern } = instructions[i];
+  for (const opcode of permutations(pattern.replace(/ /g, '').substr(0, 16))) {
+    if (!instructionArray[opcode]) {
+      instructionArray[opcode] = i + 1;
+    }
   }
 }
 
-/* Approach 1: use Map() */
-const objMap = new Map<number, (cpu: CPU, opcode: number) => void>();
-objMap.set(0x8088, instLDY);
+function avrInstructionUintArray(cpu: CPU) {
+  const opcode = cpu.progMem[cpu.pc];
+  executeInstruction(instructionArray[opcode], cpu, opcode);
+}
+
+/* Approach 2: use instMap */
+const instructionMap: { [key: number]: (cpu: ICPU, opcode: number) => void } = {};
+for (const { pattern, fn } of instructions) {
+  for (const opcode of permutations(pattern.replace(/ /g, '').substr(0, 16))) {
+    if (!instructionMap[opcode]) {
+      instructionMap[opcode] = fn;
+    }
+  }
+}
 
 function avrInstructionObjMap(cpu: CPU) {
   const opcode = cpu.progMem[cpu.pc];
-  objMap.get(cpu.progMem[cpu.pc])(cpu, opcode);
+  instructionMap[opcode](cpu, opcode);
 }
 
+/* Run the benchmark */
 function run() {
   const benchmark = createBenchmark('cpu-benchmark');
 

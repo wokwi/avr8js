@@ -2,15 +2,15 @@ import * as fs from 'fs';
 import * as prettier from 'prettier';
 
 const input = fs.readFileSync('src/instruction.ts', { encoding: 'utf-8' });
+let fnName = '';
 let fnBody = '';
 let openingBrace = false;
 let currentInstruction = '';
 let pattern = '';
 let output = `
 import { ICPU } from '../src/cpu';
-import { u16 } from '../src/types';
 
-function isTwoWordInstruction(opcode: u16) {
+function isTwoWordInstruction(opcode: number) {
   return (
     /* LDS */
     (opcode & 0xfe0f) === 0x9000 ||
@@ -23,6 +23,7 @@ function isTwoWordInstruction(opcode: u16) {
   );
 }
 `;
+const patternToFn: Array<[string, string]> = [];
 for (const line of input.split('\n')) {
   if (line.startsWith('  /* ')) {
     currentInstruction = line
@@ -33,11 +34,12 @@ for (const line of input.split('\n')) {
     openingBrace = false;
     pattern = line.split(',')[1].split('*')[0];
     console.log(currentInstruction);
-    currentInstruction = currentInstruction.replace(/[\(\)]/g, '');
+    fnName = 'inst' + currentInstruction.replace(/[\(\)]/g, '');
+    patternToFn.push([pattern.trim(), fnName]);
   }
   if (line.startsWith('  }')) {
     output += `
-      export function inst${currentInstruction}(cpu: ICPU, opcode: number) {
+      export function ${fnName}(cpu: ICPU, opcode: number) {
         /*${pattern}*/
         ${fnBody}
         cpu.cycles++;
@@ -53,6 +55,24 @@ for (const line of input.split('\n')) {
     openingBrace = line.includes('{');
   }
 }
+
+let executeInstructionCases = ``;
+output += `\nexport const instructions = [`;
+let i = 1;
+for (const [fnPattern, fn] of patternToFn) {
+  output += `{pattern: '${fnPattern}', fn: ${fn}, idx: ${i}},`;
+  executeInstructionCases += `case ${i}: ${fn}(cpu, opcode); break;\n`;
+  i++;
+}
+output += ']';
+
+output += `\n
+export function executeInstruction(idx: number, cpu: ICPU, opcode: number) {
+  switch (idx) {
+    ${executeInstructionCases}
+    default: instNOP(cpu, opcode);
+  }
+}`;
 
 const formattedOutput = prettier.format(output, { singleQuote: true, parser: 'babel' });
 
