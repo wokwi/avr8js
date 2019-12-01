@@ -10,10 +10,12 @@ const BLINK_CODE = `
 // Red LED connected to pin 12. Enjoy!
 
 void setup() {
+  Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
+  Serial.println("Blink");
   digitalWrite(LED_BUILTIN, HIGH);
   delay(500);
   digitalWrite(LED_BUILTIN, LOW);
@@ -50,6 +52,7 @@ const stopButton = document.querySelector('#stop-button');
 stopButton.addEventListener('click', stopCode);
 const statusLabel = document.querySelector('#status-label');
 const compilerOutputText = document.querySelector('#compiler-output-text');
+const serialOutputText = document.querySelector('#serial-output-text');
 
 function executeProgram(hex: string) {
   runner = new AVRRunner(hex);
@@ -62,6 +65,9 @@ function executeProgram(hex: string) {
     led12.value = value & D12bit ? true : false;
     led13.value = value & D13bit ? true : false;
   });
+  runner.usart.onByteTransmit = (value) => {
+    serialOutputText.textContent += String.fromCharCode(value);
+  };
   runner.execute((cpu) => {
     const time = formatTime(cpu.cycles / MHZ);
     statusLabel.textContent = 'Simulation time: ' + time;
@@ -73,6 +79,7 @@ async function compileAndRun() {
   led13.value = false;
 
   runButton.setAttribute('disabled', '1');
+  serialOutputText.textContent = '';
   try {
     statusLabel.textContent = 'Compiling...';
     const result = await buildHex(editor.getModel().getValue());

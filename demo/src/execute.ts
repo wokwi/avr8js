@@ -4,9 +4,11 @@ import {
   CPU,
   timer0Config,
   AVRIOPort,
+  AVRUSART,
   portBConfig,
   portCConfig,
-  portDConfig
+  portDConfig,
+  usart0Config
 } from 'avr8js';
 import { loadHex } from './intelhex';
 
@@ -20,6 +22,8 @@ export class AVRRunner {
   readonly portB: AVRIOPort;
   readonly portC: AVRIOPort;
   readonly portD: AVRIOPort;
+  readonly usart: AVRUSART;
+  readonly speed = 16e6; // 16 MHZ
 
   private stopped = false;
 
@@ -30,6 +34,7 @@ export class AVRRunner {
     this.portB = new AVRIOPort(this.cpu, portBConfig);
     this.portC = new AVRIOPort(this.cpu, portCConfig);
     this.portD = new AVRIOPort(this.cpu, portDConfig);
+    this.usart = new AVRUSART(this.cpu, usart0Config, this.speed);
   }
 
   async execute(callback: (cpu: CPU) => void) {
@@ -37,6 +42,7 @@ export class AVRRunner {
     for (;;) {
       avrInstruction(this.cpu);
       this.timer.tick();
+      this.usart.tick();
       if (this.cpu.cycles % 50000 === 0) {
         callback(this.cpu);
         await new Promise((resolve) => setTimeout(resolve, 0));

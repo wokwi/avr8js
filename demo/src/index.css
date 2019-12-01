@@ -46,3 +46,7 @@ body {
   margin: 0;
   white-space: pre-line;
 }
+
+#serial-output-text {
+  color: blue;
+}

@@ -18,3 +18,4 @@ export {
   portKConfig,
   portLConfig
 } from './gpio';
+export { AVRUSART, usart0Config } from './usart';
