@@ -69,7 +69,7 @@ describe('USART', () => {
 
   it('should set UDRE and TXC flags after UDR0', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+    new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
     cpu.writeData(0xc1, 0x8); // UCSR0B <- TXEN
     cpu.writeData(0xc0, 0); // UCSR0A <- 0
     cpu.writeData(0xc6, 0x61); // UDR0

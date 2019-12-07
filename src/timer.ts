@@ -35,7 +35,7 @@ const OCIEB = 4;
 
 type u8 = number;
 
-interface ITimerDividers {
+interface TimerDividers {
   0: number;
   1: number;
   2: number;
@@ -64,7 +64,7 @@ interface AVRTimerConfig {
   TCCRC: u8;
   TIMSK: u8;
 
-  dividers: ITimerDividers;
+  dividers: TimerDividers;
 }
 
 export const timer0Config: AVRTimerConfig = {

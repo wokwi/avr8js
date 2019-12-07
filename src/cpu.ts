@@ -9,6 +9,7 @@ import { u16, u8 } from './types';
 
 const registerSpace = 0x100;
 
+// eslint-disable-next-line @typescript-eslint/interface-name-prefix
 export interface ICPU {
   readonly data: Uint8Array;
   readonly dataView: DataView;
@@ -21,9 +22,9 @@ export interface ICPU {
   writeData(addr: u16, value: u8): void;
 }
 
-export type ICPUMemoryHook = (value: u8, oldValue: u8, addr: u16) => boolean | void;
-export interface ICPUMemoryHooks {
-  [key: number]: ICPUMemoryHook;
+export type CPUMemoryHook = (value: u8, oldValue: u8, addr: u16) => boolean | void;
+export interface CPUMemoryHooks {
+  [key: number]: CPUMemoryHook;
 }
 
 export class CPU implements ICPU {
@@ -31,7 +32,7 @@ export class CPU implements ICPU {
   readonly data16 = new Uint16Array(this.data.buffer);
   readonly dataView = new DataView(this.data.buffer);
   readonly progBytes = new Uint8Array(this.progMem.buffer);
-  readonly writeHooks: ICPUMemoryHooks = [];
+  readonly writeHooks: CPUMemoryHooks = [];
 
   pc = 0;
   cycles = 0;

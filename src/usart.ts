@@ -30,7 +30,8 @@ export const usart0Config: USARTConfig = {
 export type USARTTransmitCallback = (value: u8) => void;
 export type USARTLineTransmitCallback = (value: string) => void;
 
-// Register bits
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// Register bits:
 const UCSRA_RXC = 0x80; // USART Receive Complete
 const UCSRA_TXC = 0x40; // USART Transmit Complete
 const UCSRA_UDRE = 0x20; // USART Data Register Empty
@@ -55,12 +56,13 @@ const UCSRC_USBS = 0x8; // Stop Bit Select
 const UCSRC_UCSZ1 = 0x4; // Character Size 1
 const UCSRC_UCSZ0 = 0x2; // Character Size 0
 const UCSRC_UCPOL = 0x1; // Clock Polarity
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
   public onLineTransmit: USARTLineTransmitCallback | null = null;
 
-  private lineBuffer: string = '';
+  private lineBuffer = '';
 
   constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
     this.cpu.writeHooks[config.UCSRA] = (value) => {

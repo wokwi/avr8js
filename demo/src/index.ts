@@ -6,7 +6,7 @@ import './index.css';
 import { CPUPerformance } from './cpu-performance';
 import { LEDElement } from '@wokwi/elements';
 
-let editor: any;
+let editor: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 const BLINK_CODE = `
 // Green LED connected to LED_BUILTIN,
 // Red LED connected to pin 12. Enjoy!
@@ -25,8 +25,8 @@ void loop() {
 }`.trim();
 
 // Load Editor
-declare var window: any;
-declare var monaco: any;
+declare const window: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+declare const monaco: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 window.require.config({
   paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.0/min/vs' }
 });
@@ -45,6 +45,7 @@ const led12 = document.querySelector<LEDElement>('wokwi-led[color=red]');
 // Set up toolbar
 let runner: AVRRunner;
 
+/* eslint-disable @typescript-eslint/no-use-before-define */
 const runButton = document.querySelector('#run-button');
 runButton.addEventListener('click', compileAndRun);
 const stopButton = document.querySelector('#stop-button');

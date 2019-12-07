@@ -12,7 +12,7 @@
     "build:demo": "parcel build demo/src/index.html -d demo/dist",
     "prepare": "npm run build",
     "start": "parcel demo/src/index.html -d demo/build",
-    "lint": "tslint --project tsconfig.json",
+    "lint": "eslint src/**/*.ts demo/**/*.ts",
     "test": "npm run lint && jest",
     "test:watch": "jest --watch",
     "benchmark:prepare": "ts-node --project tsconfig.benchmark.json benchmark/convert-instructions.ts",
@@ -25,7 +25,15 @@
     "@types/jest": "^24.0.23",
     "@types/node": "^12.12.7",
     "@types/prettier": "^1.19.0",
+    "@typescript-eslint/eslint-plugin": "^2.10.0",
+    "@typescript-eslint/parser": "^2.10.0",
     "@wokwi/elements": "^0.1.1",
+    "acorn": "^7.1.0",
+    "eslint": "^6.7.2",
+    "eslint-config-prettier": "^6.7.0",
+    "eslint-plugin-jest": "^23.1.1",
+    "eslint-plugin-json": "^2.0.1",
+    "eslint-plugin-prettier": "^3.1.1",
     "husky": "^3.0.9",
     "jest": "^24.9.0",
     "lint-staged": "^9.4.2",
@@ -34,7 +42,6 @@
     "rimraf": "^3.0.0",
     "ts-jest": "^24.1.0",
     "ts-node": "^8.5.0",
-    "tslint": "^5.20.1",
     "typescript": "~3.6.0"
   },
   "husky": {
@@ -44,7 +51,7 @@
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
-      "tslint --project tsconfig.spec.json -c tslint.commit.json --fix",
+      "eslint --fix",
       "prettier --write",
       "git add"
     ]
