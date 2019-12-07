@@ -1,9 +1,10 @@
+import '@wokwi/elements';
 import { buildHex } from './compile';
 import { AVRRunner } from './execute';
 import { formatTime } from './format-time';
 import './index.css';
-import { LED } from './led';
 import { CPUPerformance } from './cpu-performance';
+import { LEDElement } from '@wokwi/elements';
 
 let editor: any;
 const BLINK_CODE = `
@@ -38,11 +39,8 @@ window.require(['vs/editor/editor.main'], () => {
 });
 
 // Set up LEDs
-const leds = document.querySelector('.leds');
-const led13 = new LED({ color: 'green', lightColor: '#80ff80' });
-const led12 = new LED({ color: 'red', lightColor: '#ff8080' });
-leds.appendChild(led13.el);
-leds.appendChild(led12.el);
+const led13 = document.querySelector<LEDElement>('wokwi-led[color=green]');
+const led12 = document.querySelector<LEDElement>('wokwi-led[color=red]');
 
 // Set up toolbar
 let runner: AVRRunner;
