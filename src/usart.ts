@@ -28,6 +28,7 @@ export const usart0Config: USARTConfig = {
 };
 
 export type USARTTransmitCallback = (value: u8) => void;
+export type USARTLineTransmitCallback = (value: string) => void;
 
 // Register bits
 const UCSRA_RXC = 0x80; // USART Receive Complete
@@ -57,6 +58,9 @@ const UCSRC_UCPOL = 0x1; // Clock Polarity
 
 export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
+  public onLineTransmit: USARTLineTransmitCallback | null = null;
+
+  private lineBuffer: string = '';
 
   constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
     this.cpu.writeHooks[config.UCSRA] = (value) => {
@@ -72,6 +76,15 @@ export class AVRUSART {
     this.cpu.writeHooks[config.UDR] = (value) => {
       if (this.onByteTransmit) {
         this.onByteTransmit(value);
+      }
+      if (this.onLineTransmit) {
+        const ch = String.fromCharCode(value);
+        if (ch === '\n') {
+          this.onLineTransmit(this.lineBuffer);
+          this.lineBuffer = '';
+        } else {
+          this.lineBuffer += ch;
+        }
       }
       this.cpu.data[config.UCSRA] |= UCSRA_UDRE | UCSRA_TXC;
     };

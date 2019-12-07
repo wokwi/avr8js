@@ -113,4 +113,47 @@ describe('USART', () => {
       expect(cpu.data[0xc0]).toEqual(0x40 | 0x20); // UCSR0A: TXC | UDRE
     });
   });
+
+  describe('onLineTransmit', () => {
+    it('should call onLineTransmit with the current line buffer after every newline', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      usart.onLineTransmit = jest.fn();
+      cpu.writeData(0xc1, 0x8); // UCSR0B <- TXEN
+      cpu.writeData(0xc6, 0x48); // 'H'
+      cpu.writeData(0xc6, 0x65); // 'e'
+      cpu.writeData(0xc6, 0x6c); // 'l'
+      cpu.writeData(0xc6, 0x6c); // 'l'
+      cpu.writeData(0xc6, 0x6f); // 'o'
+      cpu.writeData(0xc6, 0xa); // '\n'
+      expect(usart.onLineTransmit).toHaveBeenCalledWith('Hello');
+    });
+
+    it('should not call onLineTransmit if no newline was received', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      usart.onLineTransmit = jest.fn();
+      cpu.writeData(0xc1, 0x8); // UCSR0B <- TXEN
+      cpu.writeData(0xc6, 0x48); // 'H'
+      cpu.writeData(0xc6, 0x69); // 'i'
+      expect(usart.onLineTransmit).not.toHaveBeenCalled();
+    });
+
+    it('should clear the line buffer after each call to onLineTransmit', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      usart.onLineTransmit = jest.fn();
+      cpu.writeData(0xc1, 0x8); // UCSR0B <- TXEN
+      cpu.writeData(0xc6, 0x48); // 'H'
+      cpu.writeData(0xc6, 0x69); // 'i'
+      cpu.writeData(0xc6, 0xa); // '\n'
+      cpu.writeData(0xc6, 0x74); // 't'
+      cpu.writeData(0xc6, 0x68); // 'h'
+      cpu.writeData(0xc6, 0x65); // 'e'
+      cpu.writeData(0xc6, 0x72); // 'r'
+      cpu.writeData(0xc6, 0x65); // 'e'
+      cpu.writeData(0xc6, 0xa); // '\n'
+      expect(usart.onLineTransmit).toHaveBeenCalledWith('there');
+    });
+  });
 });
