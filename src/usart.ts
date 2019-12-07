@@ -59,7 +59,7 @@ export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
 
   constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
-    this.cpu.writeHooks[config.UCSRA] = (value, oldValue) => {
+    this.cpu.writeHooks[config.UCSRA] = (value) => {
       this.cpu.data[config.UCSRA] = value | UCSRA_UDRE | UCSRA_TXC;
       return true;
     };
