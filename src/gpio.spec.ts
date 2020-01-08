@@ -1,5 +1,5 @@
 import { CPU } from './cpu';
-import { AVRIOPort, portBConfig } from './gpio';
+import { AVRIOPort, portBConfig, PinState } from './gpio';
 
 describe('GPIO', () => {
   it('should invoke the listeners when the port is written to', () => {
@@ -35,6 +35,38 @@ describe('GPIO', () => {
       port.removeListener(listener);
       cpu.writeData(0x25, 0x99); // PORTB <- 0x99
       expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('pinState', () => {
+    it('should return PinState.High when the pin set to output and HIGH', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      cpu.writeData(0x24, 0x1); // DDRB <- 0x1
+      cpu.writeData(0x25, 0x1); // PORTB <- 0x1
+      expect(port.pinState(0)).toEqual(PinState.High);
+    });
+
+    it('should return PinState.Low when the pin set to output and LOW', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      cpu.writeData(0x24, 0x8); // DDRB <- 0x8
+      cpu.writeData(0x25, 0xf7); // PORTB <- 0xF7 (~8)
+      expect(port.pinState(3)).toEqual(PinState.Low);
+    });
+
+    it('should return PinState.Input by default (reset state)', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      expect(port.pinState(1)).toEqual(PinState.Input);
+    });
+
+    it('should return PinState.InputPullUp when the pin is set to input with pullup', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      cpu.writeData(0x24, 0); // DDRB <- 0
+      cpu.writeData(0x25, 0x2); // PORTB <- 0x2
+      expect(port.pinState(1)).toEqual(PinState.InputPullUp);
     });
   });
 });

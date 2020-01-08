@@ -3,7 +3,7 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, Uri Shaked
+ * Copyright (C) 2019, 2020, Uri Shaked
  */
 import { CPU } from './cpu';
 import { u8 } from './types';
@@ -83,10 +83,17 @@ export const portLConfig: AVRPortConfig = {
   PORT: 0x10b
 };
 
+export enum PinState {
+  Low,
+  High,
+  Input,
+  InputPullUp
+}
+
 export class AVRIOPort {
   private listeners: GPIOListener[] = [];
 
-  constructor(cpu: CPU, portConfig: AVRPortConfig) {
+  constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
     cpu.writeHooks[portConfig.PORT] = (value: u8, oldValue: u8) => {
       const ddrMask = cpu.data[portConfig.DDR];
       value &= ddrMask;
@@ -112,6 +119,25 @@ export class AVRIOPort {
 
   removeListener(listener: GPIOListener) {
     this.listeners = this.listeners.filter((l) => l !== listener);
+  }
+
+  /**
+   * Get the state of a given GPIO pin
+   *
+   * @param index Pin index to return from 0 to 7
+   * @returns PinState.Low or PinState.High if the pin is set to output, PinState.Input if the pin is set
+   *   to input, and PinState.InputPullUp if the pin is set to input and the internal pull-up resistor has
+   *   been enabled.
+   */
+  pinState(index: number) {
+    const ddr = this.cpu.data[this.portConfig.DDR];
+    const port = this.cpu.data[this.portConfig.PORT];
+    const bitMask = 1 << index;
+    if (ddr & bitMask) {
+      return port & bitMask ? PinState.High : PinState.Low;
+    } else {
+      return port & bitMask ? PinState.InputPullUp : PinState.Input;
+    }
   }
 
   private writeGpio(value: u8, oldValue: u8) {

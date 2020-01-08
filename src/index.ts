@@ -1,3 +1,9 @@
+/**
+ * AVR8js
+ *
+ * Copyright (C) 2019, 2020, Uri Shaked
+ */
+
 export { CPU, ICPU, CPUMemoryHook, CPUMemoryHooks } from './cpu';
 export { avrInstruction } from './instruction';
 export { avrInterrupt } from './interrupt';
@@ -16,6 +22,7 @@ export {
   portHConfig,
   portJConfig,
   portKConfig,
-  portLConfig
+  portLConfig,
+  PinState
 } from './gpio';
 export { AVRUSART, usart0Config } from './usart';
