@@ -68,5 +68,19 @@ describe('GPIO', () => {
       cpu.writeData(0x25, 0x2); // PORTB <- 0x2
       expect(port.pinState(1)).toEqual(PinState.InputPullUp);
     });
+
+    it('should reflect the current port state when called inside a listener', () => {
+      // Related issue: https://github.com/wokwi/avr8js/issues/9
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      const listener = jest.fn(() => {
+        expect(port.pinState(0)).toBe(PinState.High);
+      });
+      port.addListener(listener);
+      expect(port.pinState(0)).toBe(PinState.Input);
+      cpu.writeData(0x24, 0x01); // DDRB <- 0x01
+      cpu.writeData(0x25, 0x01); // PORTB <- 0x01
+      expect(listener).toHaveBeenCalled();
+    });
   });
 });

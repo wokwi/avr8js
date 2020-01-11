@@ -96,10 +96,11 @@ export class AVRIOPort {
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
     cpu.writeHooks[portConfig.PORT] = (value: u8, oldValue: u8) => {
       const ddrMask = cpu.data[portConfig.DDR];
+      cpu.data[portConfig.PORT] = value;
       value &= ddrMask;
       cpu.data[portConfig.PIN] = (cpu.data[portConfig.PIN] & ~ddrMask) | value;
       this.writeGpio(value, oldValue & ddrMask);
-      // TODO: activate pullups if configured as an input pin
+      return true;
     };
     cpu.writeHooks[portConfig.PIN] = (value: u8) => {
       // Writing to 1 PIN toggles PORT bits
