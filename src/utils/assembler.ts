@@ -105,7 +105,7 @@ function constValue(r: string | number, min = 0, max = 255) {
  */
 function fitTwoC(r: number, bits: number) {
   if (bits < 2) {
-    throw 'Need atleast 2 bits to be signed.';
+    throw 'Need at least 2 bits to be signed.';
   }
   if (bits > 16) {
     throw 'fitTwoC only works on 16bit numbers for now.';
@@ -125,12 +125,11 @@ function fitTwoC(r: number, bits: number) {
  * If offset is not 0, convert from absolute address to relative.
  */
 function constOrLabel(c: string | number, labels: LabelTable, offset = 0) {
-  if (typeof c == 'string') {
+  if (typeof c === 'string') {
     let d = parseInt(c);
     if (isNaN(d)) {
       if (c in labels) {
         d = labels[c] - offset;
-        d = d >> 1; /* convert bytes into words. */
       } else {
         return NaN;
       }
@@ -185,6 +184,9 @@ function stldXYZ(xyz: string) {
 function stldYZq(yzq: string) {
   const d = yzq.match(/([YZ])\+(\d+)/);
   let r = 0x8000;
+  if (d == null) {
+    throw 'Invalid arguments';
+  }
   switch (d[1]) {
     case 'Y':
       r |= 0x8;
@@ -196,7 +198,9 @@ function stldYZq(yzq: string) {
       throw 'Not Y or Z with q';
   }
   const q = parseInt(d[2]);
-  if (q < 0 || q > 64) throw 'q is out of range';
+  if (q < 0 || q > 64) {
+    throw 'q is out of range';
+  }
   r |= ((q & 0x20) << 8) | ((q & 0x18) << 7) | (q & 0x7);
   return r;
 }
@@ -206,10 +210,9 @@ type opcodeHandler = (a: string, b: string, byteLoc: number, labels: LabelTable)
 const SEflag = (a: number) => zeroPad(0x9408 | (constValue(a, 0, 7) << 4));
 
 /**
- * Table of Mnemonics that can be assembled.
+ * Table of instructions that can be assembled.
  */
 const OPTABLE: { [key: string]: opcodeHandler } = {
-  /* Mnemonic: linecompiler */
   ADD(a, b) {
     const r = 0x0c00 | destRindex(a) | srcRindex(b);
     return zeroPad(r);
@@ -221,7 +224,9 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
   ADIW(a, b) {
     let r = 0x9600;
     const dm = a.match(/[Rr](24|26|28|30)/);
-    if (!dm) throw 'Rd must be 24, 26, 28, or 30';
+    if (!dm) {
+      throw 'Rd must be 24, 26, 28, or 30';
+    }
     let d = parseInt(dm[1]);
     d = (d - 24) / 2;
     r |= (d & 0x3) << 4;
@@ -259,7 +264,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
       return (l) => OPTABLE['BRBC']('a', b, byteLoc, l) as string;
     }
     let r = 0xf400 | constValue(a, 0, 7);
-    r |= fitTwoC(constValue(k, -64, 63), 7) << 3;
+    r |= fitTwoC(constValue(k >> 1, -64, 63), 7) << 3;
     return zeroPad(r);
   },
   BRBS(a, b, byteLoc, labels) {
@@ -268,7 +273,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
       return (l) => OPTABLE['BRBS']('a', b, byteLoc, l) as string;
     }
     let r = 0xf000 | constValue(a, 0, 7);
-    r |= fitTwoC(constValue(k, -64, 63), 7) << 3;
+    r |= fitTwoC(constValue(k >> 1, -64, 63), 7) << 3;
     return zeroPad(r);
   },
   BRCC(a, _, byteLoc, labels) {
@@ -344,7 +349,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
       return [(l) => OPTABLE['CALL'](a, b, byteLoc, l) as [string, string], 'xxxx'];
     }
     let r = 0x940e;
-    k = constValue(k, 0, 0x400000);
+    k = constValue(k, 0, 0x400000) >> 1;
     const lk = k & 0xffff;
     const hk = (k >> 16) & 0x3f;
     r |= ((hk & 0x3e) << 3) | (hk & 1);
@@ -422,7 +427,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
     return '9419';
   },
   ELPM(a, b) {
-    if (typeof a == 'undefined' || a == '') {
+    if (typeof a === 'undefined' || a === '') {
       return '95d8';
     } else {
       let r = 0x9000 | destRindex(a);
@@ -477,24 +482,30 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
       return [(l) => OPTABLE['JMP'](a, b, byteLoc, l) as [string, string], 'xxxx'];
     }
     let r = 0x940c;
-    k = constValue(k, 0, 0x400000);
+    k = constValue(k, 0, 0x400000) >> 1;
     const lk = k & 0xffff;
     const hk = (k >> 16) & 0x3f;
     r |= ((hk & 0x3e) << 3) | (hk & 1);
     return [zeroPad(r), zeroPad(lk)];
   },
   LAC(a, b) {
-    if (a != 'Z') throw 'First Operand is not Z';
+    if (a !== 'Z') {
+      throw 'First Operand is not Z';
+    }
     const r = 0x9206 | destRindex(b);
     return zeroPad(r);
   },
   LAS(a, b) {
-    if (a != 'Z') throw 'First Operand is not Z';
+    if (a !== 'Z') {
+      throw 'First Operand is not Z';
+    }
     const r = 0x9205 | destRindex(b);
     return zeroPad(r);
   },
   LAT(a, b) {
-    if (a != 'Z') throw 'First Operand is not Z';
+    if (a !== 'Z') {
+      throw 'First Operand is not Z';
+    }
     const r = 0x9207 | destRindex(b);
     return zeroPad(r);
   },
@@ -518,7 +529,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
     return [zeroPad(r), zeroPad(k)];
   },
   LPM(a, b) {
-    if (typeof a == 'undefined' || a == '') {
+    if (typeof a === 'undefined' || a === '') {
       return '95c8';
     } else {
       let r = 0x9000 | destRindex(a);
@@ -599,7 +610,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
     if (isNaN(k)) {
       return (l) => OPTABLE['RCALL'](a, b, byteLoc, l) as string;
     }
-    const r = 0xd000 | fitTwoC(constValue(k, -2048, 2048), 12);
+    const r = 0xd000 | fitTwoC(constValue(k >> 1, -2048, 2047), 12);
     return zeroPad(r);
   },
   RET() {
@@ -613,7 +624,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
     if (isNaN(k)) {
       return (l) => OPTABLE['RJMP'](a, b, byteLoc, l) as string;
     }
-    const r = 0xc000 | fitTwoC(constValue(k, -2048, 2048), 12);
+    const r = 0xc000 | fitTwoC(constValue(k >> 1, -2048, 2047), 12);
     return zeroPad(r);
   },
   ROL(a, _, byteLoc, l) {
@@ -648,7 +659,9 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
   SBIW(a, b) {
     let r = 0x9700;
     const dm = a.match(/[Rr](24|26|28|30)/);
-    if (!dm) throw 'Rd must be 24, 26, 28, or 30';
+    if (!dm) {
+      throw 'Rd must be 24, 26, 28, or 30';
+    }
     let d = parseInt(dm[1]);
     d = (d - 24) / 2;
     r |= (d & 0x3) << 4;
@@ -702,10 +715,12 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
     return '9588';
   },
   SPM(a) {
-    if (typeof a == 'undefined' || a == '') {
+    if (typeof a === 'undefined' || a === '') {
       return '95e8';
     } else {
-      if (a != 'Z+') throw 'Bad param to SPM';
+      if (a !== 'Z+') {
+        throw 'Bad param to SPM';
+      }
       return '95f8';
     }
   },
@@ -744,20 +759,22 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
   },
   XCH(a, b) {
     const r = 0x9204 | destRindex(b);
-    if (a != 'Z') throw 'Bad param, not Z';
+    if (a !== 'Z') {
+      throw 'Bad param, not Z';
+    }
     return zeroPad(r);
   }
 };
 
-function passone(inputdata: string) {
+function passOne(inputdata: string) {
   const lines = inputdata.split('\n');
   const commentReg = /[#;].*$/;
   const labelReg = /^(\w+):/;
   const codeReg = /^\s*(\w+)(?:\s+([^,]+)(?:,\s*(\S+))?)?\s*$/;
   let lt: LineTablePass1;
-  let res;
-  let rets;
-  let mnemonic;
+  let res: string;
+  let rets: RegExpMatchArray | null;
+  let instruction: string;
 
   let byteOffset = 0;
   const lableTable: LabelTable = {};
@@ -767,40 +784,46 @@ function passone(inputdata: string) {
 
   for (let idx = 0; idx < lines.length; idx++) {
     res = lines[idx].trim();
-    if (res.length == 0) continue;
+    if (res.length === 0) {
+      continue;
+    }
     lt = { line: idx + 1, text: res, bytes: [], byteOffset: 0 };
     res = res.replace(commentReg, '').trim(); /* strip off comments. */
-    if (res.length == 0) continue;
+    if (res.length === 0) {
+      continue;
+    }
     /* check for a label */
     rets = res.match(labelReg);
     if (rets) {
       lableTable[rets[1]] = byteOffset;
       res = res.replace(labelReg, '').trim(); /* strip out label. */
     }
-    if (res.length == 0) continue;
+    if (res.length === 0) {
+      continue;
+    }
     /* Check for a mnemonic line */
-    res = res.match(codeReg);
+    const resMatch = res.match(codeReg);
     try {
-      if (res == null) {
+      if (resMatch === null) {
         throw "doesn't match as code!";
       }
 
-      if (!res[1]) {
+      if (!resMatch[1]) {
         throw 'Empty mnemonic field!';
       }
 
       /* do opcode */
-      mnemonic = res[1].toUpperCase().trim();
+      instruction = resMatch[1].toUpperCase().trim();
       /* This switch is ok for just these three.
        * If ever to add more, then need to figure out how to merge all of the
        * mnemonics into the OPTABLE. (or build a seperate internal op table)
        */
-      switch (mnemonic) {
+      switch (instruction) {
         case '_REPLACE':
-          replacements[res[2]] = res[3];
+          replacements[resMatch[2]] = resMatch[3];
           continue;
         case '_LOC': {
-          const num = parseInt(res[2]);
+          const num = parseInt(resMatch[2]);
           if (isNaN(num)) {
             throw 'Location is not a number.';
           }
@@ -811,7 +834,7 @@ function passone(inputdata: string) {
           continue;
         }
         case '_IW': {
-          const num = parseInt(res[2]);
+          const num = parseInt(resMatch[2]);
           if (isNaN(num)) {
             throw 'Immeadiate Word is not a number.';
           }
@@ -822,32 +845,32 @@ function passone(inputdata: string) {
         }
       }
 
-      if (!(mnemonic in OPTABLE)) {
-        throw 'No such mnemonic: ' + mnemonic;
+      if (!(instruction in OPTABLE)) {
+        throw 'No such instruction: ' + instruction;
       }
 
       /* do replacements on parameters. */
-      if (res[2] in replacements) {
-        res[2] = replacements[res[2]];
+      if (resMatch[2] in replacements) {
+        resMatch[2] = replacements[resMatch[2]];
       }
-      if (res[3] in replacements) {
-        res[3] = replacements[res[3]];
+      if (resMatch[3] in replacements) {
+        resMatch[3] = replacements[resMatch[3]];
       }
 
-      rets = OPTABLE[mnemonic](res[2], res[3], byteOffset, lableTable);
+      const bytes = OPTABLE[instruction](resMatch[2], resMatch[3], byteOffset, lableTable);
       lt.byteOffset = byteOffset;
-      switch (typeof rets) {
+      switch (typeof bytes) {
         case 'function':
         case 'string':
           byteOffset += 2;
           break;
         case 'object' /* assumed as an array. */:
-          byteOffset += rets.length * 2;
+          byteOffset += bytes.length * 2;
           break;
         default:
           throw 'unknown return type from optable.';
       }
-      lt.bytes = rets;
+      lt.bytes = bytes;
       lineTable.push(lt);
     } catch (err) {
       errorTable.push('Line ' + idx + ': ' + err);
@@ -868,7 +891,7 @@ function elementSize(lt: LineTablePass1) {
 /**
  * Handle any forward referenced labels that were deferred in passone.
  */
-function passtwo(lineTable: LineTablePass1[], labels: LabelTable) {
+function passTwo(lineTable: LineTablePass1[], labels: LabelTable) {
   const errorTable = [];
   const lastElement = lineTable[lineTable.length - 1];
   const byteSize = lastElement ? lastElement.byteOffset + elementSize(lastElement) : 0;
@@ -876,13 +899,13 @@ function passtwo(lineTable: LineTablePass1[], labels: LabelTable) {
   for (const ltEntry of lineTable) {
     try {
       /* Look for functions left over from passone. */
-      if (typeof ltEntry.bytes == 'function') {
+      if (typeof ltEntry.bytes === 'function') {
         ltEntry.bytes = ltEntry.bytes(labels);
       }
       if (
         ltEntry.bytes instanceof Array &&
         ltEntry.bytes.length >= 1 &&
-        typeof ltEntry.bytes[0] == 'function'
+        typeof ltEntry.bytes[0] === 'function'
       ) {
         /* a bit gross. FIXME */
         ltEntry.bytes = ltEntry.bytes[0](labels);
@@ -922,7 +945,7 @@ function passtwo(lineTable: LineTablePass1[], labels: LabelTable) {
  * The assembler.
  */
 export function assemble(input: string) {
-  const mid = passone(input);
+  const mid = passOne(input);
   if (mid.errors.length > 0) {
     return {
       bytes: new Uint8Array(0),
@@ -930,5 +953,5 @@ export function assemble(input: string) {
       lines: []
     };
   }
-  return passtwo(mid.lines, mid.labels);
+  return passTwo(mid.lines, mid.labels);
 }
