@@ -496,7 +496,7 @@ describe('avrInstruction', () => {
   });
 
   it('should execute `MUL r0, r1` and update the zero flag', () => {
-    loadProgram('569c');
+    loadProgram('019c');
     cpu.data[0] = 0; // r0 <- 0
     cpu.data[1] = 9; // r1 <- 9
     avrInstruction(cpu);
