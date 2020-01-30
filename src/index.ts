@@ -26,3 +26,4 @@ export {
   PinState
 } from './gpio';
 export { AVRUSART, usart0Config } from './usart';
+export * from './twi';
