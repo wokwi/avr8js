@@ -96,6 +96,8 @@ export class NoopTWIEventHandler implements TWIEventHandler {
 export class AVRTWI {
   public eventHandler: TWIEventHandler = new NoopTWIEventHandler(this);
 
+  private nextTick: (() => void) | null = null;
+
   constructor(private cpu: CPU, private config: TWIConfig, private freqMHz: number) {
     this.updateStatus(STATUS_TWI_IDLE);
     this.cpu.writeHooks[config.TWCR] = (value) => {
@@ -106,8 +108,7 @@ export class AVRTWI {
       const { status } = this;
       if (clearInt && value & TWCR_TWEN) {
         const twdrValue = this.cpu.data[this.config.TWDR];
-        // TODO: this should be executed after the current instruction completes
-        setTimeout(() => {
+        this.nextTick = () => {
           if (value & TWCR_TWSTA) {
             this.eventHandler.start(status !== STATUS_TWI_IDLE);
           } else if (value & TWCR_TWSTO) {
@@ -120,11 +121,18 @@ export class AVRTWI {
             const ack = !!(value & TWCR_TWEA);
             this.eventHandler.readByte(ack);
           }
-        }, 0);
+        };
         this.cpu.data[config.TWCR] = value;
         return true;
       }
     };
+  }
+
+  tick() {
+    if (this.nextTick) {
+      this.nextTick();
+      this.nextTick = null;
+    }
   }
 
   get prescaler() {
