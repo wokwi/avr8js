@@ -71,6 +71,14 @@ describe('AVR assembler', () => {
     expect(assemble('BRBS 3, -4').bytes).toEqual(bytes('f3f3'));
   });
 
+  it('should correctly assemble BREQ with forward label target', () => {
+    expect(assemble('BREQ next \n next:').bytes).toEqual(bytes('01f0'));
+  });
+
+  it('should correctly assemble BRNE with forward label target', () => {
+    expect(assemble('BRNE next \n next:').bytes).toEqual(bytes('01f4'));
+  });
+
   it('should correctly assemble `CBI 0xc, 5`', () => {
     expect(assemble('CBI 0xc, 5').bytes).toEqual(bytes('6598'));
   });

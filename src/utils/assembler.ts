@@ -261,7 +261,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
   BRBC(a, b, byteLoc, labels) {
     const k = constOrLabel(b, labels, byteLoc + 2);
     if (isNaN(k)) {
-      return (l) => OPTABLE['BRBC']('a', b, byteLoc, l) as string;
+      return (l) => OPTABLE['BRBC'](a, b, byteLoc, l) as string;
     }
     let r = 0xf400 | constValue(a, 0, 7);
     r |= fitTwoC(constValue(k >> 1, -64, 63), 7) << 3;
@@ -270,7 +270,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
   BRBS(a, b, byteLoc, labels) {
     const k = constOrLabel(b, labels, byteLoc + 2);
     if (isNaN(k)) {
-      return (l) => OPTABLE['BRBS']('a', b, byteLoc, l) as string;
+      return (l) => OPTABLE['BRBS'](a, b, byteLoc, l) as string;
     }
     let r = 0xf000 | constValue(a, 0, 7);
     r |= fitTwoC(constValue(k >> 1, -64, 63), 7) << 3;
