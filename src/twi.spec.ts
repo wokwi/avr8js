@@ -83,10 +83,7 @@ describe('TWI', () => {
         sts TWCR, r16
 
         ; Wait for TWINT Flag set. This indicates that the START condition has been transmitted
-        wait1: 
-        lds r16, TWCR
-        andi r16, TWINT
-        breq wait1
+        call wait_for_twint
         
         ; Check value of TWI Status Register. Mask prescaler bits. If status different from START go to ERROR
         lds r16, TWSR
@@ -104,10 +101,7 @@ describe('TWI', () => {
         sts TWCR, r16
 
         ; Wait for TWINT Flag set. This indicates that the SLA+W has been transmitted, and ACK/NACK has been received.
-        wait2:
-        lds r16, TWCR
-        andi r16, TWINT
-        breq wait2
+        call wait_for_twint
 
         ; Check value of TWI Status Register. Mask prescaler bits. If status different from MT_SLA_ACK go to ERROR
         lds r16, TWSR
@@ -124,10 +118,7 @@ describe('TWI', () => {
         sts TWCR, r16
 
         ; Wait for TWINT Flag set. This indicates that the DATA has been transmitted, and ACK/NACK has been received
-        wait3:
-        lds r16, TWCR
-        andi r16, TWINT
-        breq wait3
+        call wait_for_twint
 
         ; Check value of TWI Status Register. Mask prescaler bits. If status different from MT_DATA_ACK go to ERROR
         lds r16, TWSR
@@ -142,10 +133,7 @@ describe('TWI', () => {
         sts TWCR, r16
 
         ; Wait for TWINT Flag set. This indicates that the STOP condition has been sent
-        wait4:
-        lds r16, TWCR
-        andi r16, TWINT
-        breq wait4
+        call wait_for_twint
 
         ; Check value of TWI Status Register. The masked value should be 0xf8 once done
         lds r16, TWSR
@@ -158,6 +146,13 @@ describe('TWI', () => {
 
         loop:
         jmp loop
+
+        ; Busy-waits for the TWINT flag to be set
+        wait_for_twint:
+        lds r16, TWCR
+        andi r16, TWINT
+        breq wait_for_twint
+        ret
 
         ; In case of an error, toggle a breakpoint
         error:
