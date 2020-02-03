@@ -191,13 +191,187 @@ describe('TWI', () => {
 
       // Step 4: wait for stop condition
       runInstructions(cpu, twi, 16);
-      console.log(cpu.data[16]);
       expect(twi.eventHandler.stop).toHaveBeenCalled();
 
       runInstructions(cpu, twi, 16);
       twi.completeStop();
 
       // Step 5: wait for the assembly code to indicate success by settings r17 to 0x42
+      runInstructions(cpu, twi, 16);
+      expect(cpu.data[17]).toEqual(0x42);
+    });
+
+    it('should successfully receive a byte from a slave', () => {
+      const { program } = asmProgram(`
+        ; register addresses
+        _REPLACE TWSR, 0xb9
+        _REPLACE TWDR, 0xbb
+        _REPLACE TWCR, 0xbc
+        
+        ; TWCR bits
+        _REPLACE TWEN, 0x04
+        _REPLACE TWSTO, 0x10
+        _REPLACE TWSTA, 0x20
+        _REPLACE TWEA, 0x40
+        _REPLACE TWINT, 0x80
+
+        ; TWSR states
+        _REPLACE START, 0x8         ; TWI start
+        _REPLACE MT_SLAR_ACK, 0x40  ; Slave Adresss ACK has been received
+        _REPLACE MT_DATA_RECV, 0x50 ; Data has been received
+        _REPLACE MT_DATA_RECV_NACK, 0x58 ; Data has been received, NACK has been returned
+
+        ; Send start condition
+        ldi r16, TWEN
+        sbr r16, TWSTA
+        sbr r16, TWINT
+        sts TWCR, r16
+
+        ; Wait for TWINT Flag set. This indicates that the START condition has been transmitted
+        call wait_for_twint
+        
+        ; Check value of TWI Status Register. Mask prescaler bits. If status different from START go to ERROR
+        lds r16, TWSR
+        andi r16, 0xf8
+        ldi r18, START
+        cpse r16, r18
+        jmp error   ; only jump if r16 != r18 (START)
+
+        ; Load SLA_R into TWDR Register. Clear TWINT bit in TWCR to start transmission of address
+        ; 0xa1 = Address 0x50, read mode (R/W bit set)
+        _REPLACE SLA_R, 0xa1
+        ldi r16, SLA_R
+        sts TWDR, r16
+        ldi r16, TWINT
+        sbr r16, TWEN
+        sts TWCR, r16
+
+        ; Wait for TWINT Flag set. This indicates that the SLA+W has been transmitted, and ACK/NACK has been received.
+        call wait_for_twint
+
+        ; Check value of TWI Status Register. Mask prescaler bits. If status different from MT_SLA_ACK go to ERROR
+        lds r16, TWSR
+        andi r16, 0xf8
+        cpi r16, MT_SLAR_ACK
+        brne error
+
+        ; Clear TWINT bit in TWCR to receive the next byte, set TWEA to send ACK
+        ldi r16, TWINT
+        sbr r16, TWEA
+        sbr r16, TWEN
+        sts TWCR, r16
+
+        ; Wait for TWINT Flag set. This indicates that the DATA has been received, and ACK has been transmitted
+        call wait_for_twint
+
+        ; Check value of TWI Status Register. Mask prescaler bits. If status different from MT_DATA_RECV go to ERROR
+        lds r16, TWSR
+        andi r16, 0xf8
+        cpi r16, MT_DATA_RECV
+        brne error
+
+        ; Validate that we recieved the desired data - first byte should be 0x66
+        lds r16, TWDR
+        cpi r16, 0x66
+        brne error
+
+        ; Clear TWINT bit in TWCR to receive the next byte, this time we don't ACK
+        ldi r16, TWINT
+        sbr r16, TWEN
+        sts TWCR, r16
+
+        ; Wait for TWINT Flag set. This indicates that the DATA has been received, and NACK has been transmitted
+        call wait_for_twint
+
+        ; Check value of TWI Status Register. Mask prescaler bits. If status different from MT_DATA_RECV_NACK go to ERROR
+        lds r16, TWSR
+        andi r16, 0xf8
+        cpi r16, MT_DATA_RECV_NACK
+        brne error
+
+        ; Validate that we recieved the desired data - second byte should be 0x77
+        lds r16, TWDR
+        cpi r16, 0x77
+        brne error
+
+        ; Transmit STOP condition
+        ldi r16, TWINT
+        sbr r16, TWEN
+        sbr r16, TWSTO
+        sts TWCR, r16
+
+        ; Wait for TWINT Flag set. This indicates that the STOP condition has been sent
+        call wait_for_twint
+
+        ; Check value of TWI Status Register. The masked value should be 0xf8 once done
+        lds r16, TWSR
+        andi r16, 0xf8
+        cpi r16, 0xf8
+        brne error
+
+        ; Indicate success by loading 0x42 into r17
+        ldi r17, 0x42
+
+        loop:
+        jmp loop
+
+        ; Busy-waits for the TWINT flag to be set
+        wait_for_twint:
+        lds r16, TWCR
+        andi r16, TWINT
+        breq wait_for_twint
+        ret
+
+        ; In case of an error, toggle a breakpoint
+        error:
+        break
+      `);
+      const cpu = new CPU(program);
+      const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
+      twi.eventHandler = {
+        start: jest.fn(),
+        stop: jest.fn(),
+        connectToSlave: jest.fn(),
+        writeByte: jest.fn(),
+        readByte: jest.fn()
+      };
+
+      // Step 1: wait for start condition
+      runInstructions(cpu, twi, 4);
+      expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
+
+      runInstructions(cpu, twi, 16);
+      twi.completeStart();
+
+      // Step 2: wait for slave connect in read mode
+      runInstructions(cpu, twi, 16);
+      expect(twi.eventHandler.connectToSlave).toHaveBeenCalledWith(0x50, false);
+
+      runInstructions(cpu, twi, 16);
+      twi.completeConnect(true);
+
+      // Step 3: send the first byte to the master, expect ack
+      runInstructions(cpu, twi, 16);
+      expect(twi.eventHandler.readByte).toHaveBeenCalledWith(true);
+
+      runInstructions(cpu, twi, 16);
+      twi.completeRead(0x66);
+
+      // Step 4: send the first byte to the master, expect nack
+      runInstructions(cpu, twi, 16);
+      expect(twi.eventHandler.readByte).toHaveBeenCalledWith(false);
+
+      runInstructions(cpu, twi, 16);
+      twi.completeRead(0x77);
+
+      // Step 5: wait for stop condition
+      runInstructions(cpu, twi, 24);
+      expect(twi.eventHandler.stop).toHaveBeenCalled();
+
+      runInstructions(cpu, twi, 16);
+      twi.completeStop();
+
+      // Step 6: wait for the assembly code to indicate success by settings r17 to 0x42
       runInstructions(cpu, twi, 16);
       expect(cpu.data[17]).toEqual(0x42);
     });
