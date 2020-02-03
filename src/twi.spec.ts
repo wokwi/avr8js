@@ -46,6 +46,17 @@ describe('TWI', () => {
     expect(twi.sclFrequency).toEqual(400000);
   });
 
+  it('should trigger data an interrupt if TWINT is set', () => {
+    const cpu = new CPU(new Uint16Array(1024));
+    const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
+    cpu.writeData(0xbc, 0x81); // TWCR <- TWINT | TWIE
+    cpu.data[95] = 0x80; // SREG: I-------
+    twi.tick();
+    expect(cpu.pc).toEqual(0x30); // 2-wire Serial Interface Vector
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0xbc] & 0x80).toEqual(0); // UCSR0A should clear TWINT
+  });
+
   describe('Master mode', () => {
     it('should call the startEvent handler when TWSTA bit is written 1', () => {
       const cpu = new CPU(new Uint16Array(1024));

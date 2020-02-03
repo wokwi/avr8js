@@ -1,6 +1,6 @@
-import { u8 } from './types';
 import { CPU } from './cpu';
 import { avrInterrupt } from './interrupt';
+import { u8 } from './types';
 
 export interface TWIEventHandler {
   start(repeated: boolean): void;
@@ -133,6 +133,13 @@ export class AVRTWI {
       this.nextTick();
       this.nextTick = null;
     }
+    if (this.cpu.interruptsEnabled) {
+      const { TWCR, twiInterrupt } = this.config;
+      if (this.cpu.data[TWCR] & TWCR_TWIE && this.cpu.data[TWCR] & TWCR_TWINT) {
+        avrInterrupt(this.cpu, twiInterrupt);
+        this.cpu.data[TWCR] &= ~TWCR_TWINT;
+      }
+    }
   }
 
   get prescaler() {
@@ -186,11 +193,8 @@ export class AVRTWI {
   }
 
   private updateStatus(value: u8) {
-    const { TWCR, TWSR, twiInterrupt } = this.config;
+    const { TWCR, TWSR } = this.config;
     this.cpu.data[TWSR] = (this.cpu.data[TWSR] & ~TWSR_TWS_MASK) | value;
     this.cpu.data[TWCR] |= TWCR_TWINT;
-    if (this.cpu.interruptsEnabled && this.cpu.data[TWCR] & TWCR_TWIE) {
-      avrInterrupt(this.cpu, twiInterrupt);
-    }
   }
 }
