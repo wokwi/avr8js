@@ -63,5 +63,8 @@
   "dependencies": {},
   "alias": {
     "avr8js": "./src"
-  }
+  },
+  "browserslist": [
+    "last 1 Chrome versions"
+  ]
 }
