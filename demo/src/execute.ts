@@ -39,16 +39,19 @@ export class AVRRunner {
 
   async execute(callback: (cpu: CPU) => void) {
     this.stopped = false;
+    const workUnitCycles = 500000;
+    let nextTick = this.cpu.cycles + workUnitCycles;
     for (;;) {
       avrInstruction(this.cpu);
       this.timer.tick();
       this.usart.tick();
-      if (this.cpu.cycles % 500000 === 0) {
+      if (this.cpu.cycles >= nextTick) {
         callback(this.cpu);
         await new Promise((resolve) => setTimeout(resolve, 0));
         if (this.stopped) {
           break;
         }
+        nextTick += workUnitCycles;
       }
     }
   }
