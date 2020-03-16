@@ -1,4 +1,4 @@
-const url = 'https://wokwi-hexi-73miufol2q-uc.a.run.app';
+const url = 'https://hexi.wokwi.com';
 
 export interface HexiResult {
   stdout: string;
