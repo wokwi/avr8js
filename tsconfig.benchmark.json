@@ -2,7 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
-    "target": "es2018"
+    "target": "es2018",
+    "module": "commonjs"
   },
   "include": ["src/**/*.ts", "benchmark/**/*.ts"]
 }
