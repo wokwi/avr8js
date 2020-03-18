@@ -25,8 +25,8 @@ function isTwoWordInstruction(opcode: u16) {
 export function avrInstruction(cpu: ICPU) {
   const opcode = cpu.progMem[cpu.pc];
 
-  /* ADC, 0001 11rd dddd rrrr */
   if ((opcode & 0xfc00) === 0x1c00) {
+    /* ADC, 0001 11rd dddd rrrr */
     const d = cpu.data[(opcode & 0x1f0) >> 4];
     const r = cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
     const sum = d + r + (cpu.data[95] & 1);
