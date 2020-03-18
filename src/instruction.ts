@@ -334,10 +334,10 @@ export function avrInstruction(cpu: ICPU) {
     cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(y);
     cpu.cycles += 2;
   } else if (
-    /* LDDY, 10q0 qq0d dddd 1qqq */
     (opcode & 0xd208) === 0x8008 &&
     (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
   ) {
+    /* LDDY, 10q0 qq0d dddd 1qqq */
     cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(
       cpu.dataView.getUint16(28, true) +
         ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8))
@@ -359,10 +359,10 @@ export function avrInstruction(cpu: ICPU) {
     cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(z);
     cpu.cycles += 2;
   } else if (
-    /* LDDZ, 10q0 qq0d dddd 0qqq */
     (opcode & 0xd208) === 0x8000 &&
     (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
   ) {
+    /* LDDZ, 10q0 qq0d dddd 0qqq */
     cpu.data[(opcode & 0x1f0) >> 4] = cpu.readData(
       cpu.dataView.getUint16(30, true) +
         ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8))
@@ -639,10 +639,10 @@ export function avrInstruction(cpu: ICPU) {
     cpu.writeData(y, i);
     cpu.cycles++;
   } else if (
-    /* STDY, 10q0 qq1r rrrr 1qqq */
     (opcode & 0xd208) === 0x8208 &&
     (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
   ) {
+    /* STDY, 10q0 qq1r rrrr 1qqq */
     cpu.writeData(
       cpu.dataView.getUint16(28, true) +
         ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)),
@@ -665,10 +665,10 @@ export function avrInstruction(cpu: ICPU) {
     cpu.writeData(z, i);
     cpu.cycles++;
   } else if (
-    /* STDZ, 10q0 qq1r rrrr 0qqq */
     (opcode & 0xd208) === 0x8200 &&
     (opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)
   ) {
+    /* STDZ, 10q0 qq1r rrrr 0qqq */
     cpu.writeData(
       cpu.dataView.getUint16(30, true) +
         ((opcode & 7) | ((opcode & 0xc00) >> 7) | ((opcode & 0x2000) >> 8)),
