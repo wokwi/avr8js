@@ -1,4 +1,8 @@
 {
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "noEmitOnError": false
+  },
   "extends": "./tsconfig.json",
   "exclude": []
 }
