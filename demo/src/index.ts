@@ -5,6 +5,7 @@ import { formatTime } from './format-time';
 import './index.css';
 import { CPUPerformance } from './cpu-performance';
 import { LEDElement } from '@wokwi/elements';
+import { EditorHistoryUtil } from './utils/editor-history.util';
 
 let editor: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 const BLINK_CODE = `
@@ -32,7 +33,7 @@ window.require.config({
 });
 window.require(['vs/editor/editor.main'], () => {
   editor = monaco.editor.create(document.querySelector('.code-editor'), {
-    value: BLINK_CODE,
+    value: EditorHistoryUtil.getValue() || BLINK_CODE,
     language: 'cpp',
     minimap: { enabled: false }
   });
@@ -50,6 +51,8 @@ const runButton = document.querySelector('#run-button');
 runButton.addEventListener('click', compileAndRun);
 const stopButton = document.querySelector('#stop-button');
 stopButton.addEventListener('click', stopCode);
+const revertButton = document.querySelector('#revert-button');
+revertButton.addEventListener('click', setBlinkSnippet);
 const statusLabel = document.querySelector('#status-label');
 const compilerOutputText = document.querySelector('#compiler-output-text');
 const serialOutputText = document.querySelector('#serial-output-text');
@@ -80,7 +83,11 @@ async function compileAndRun() {
   led12.value = false;
   led13.value = false;
 
+  storeUserSnippet();
+
   runButton.setAttribute('disabled', '1');
+  revertButton.setAttribute('disabled', '1');
+
   serialOutputText.textContent = '';
   try {
     statusLabel.textContent = 'Compiling...';
@@ -97,15 +104,27 @@ async function compileAndRun() {
     runButton.removeAttribute('disabled');
     alert('Failed: ' + err);
   } finally {
+    revertButton.removeAttribute('disabled');
     statusLabel.textContent = '';
   }
+}
+
+function storeUserSnippet() {
+  EditorHistoryUtil.clearSnippet();
+  EditorHistoryUtil.storeSnippet(editor.getValue());
 }
 
 function stopCode() {
   stopButton.setAttribute('disabled', '1');
   runButton.removeAttribute('disabled');
+  revertButton.removeAttribute('disabled');
   if (runner) {
     runner.stop();
     runner = null;
   }
+}
+
+function setBlinkSnippet() {
+  editor.setValue(BLINK_CODE);
+  EditorHistoryUtil.storeSnippet(editor.getValue());
 }
