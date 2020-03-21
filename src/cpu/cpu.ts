@@ -5,7 +5,7 @@
  * Copyright (C) 2019, Uri Shaked
  */
 
-import { u16, u8 } from './types';
+import { u16, u8 } from '../types';
 
 const registerSpace = 0x100;
 

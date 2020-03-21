@@ -1,5 +1,5 @@
-import { CPU, ICPU } from '../src/cpu';
-import { avrInstruction } from '../src/instruction';
+import { CPU, ICPU } from '../src/cpu/cpu';
+import { avrInstruction } from '../src/cpu/instruction';
 import { createBenchmark } from './benchmark';
 import { permutations } from './permutations';
 import { instructions, executeInstruction } from './instruction-fn';

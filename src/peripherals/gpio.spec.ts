@@ -1,4 +1,4 @@
-import { CPU } from './cpu';
+import { CPU } from '../cpu/cpu';
 import { AVRIOPort, portBConfig, PinState } from './gpio';
 
 describe('GPIO', () => {

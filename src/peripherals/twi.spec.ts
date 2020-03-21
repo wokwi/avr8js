@@ -1,7 +1,7 @@
-import { CPU } from './cpu';
+import { CPU } from '../cpu/cpu';
 import { AVRTWI, twiConfig } from './twi';
-import { assemble } from './utils/assembler';
-import { avrInstruction } from './instruction';
+import { assemble } from '../utils/assembler';
+import { avrInstruction } from '../cpu/instruction';
 
 const FREQ_16MHZ = 16e6;
 

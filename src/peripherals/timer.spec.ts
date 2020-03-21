@@ -1,4 +1,4 @@
-import { CPU } from './cpu';
+import { CPU } from '../cpu/cpu';
 import { AVRTimer, timer0Config, timer2Config } from './timer';
 
 describe('timer', () => {

@@ -6,8 +6,8 @@
  * Copyright (C) 2019, Uri Shaked
  */
 
-import { CPU } from './cpu';
-import { avrInterrupt } from './interrupt';
+import { CPU } from '../cpu/cpu';
+import { avrInterrupt } from '../cpu/interrupt';
 
 const timer01Dividers = {
   0: 0,
