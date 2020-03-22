@@ -102,9 +102,9 @@ async function compileAndRun() {
     }
   } catch (err) {
     runButton.removeAttribute('disabled');
+    revertButton.removeAttribute('disabled');
     alert('Failed: ' + err);
   } finally {
-    revertButton.removeAttribute('disabled');
     statusLabel.textContent = '';
   }
 }
