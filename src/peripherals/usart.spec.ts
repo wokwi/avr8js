@@ -1,4 +1,4 @@
-import { CPU } from './cpu';
+import { CPU } from '../cpu/cpu';
 import { AVRUSART, usart0Config } from './usart';
 
 const FREQ_16MHZ = 16e6;

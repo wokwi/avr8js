@@ -7,7 +7,7 @@
  */
 
 import { ICPU } from './cpu';
-import { u16 } from './types';
+import { u16 } from '../types';
 
 function isTwoWordInstruction(opcode: u16) {
   return (

@@ -1,6 +1,6 @@
-import { CPU } from './cpu';
-import { avrInterrupt } from './interrupt';
-import { u8 } from './types';
+import { CPU } from '../cpu/cpu';
+import { avrInterrupt } from '../cpu/interrupt';
+import { u8 } from '../types';
 
 export interface USARTConfig {
   rxCompleteInterrupt: u8;

@@ -4,10 +4,10 @@
  * Copyright (C) 2019, 2020, Uri Shaked
  */
 
-export { CPU, ICPU, CPUMemoryHook, CPUMemoryHooks } from './cpu';
-export { avrInstruction } from './instruction';
-export { avrInterrupt } from './interrupt';
-export { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
+export { CPU, ICPU, CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
+export { avrInstruction } from './cpu/instruction';
+export { avrInterrupt } from './cpu/interrupt';
+export { AVRTimer, timer0Config, timer1Config, timer2Config } from './peripherals/timer';
 export {
   AVRIOPort,
   GPIOListener,
@@ -24,6 +24,6 @@ export {
   portKConfig,
   portLConfig,
   PinState
-} from './gpio';
-export { AVRUSART, usart0Config } from './usart';
-export * from './twi';
+} from './peripherals/gpio';
+export { AVRUSART, usart0Config } from './peripherals/usart';
+export * from './peripherals/twi';

@@ -5,8 +5,8 @@
  *
  * Copyright (C) 2019, 2020, Uri Shaked
  */
-import { CPU } from './cpu';
-import { u8 } from './types';
+import { CPU } from '../cpu/cpu';
+import { u8 } from '../types';
 
 export interface AVRPortConfig {
   // Register addresses
