@@ -3,6 +3,7 @@
 JavaScript implementation of the AVR 8-bit architecture
 
 [![Build Status](https://travis-ci.org/wokwi/avr8js.png?branch=master)](https://travis-ci.org/wokwi/avr8js)
+[![NPM Version](https://img.shields.io/npm/v/avr8js)](https://www.npmjs.com/package/avr8js)
 
 ## Running the demo project
 
