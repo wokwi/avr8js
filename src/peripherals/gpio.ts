@@ -94,6 +94,10 @@ export class AVRIOPort {
   private listeners: GPIOListener[] = [];
 
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
+    cpu.writeHooks[portConfig.DDR] = (value, oldValue) => {
+      const portValue = cpu.data[portConfig.PORT];
+      this.writeGpio(value & portValue, oldValue & oldValue);
+    };
     cpu.writeHooks[portConfig.PORT] = (value: u8, oldValue: u8) => {
       const ddrMask = cpu.data[portConfig.DDR];
       cpu.data[portConfig.PORT] = value;

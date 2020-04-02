@@ -6,11 +6,21 @@ describe('GPIO', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const port = new AVRIOPort(cpu, portBConfig);
     const listener = jest.fn();
-    port.addListener(listener);
     cpu.writeData(0x24, 0x0f); // DDRB <- 0x0f
+    port.addListener(listener);
     cpu.writeData(0x25, 0x55); // PORTB <- 0x55
     expect(listener).toHaveBeenCalledWith(0x05, 0);
     expect(cpu.data[0x23]).toEqual(0x5); // PINB should return port value
+  });
+
+  it('should invoke the listeners when DDR changes (issue #28)', () => {
+    const cpu = new CPU(new Uint16Array(1024));
+    const port = new AVRIOPort(cpu, portBConfig);
+    const listener = jest.fn();
+    cpu.writeData(0x25, 0x55); // PORTB <- 0x55
+    port.addListener(listener);
+    cpu.writeData(0x24, 0xf0); // DDRB <- 0xf0
+    expect(listener).toHaveBeenCalledWith(0x50, 0);
   });
 
   it('should toggle the pin when writing to the PIN register', () => {
@@ -34,7 +44,7 @@ describe('GPIO', () => {
       cpu.writeData(0x24, 0x0f); // DDRB <- 0x0f
       port.removeListener(listener);
       cpu.writeData(0x25, 0x99); // PORTB <- 0x99
-      expect(listener).not.toHaveBeenCalled();
+      expect(listener).toBeCalledTimes(1);
     });
   });
 
@@ -76,9 +86,9 @@ describe('GPIO', () => {
       const listener = jest.fn(() => {
         expect(port.pinState(0)).toBe(PinState.High);
       });
-      port.addListener(listener);
       expect(port.pinState(0)).toBe(PinState.Input);
       cpu.writeData(0x24, 0x01); // DDRB <- 0x01
+      port.addListener(listener);
       cpu.writeData(0x25, 0x01); // PORTB <- 0x01
       expect(listener).toHaveBeenCalled();
     });
