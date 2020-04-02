@@ -1,5 +1,6 @@
 .cache
+.history
+.idea
 node_modules
 dist
 *.log
-.idea
