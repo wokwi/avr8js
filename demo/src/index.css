@@ -6,7 +6,7 @@ body {
 }
 
 .app-container {
-  width: 500px;
+  width: 700px;
   max-width: 100%;
 }
 
@@ -35,10 +35,10 @@ body {
 }
 
 .compiler-output {
-  width: 500px;
+  width: 100%;
   box-sizing: border-box;
   padding: 8px 12px;
-  max-height: 120px;
+  max-height: 160px;
   overflow: auto;
 }
 
