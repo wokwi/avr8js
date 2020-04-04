@@ -3,7 +3,7 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, Uri Shaked
+ * Copyright (C) 2019, 2020, Uri Shaked
  */
 
 import { CPU } from '../cpu/cpu';
@@ -20,11 +20,6 @@ const timer01Dividers = {
   7: 0 // TODO: External clock source on T0 pin. Clock on rising edge.
 };
 
-const WGM_NORMAL = 0;
-const WGM_PWM_PHASE_CORRECT = 1;
-const WGM_CTC = 2;
-const WGM_FASTPWM = 3;
-
 const TOV = 1;
 const OCFA = 2;
 const OCFB = 4;
@@ -34,6 +29,7 @@ const OCIEA = 2;
 const OCIEB = 4;
 
 type u8 = number;
+type u16 = number;
 
 interface TimerDividers {
   0: number;
@@ -130,24 +126,91 @@ export const timer2Config: AVRTimerConfig = {
   }
 };
 
+/* All the following types and constants are related to WGM (Waveform Generation Mode) bits: */
+enum TimerMode {
+  Normal,
+  PWMPhaseCorrect,
+  CTC,
+  FastPWM,
+  PWMPhaseFrequencyCorrect,
+  Reserved
+}
+
+enum TOVUpdateMode {
+  Max,
+  Top,
+  Bottom
+}
+
+enum OCRUpdateMode {
+  Immediate,
+  Top,
+  Bottom
+}
+
+const TopOCRA = 1;
+const TopICR = 2;
+type TimerTopValue = 0xff | 0x1ff | 0x3ff | 0xffff | typeof TopOCRA | typeof TopICR;
+
+type WGMConfig = [TimerMode, TimerTopValue, OCRUpdateMode, TOVUpdateMode];
+
+const wgmModes8Bit: WGMConfig[] = [
+  /*0*/ [TimerMode.Normal, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*1*/ [TimerMode.PWMPhaseCorrect, 0xff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*2*/ [TimerMode.CTC, TopOCRA, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*3*/ [TimerMode.FastPWM, 0xff, OCRUpdateMode.Bottom, TOVUpdateMode.Max],
+  /*4*/ [TimerMode.Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*5*/ [TimerMode.PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*6*/ [TimerMode.Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*7*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top]
+];
+
+// Table 16-4 in the datasheet
+const wgmModes16Bit: WGMConfig[] = [
+  /*0 */ [TimerMode.Normal, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*1 */ [TimerMode.PWMPhaseCorrect, 0x00ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*2 */ [TimerMode.PWMPhaseCorrect, 0x01ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*3 */ [TimerMode.PWMPhaseCorrect, 0x03ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*4 */ [TimerMode.CTC, TopOCRA, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*5 */ [TimerMode.FastPWM, 0x00ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
+  /*6 */ [TimerMode.FastPWM, 0x01ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
+  /*7 */ [TimerMode.FastPWM, 0x03ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
+  /*8 */ [TimerMode.PWMPhaseFrequencyCorrect, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Bottom],
+  /*9 */ [TimerMode.PWMPhaseFrequencyCorrect, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Bottom],
+  /*10*/ [TimerMode.PWMPhaseCorrect, TopICR, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*11*/ [TimerMode.PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
+  /*12*/ [TimerMode.CTC, TopICR, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*13*/ [TimerMode.Reserved, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
+  /*14*/ [TimerMode.FastPWM, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
+  /*15*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top]
+];
+
 export class AVRTimer {
-  private mask = (1 << this.config.bits) - 1;
   private lastCycle = 0;
-  private ocrA: u8 = 0;
-  private ocrB: u8 = 0;
+  private ocrA: u16 = 0;
+  private ocrB: u16 = 0;
+  private timerMode: TimerMode;
+  private topValue: TimerTopValue;
 
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
-    cpu.writeHooks[config.TCNT] = (value: u8) => {
+    this.updateWGMConfig();
+    this.registerHook(config.TCNT, (value: u16) => {
       this.TCNT = value;
       this.timerUpdated(value);
       return true;
-    };
-    cpu.writeHooks[config.OCRA] = (value: u8) => {
+    });
+    this.registerHook(config.OCRA, (value: u16) => {
       // TODO implement buffering when timer running in PWM mode
       this.ocrA = value;
-    };
-    cpu.writeHooks[config.OCRB] = (value: u8) => {
+    });
+    this.registerHook(config.OCRB, (value: u16) => {
       this.ocrB = value;
+    });
+    cpu.writeHooks[config.TCCRA] = () => {
+      this.updateWGMConfig();
+    };
+    cpu.writeHooks[config.TCCRB] = () => {
+      this.updateWGMConfig();
     };
   }
 
@@ -166,11 +229,16 @@ export class AVRTimer {
   }
 
   get TCNT() {
-    return this.cpu.data[this.config.TCNT];
+    return this.config.bits === 16
+      ? this.cpu.dataView.getUint16(this.config.TCNT, true)
+      : this.cpu.data[this.config.TCNT];
   }
 
-  set TCNT(value: u8) {
-    this.cpu.data[this.config.TCNT] = value;
+  set TCNT(value: u16) {
+    this.cpu.data[this.config.TCNT] = value & 0xff;
+    if (this.config.bits === 16) {
+      this.cpu.data[this.config.TCNT + 1] = (value >> 16) & 0xff;
+    }
   }
 
   get TCCRA() {
@@ -185,12 +253,49 @@ export class AVRTimer {
     return this.cpu.data[this.config.TIMSK];
   }
 
+  get ICR() {
+    // Only available for 16-bit timers
+    return this.cpu.data[this.config.ICR];
+  }
+
   get CS() {
     return (this.TCCRB & 0x7) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
   }
 
   get WGM() {
-    return ((this.TCCRB & 0x8) >> 1) | (this.TCCRA & 0x3);
+    const mask = this.config.bits === 16 ? 0x18 : 0x8;
+    return ((this.TCCRB & mask) >> 1) | (this.TCCRA & 0x3);
+  }
+
+  get TOP() {
+    switch (this.topValue) {
+      case TopOCRA:
+        return this.ocrA;
+      case TopICR:
+        return this.ICR;
+      default:
+        return this.topValue;
+    }
+  }
+
+  private registerHook(address: number, hook: (value: u16) => void) {
+    if (this.config.bits === 16) {
+      this.cpu.writeHooks[address] = (value: u8) => {
+        hook(this.cpu.data[address + 1] | value);
+      };
+      this.cpu.writeHooks[address + 1] = (value: u8) => {
+        hook((value << 8) | this.cpu.data[address]);
+      };
+    } else {
+      this.cpu.writeHooks[address] = hook;
+    }
+  }
+
+  private updateWGMConfig() {
+    const wgmModes = this.config.bits === 16 ? wgmModes16Bit : wgmModes8Bit;
+    const [timerMode, topValue] = wgmModes[this.WGM];
+    this.timerMode = timerMode;
+    this.topValue = topValue;
   }
 
   tick() {
@@ -200,13 +305,15 @@ export class AVRTimer {
       const counterDelta = Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;
       const val = this.TCNT;
-      const newVal = (val + counterDelta) & this.mask;
+      const newVal = (val + counterDelta) % (this.TOP + 1);
       this.TCNT = newVal;
       this.timerUpdated(newVal);
+      const { timerMode } = this;
       if (
-        (this.WGM === WGM_NORMAL ||
-          this.WGM === WGM_PWM_PHASE_CORRECT ||
-          this.WGM === WGM_FASTPWM) &&
+        (timerMode === TimerMode.Normal ||
+          timerMode === TimerMode.PWMPhaseCorrect ||
+          timerMode === TimerMode.PWMPhaseFrequencyCorrect ||
+          timerMode === TimerMode.FastPWM) &&
         val > newVal
       ) {
         this.TIFR |= TOV;
@@ -231,7 +338,7 @@ export class AVRTimer {
   private timerUpdated(value: u8) {
     if (this.ocrA && value === this.ocrA) {
       this.TIFR |= OCFA;
-      if (this.WGM === WGM_CTC) {
+      if (this.timerMode === TimerMode.CTC) {
         // Clear Timer on Compare Match (CTC) Mode
         this.TCNT = 0;
         this.TIFR |= TOV;

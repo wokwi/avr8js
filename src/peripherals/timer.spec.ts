@@ -1,5 +1,5 @@
 import { CPU } from '../cpu/cpu';
-import { AVRTimer, timer0Config, timer2Config } from './timer';
+import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
 
 describe('timer', () => {
   let cpu: CPU;
@@ -200,5 +200,22 @@ describe('timer', () => {
     cpu.cycles = 512;
     timer.tick();
     expect(cpu.data[0xb2]).toEqual(2); // TCNT2 should be 2
+  });
+
+  describe('16 bit timers', () => {
+    it('should set OCF0A flag when timer equals OCRA (16 bit mode)', () => {
+      const timer = new AVRTimer(cpu, timer1Config);
+      cpu.writeData(0x84, 0xee); // TCNT1 <- 0x10ee
+      cpu.writeData(0x85, 0x10); // ...
+      cpu.writeData(0x88, 0xef); // OCR1A <- 0x10ef
+      cpu.writeData(0x89, 0x10); // ...
+      cpu.writeData(0x80, 0x0); // WGM1 <- 0 (Normal)
+      cpu.writeData(0x81, 0x1); // TCCR1B.CS <- 1
+      cpu.cycles = 1;
+      timer.tick();
+      expect(cpu.data[0x36]).toEqual(2); // TIFR0 should have OCF0A bit on
+      expect(cpu.pc).toEqual(0);
+      expect(cpu.cycles).toEqual(1);
+    });
   });
 });
