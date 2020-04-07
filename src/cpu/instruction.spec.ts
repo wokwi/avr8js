@@ -179,6 +179,56 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
   });
 
+  it('should execute `ELPM` instruction', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('ELPM');
+    cpu.data[30] = 0x50; // Z <- 0x50
+    cpu.data[0x3b] = 0x2; // RAMPZ <- 2
+    cpu.progBytes[0x20050] = 0x62; // value to be loaded
+    avrInstruction(cpu);
+    expect(cpu.data[0]).toEqual(0x62); // check that value was loaded to r0
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+  });
+
+  it('should execute `ELPM r5, Z` instruction', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('ELPM r5, Z');
+    cpu.data[30] = 0x11; // Z <- 0x11
+    cpu.data[0x3b] = 0x1; // RAMPZ <- 1
+    cpu.progBytes[0x10011] = 0x99; // value to be loaded
+    avrInstruction(cpu);
+    expect(cpu.data[5]).toEqual(0x99); // check that value was loaded to r5
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+  });
+
+  it('should execute `ELPM r6, Z+` instruction', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('ELPM r6, Z+');
+    cpu.data[30] = 0xff; // Z <- 0xffff
+    cpu.data[31] = 0xff; // ...
+    cpu.data[0x3b] = 0x2; // RAMPZ <- 2
+    cpu.progBytes[0x2ffff] = 0x22; // value to be loaded
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(3);
+    expect(cpu.data[6]).toEqual(0x22); // check that value was loaded to r6
+    expect(cpu.data[30]).toEqual(0x0); // verify that Z was incremented
+    expect(cpu.data[31]).toEqual(0x0); // verify that Z was incremented
+    expect(cpu.data[0x3b]).toEqual(3); // verify that RAMPZ was incremented
+  });
+
+  it('should clamp RAMPZ when executing `ELPM r6, Z+` instruction', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('ELPM r6, Z+');
+    cpu.data[30] = 0xff; // Z <- 0xffff
+    cpu.data[31] = 0xff; // ...
+    cpu.data[0x3b] = 0x3; // RAMPZ <- 3
+    avrInstruction(cpu);
+    expect(cpu.data[0x3b]).toEqual(0x0); // verify that RAMPZ was reset to zero
+  });
+
   it('should execute `ICALL` instruction', () => {
     loadProgram('ICALL');
     cpu.data[94] = 0;

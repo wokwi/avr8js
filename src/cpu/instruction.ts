@@ -209,6 +209,27 @@ export function avrInstruction(cpu: ICPU) {
     sreg |= 128 === value ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
+  } else if (opcode === 0x95d8) {
+    /* ELPM, 1001 0101 1101 1000 */
+    const rampz = cpu.data[0x3b];
+    cpu.data[0] = cpu.progBytes[(rampz << 16) | cpu.dataView.getUint16(30, true)];
+    cpu.cycles += 2;
+  } else if ((opcode & 0xfe0f) === 0x9006) {
+    /* ELPM(REG), 1001 000d dddd 0110 */
+    const rampz = cpu.data[0x3b];
+    cpu.data[(opcode & 0x1f0) >> 4] =
+      cpu.progBytes[(rampz << 16) | cpu.dataView.getUint16(30, true)];
+    cpu.cycles += 2;
+  } else if ((opcode & 0xfe0f) === 0x9007) {
+    /* ELPM(INC), 1001 000d dddd 0111 */
+    const rampz = cpu.data[0x3b];
+    const i = cpu.dataView.getUint16(30, true);
+    cpu.data[(opcode & 0x1f0) >> 4] = cpu.progBytes[(rampz << 16) | i];
+    cpu.dataView.setUint16(30, i + 1, true);
+    if (i === 0xffff) {
+      cpu.data[0x3b] = (rampz + 1) % (cpu.progBytes.length >> 16);
+    }
+    cpu.cycles += 2;
   } else if ((opcode & 0xfc00) === 0x2400) {
     /* EOR, 0010 01rd dddd rrrr */
     const R = cpu.data[(opcode & 0x1f0) >> 4] ^ cpu.data[(opcode & 0xf) | ((opcode & 0x200) >> 5)];
