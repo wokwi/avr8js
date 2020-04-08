@@ -209,6 +209,21 @@ export function avrInstruction(cpu: ICPU) {
     sreg |= 128 === value ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     cpu.data[95] = sreg;
+  } else if (opcode === 0x9519) {
+    /* EICALL, 1001 0101 0001 1001 */
+    const retAddr = cpu.pc + 1;
+    const sp = cpu.dataView.getUint16(93, true);
+    const eind = cpu.data[0x3c];
+    cpu.data[sp] = retAddr & 255;
+    cpu.data[sp - 1] = (retAddr >> 8) & 255;
+    cpu.dataView.setUint16(93, sp - 2, true);
+    cpu.pc = ((eind << 16) | cpu.dataView.getUint16(30, true)) - 1;
+    cpu.cycles += 3;
+  } else if (opcode === 0x9419) {
+    /* EIJMP, 1001 0100 0001 1001 */
+    const eind = cpu.data[0x3c];
+    cpu.pc = ((eind << 16) | cpu.dataView.getUint16(30, true)) - 1;
+    cpu.cycles++;
   } else if (opcode === 0x95d8) {
     /* ELPM, 1001 0101 1101 1000 */
     const rampz = cpu.data[0x3b];

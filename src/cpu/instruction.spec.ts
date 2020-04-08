@@ -179,6 +179,29 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
   });
 
+  it('should execute `EICALL` instruction', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('EICALL');
+    cpu.data[94] = 0;
+    cpu.data[93] = 0x80;
+    cpu.data[0x3c] = 1; // EIND <- 1
+    cpu.dataView.setUint16(30, 0x1234, true); // Z <- 0x1234
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x11234);
+    expect(cpu.cycles).toEqual(4);
+    expect(cpu.data[0x80]).toEqual(1); // Return address
+  });
+
+  it('should execute `EIJMP` instruction', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('EIJMP');
+    cpu.data[0x3c] = 1; // EIND <- 1
+    cpu.dataView.setUint16(30, 0x1040, true); // Z <- 0x1040
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x11040);
+    expect(cpu.cycles).toEqual(2);
+  });
+
   it('should execute `ELPM` instruction', () => {
     cpu = new CPU(new Uint16Array(0x20000));
     loadProgram('ELPM');
