@@ -5,7 +5,7 @@
  * Copyright (C) 2019, Uri Shaked
  */
 
-import { u16, u8 } from '../types';
+import { u32, u16, u8 } from '../types';
 
 const registerSpace = 0x100;
 
@@ -15,7 +15,20 @@ export interface ICPU {
   readonly dataView: DataView;
   readonly progMem: Uint16Array;
   readonly progBytes: Uint8Array;
-  pc: u16;
+
+  /**
+   * Whether the program counter (PC) can address 22 bits (the default is 16)
+   */
+  readonly pc22Bits: boolean;
+
+  /**
+   * Program counter
+   */
+  pc: u32;
+
+  /**
+   * Clock cycle counter
+   */
   cycles: number;
 
   readData(addr: u16): u8;
@@ -33,6 +46,7 @@ export class CPU implements ICPU {
   readonly dataView = new DataView(this.data.buffer);
   readonly progBytes = new Uint8Array(this.progMem.buffer);
   readonly writeHooks: CPUMemoryHooks = [];
+  readonly pc22Bits = this.progBytes.length > 0x20000;
 
   pc = 0;
   cycles = 0;

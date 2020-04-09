@@ -131,11 +131,15 @@ export function avrInstruction(cpu: ICPU) {
     const k = cpu.progMem[cpu.pc + 1] | ((opcode & 1) << 16) | ((opcode & 0x1f0) << 13);
     const ret = cpu.pc + 2;
     const sp = cpu.dataView.getUint16(93, true);
+    const { pc22Bits } = cpu;
     cpu.data[sp] = 255 & ret;
     cpu.data[sp - 1] = (ret >> 8) & 255;
-    cpu.dataView.setUint16(93, sp - 2, true);
+    if (pc22Bits) {
+      cpu.data[sp - 2] = (ret >> 16) & 255;
+    }
+    cpu.dataView.setUint16(93, sp - (pc22Bits ? 3 : 2), true);
     cpu.pc = k - 1;
-    cpu.cycles += 4;
+    cpu.cycles += pc22Bits ? 4 : 3;
   } else if ((opcode & 0xff00) === 0x9800) {
     /* CBI, 1001 1000 AAAA Abbb */
     const A = opcode & 0xf8;
@@ -282,11 +286,15 @@ export function avrInstruction(cpu: ICPU) {
     /* ICALL, 1001 0101 0000 1001 */
     const retAddr = cpu.pc + 1;
     const sp = cpu.dataView.getUint16(93, true);
+    const { pc22Bits } = cpu;
     cpu.data[sp] = retAddr & 255;
     cpu.data[sp - 1] = (retAddr >> 8) & 255;
-    cpu.dataView.setUint16(93, sp - 2, true);
+    if (pc22Bits) {
+      cpu.data[sp - 2] = (retAddr >> 16) & 255;
+    }
+    cpu.dataView.setUint16(93, sp - (pc22Bits ? 3 : 2), true);
     cpu.pc = cpu.dataView.getUint16(30, true) - 1;
-    cpu.cycles += 2;
+    cpu.cycles += pc22Bits ? 3 : 2;
   } else if (opcode === 0x9409) {
     /* IJMP, 1001 0100 0000 1001 */
     cpu.pc = cpu.dataView.getUint16(30, true) - 1;
@@ -512,23 +520,35 @@ export function avrInstruction(cpu: ICPU) {
     const k = (opcode & 0x7ff) - (opcode & 0x800 ? 0x800 : 0);
     const retAddr = cpu.pc + 1;
     const sp = cpu.dataView.getUint16(93, true);
+    const { pc22Bits } = cpu;
     cpu.data[sp] = 255 & retAddr;
     cpu.data[sp - 1] = (retAddr >> 8) & 255;
-    cpu.dataView.setUint16(93, sp - 2, true);
+    if (pc22Bits) {
+      cpu.data[sp - 2] = (retAddr >> 16) & 255;
+    }
+    cpu.dataView.setUint16(93, sp - (pc22Bits ? 3 : 2), true);
     cpu.pc += k;
-    cpu.cycles += 3;
+    cpu.cycles += pc22Bits ? 3 : 2;
   } else if (opcode === 0x9508) {
     /* RET, 1001 0101 0000 1000 */
-    const i = cpu.dataView.getUint16(93, true) + 2;
+    const { pc22Bits } = cpu;
+    const i = cpu.dataView.getUint16(93, true) + (pc22Bits ? 3 : 2);
     cpu.dataView.setUint16(93, i, true);
     cpu.pc = (cpu.data[i - 1] << 8) + cpu.data[i] - 1;
-    cpu.cycles += 4;
+    if (pc22Bits) {
+      cpu.pc |= cpu.data[i - 2] << 16;
+    }
+    cpu.cycles += pc22Bits ? 4 : 3;
   } else if (opcode === 0x9518) {
     /* RETI, 1001 0101 0001 1000 */
-    const i = cpu.dataView.getUint16(93, true) + 2;
+    const { pc22Bits } = cpu;
+    const i = cpu.dataView.getUint16(93, true) + (pc22Bits ? 3 : 2);
     cpu.dataView.setUint16(93, i, true);
     cpu.pc = (cpu.data[i - 1] << 8) + cpu.data[i] - 1;
-    cpu.cycles += 4;
+    if (pc22Bits) {
+      cpu.pc |= cpu.data[i - 2] << 16;
+    }
+    cpu.cycles += pc22Bits ? 4 : 3;
     cpu.data[95] |= 0x80; // Enable interrupts
   } else if ((opcode & 0xf000) === 0xc000) {
     /* RJMP, 1100 kkkk kkkk kkkk */

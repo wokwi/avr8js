@@ -117,9 +117,21 @@ describe('avrInstruction', () => {
     cpu.data[93] = 150; // SP <- 50
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x5c);
-    expect(cpu.cycles).toEqual(5);
+    expect(cpu.cycles).toEqual(4);
     expect(cpu.data[150]).toEqual(2); // return addr
     expect(cpu.data[93]).toEqual(148); // SP should be decremented
+  });
+
+  it('should push 3-byte return address when executing `CALL` instruction on device with >128k flash', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('CALL 0xb8');
+    cpu.data[94] = 0;
+    cpu.data[93] = 150; // SP <- 50
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x5c);
+    expect(cpu.cycles).toEqual(5);
+    expect(cpu.data[150]).toEqual(2); // return addr
+    expect(cpu.data[93]).toEqual(147); // SP should be decremented by 3
   });
 
   it('should execute `CPC r27, r18` instruction', () => {
@@ -261,7 +273,20 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
     expect(cpu.pc).toEqual(0x2020);
     expect(cpu.data[0x80]).toEqual(1); // Return address
-    expect(cpu.data[93]).toEqual(0x7e);
+    expect(cpu.data[93]).toEqual(0x7e); // SP Should decrement by 2
+  });
+
+  it('should push 3-byte return address when executing `ICALL` instruction on device with >128k flash', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('ICALL');
+    cpu.data[94] = 0;
+    cpu.data[93] = 0x80;
+    cpu.dataView.setUint16(30, 0x2020, true); // Z <- 0x2020
+    avrInstruction(cpu);
+    expect(cpu.cycles).toEqual(4);
+    expect(cpu.pc).toEqual(0x2020);
+    expect(cpu.data[0x80]).toEqual(1); // Return address
+    expect(cpu.data[93]).toEqual(0x7d); // SP Should decrement by 3
   });
 
   it('should execute `IJMP` instruction', () => {
@@ -659,9 +684,9 @@ describe('avrInstruction', () => {
     cpu.data[93] = 0x80; // SP <- 0x80
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(4);
-    expect(cpu.cycles).toEqual(4);
+    expect(cpu.cycles).toEqual(3);
     expect(cpu.dataView.getUint16(0x80, true)).toEqual(1); // RET address
-    expect(cpu.data[93]).toEqual(0x7e); // SP
+    expect(cpu.data[93]).toEqual(0x7e); // SP should decrement by 2
   });
 
   it('should execute `RCALL .-4` instruction', () => {
@@ -671,9 +696,22 @@ describe('avrInstruction', () => {
     avrInstruction(cpu);
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(5); // 1 for NOP, 4 for RCALL
+    expect(cpu.cycles).toEqual(4); // 1 for NOP, 3 for RCALL
     expect(cpu.dataView.getUint16(0x80, true)).toEqual(2); // RET address
-    expect(cpu.data[93]).toEqual(0x7e); // SP
+    expect(cpu.data[93]).toEqual(0x7e); // SP should decrement by 2
+  });
+
+  it('should push 3-byte return address when executing `RCALL` instruction on device with >128k flash', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('RCALL 6');
+    cpu.data[94] = 0;
+    cpu.data[93] = 0x80;
+    cpu.dataView.setUint16(30, 0x2020, true); // Z <- 0x2020
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(4);
+    expect(cpu.cycles).toEqual(4);
+    expect(cpu.dataView.getUint16(0x80, true)).toEqual(1); // RET address
+    expect(cpu.data[93]).toEqual(0x7d); // SP Should decrement by 3
   });
 
   it('should execute `RET` instruction', () => {
@@ -683,8 +721,21 @@ describe('avrInstruction', () => {
     cpu.data[0x92] = 16;
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(16);
+    expect(cpu.cycles).toEqual(4);
+    expect(cpu.data[93]).toEqual(0x92); // SP should increment by 2
+  });
+
+  it('should execute `RET` instruction on device with >128k flash', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('RET');
+    cpu.data[94] = 0;
+    cpu.data[93] = 0x90; // SP <- 0x90
+    cpu.data[0x91] = 0x1;
+    cpu.data[0x93] = 0x16;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x10016);
     expect(cpu.cycles).toEqual(5);
-    expect(cpu.data[93]).toEqual(0x92); // SP should increment
+    expect(cpu.data[93]).toEqual(0x93); // SP should increment by 3
   });
 
   it('should execute `RETI` instruction', () => {
@@ -694,8 +745,22 @@ describe('avrInstruction', () => {
     cpu.data[0xc2] = 200;
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(200);
+    expect(cpu.cycles).toEqual(4);
+    expect(cpu.data[93]).toEqual(0xc2); // SP should increment by 2
+    expect(cpu.data[95]).toEqual(0b10000000); // SREG: I
+  });
+
+  it('should execute `RETI` instruction on device with >128k flash', () => {
+    cpu = new CPU(new Uint16Array(0x20000));
+    loadProgram('RETI');
+    cpu.data[94] = 0;
+    cpu.data[93] = 0xc0; // SP <- 0xc0
+    cpu.data[0xc1] = 0x1;
+    cpu.data[0xc3] = 0x30;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x10030);
     expect(cpu.cycles).toEqual(5);
-    expect(cpu.data[93]).toEqual(0xc2); // SP should increment
+    expect(cpu.data[93]).toEqual(0xc3); // SP should increment by 3
     expect(cpu.data[95]).toEqual(0b10000000); // SREG: I
   });
 
