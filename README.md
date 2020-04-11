@@ -26,6 +26,8 @@ Run the tests of the files you modified since last commit (watch mode):
 npm run test:watch
 ```
 
+For more information, please check the [Contributing Guide](CONTRIBUTING.md).
+
 ## License
 
-Copyright (C) 2019, Uri Shaked. The code is released under the terms of the MIT license.
+Copyright (C) 2019, 2020 Uri Shaked. The code is released under the terms of the MIT license.
