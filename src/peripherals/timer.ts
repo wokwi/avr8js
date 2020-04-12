@@ -206,11 +206,15 @@ export class AVRTimer {
     this.registerHook(config.OCRB, (value: u16) => {
       this.ocrB = value;
     });
-    cpu.writeHooks[config.TCCRA] = () => {
+    cpu.writeHooks[config.TCCRA] = (value) => {
+      this.cpu.data[config.TCCRA] = value;
       this.updateWGMConfig();
+      return true;
     };
-    cpu.writeHooks[config.TCCRB] = () => {
+    cpu.writeHooks[config.TCCRB] = (value) => {
+      this.cpu.data[config.TCCRB] = value;
       this.updateWGMConfig();
+      return true;
     };
   }
 
@@ -237,7 +241,7 @@ export class AVRTimer {
   set TCNT(value: u16) {
     this.cpu.data[this.config.TCNT] = value & 0xff;
     if (this.config.bits === 16) {
-      this.cpu.data[this.config.TCNT + 1] = (value >> 16) & 0xff;
+      this.cpu.data[this.config.TCNT + 1] = (value >> 8) & 0xff;
     }
   }
 
@@ -255,7 +259,7 @@ export class AVRTimer {
 
   get ICR() {
     // Only available for 16-bit timers
-    return this.cpu.data[this.config.ICR];
+    return (this.cpu.data[this.config.ICR + 1] << 8) | this.cpu.data[this.config.ICR];
   }
 
   get CS() {
@@ -280,12 +284,8 @@ export class AVRTimer {
 
   private registerHook(address: number, hook: (value: u16) => void) {
     if (this.config.bits === 16) {
-      this.cpu.writeHooks[address] = (value: u8) => {
-        hook(this.cpu.data[address + 1] | value);
-      };
-      this.cpu.writeHooks[address + 1] = (value: u8) => {
-        hook((value << 8) | this.cpu.data[address]);
-      };
+      this.cpu.writeHooks[address] = (value: u8) => hook((this.cpu.data[address + 1] << 8) | value);
+      this.cpu.writeHooks[address + 1] = (value: u8) => hook((value << 8) | this.cpu.data[address]);
     } else {
       this.cpu.writeHooks[address] = hook;
     }
