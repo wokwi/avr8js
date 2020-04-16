@@ -1,5 +1,5 @@
 import { CPU } from '../cpu/cpu';
-import { AVRTimer, timer0Config, timer2Config } from './timer';
+import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
 
 describe('timer', () => {
   let cpu: CPU;
@@ -200,5 +200,65 @@ describe('timer', () => {
     cpu.cycles = 512;
     timer.tick();
     expect(cpu.data[0xb2]).toEqual(2); // TCNT2 should be 2
+  });
+
+  describe('16 bit timers', () => {
+    it('should increment 16-bit TCNT by 1', () => {
+      const timer = new AVRTimer(cpu, timer1Config);
+      cpu.writeData(0x85, 0x22); // TCNT1 <- 0x2233
+      cpu.writeData(0x84, 0x33); // ...
+      expect(timer.TCNT).toEqual(0x2233);
+      cpu.writeData(0x80, 0x0); // WGM1 <- 0 (Normal)
+      cpu.writeData(0x81, 0x1); // TCCR1B.CS <- 1
+      cpu.cycles = 1;
+      timer.tick();
+      expect(cpu.dataView.getUint16(0x84, true)).toEqual(0x2234); // TCNT1 should increment
+    });
+
+    it('should set OCF0A flag when timer equals OCRA (16 bit mode)', () => {
+      const timer = new AVRTimer(cpu, timer1Config);
+      cpu.writeData(0x84, 0xee); // TCNT1 <- 0x10ee
+      cpu.writeData(0x85, 0x10); // ...
+      cpu.writeData(0x88, 0xef); // OCR1A <- 0x10ef
+      cpu.writeData(0x89, 0x10); // ...
+      cpu.writeData(0x80, 0x0); // TCCR1A <- 0 (Normal Mode)
+      cpu.writeData(0x81, 0x1); // TCCR1B <- CS10
+      cpu.cycles = 1;
+      timer.tick();
+      expect(cpu.data[0x36]).toEqual(2); // TIFR1 should have OCF1A bit on
+      expect(cpu.pc).toEqual(0);
+      expect(cpu.cycles).toEqual(1);
+    });
+
+    it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
+      const timer = new AVRTimer(cpu, timer1Config);
+      cpu.writeData(0x85, 0x3); // TCNT1 <- 0x3ff
+      cpu.writeData(0x84, 0xff); // ...
+      cpu.writeData(0x80, 0x3); // TCCR1A <- WGM10 | WGM11 (Fast PWM, 10-bit)
+      cpu.writeData(0x81, 0x9); // TCCR1B <- WGM12 | CS10
+      console.log(timer.CS);
+      cpu.data[0x6f] = 0x1; // TIMSK1: TOIE1
+      cpu.data[95] = 0x80; // SREG: I-------
+      cpu.cycles = 1;
+      timer.tick();
+      expect(cpu.dataView.getUint16(0x84, true)).toEqual(0); // TCNT should be 0
+      expect(cpu.data[0x36]).toEqual(0); // TOV bit in TIFR should be clear
+      expect(cpu.pc).toEqual(0x1a);
+      expect(cpu.cycles).toEqual(3);
+    });
+
+    it('should reset the timer once it reaches ICR value in mode 12', () => {
+      const timer = new AVRTimer(cpu, timer1Config);
+      cpu.writeData(0x85, 0x50); // TCNT1 <- 0x500f
+      cpu.writeData(0x84, 0x0f); // ...
+      cpu.writeData(0x87, 0x50); // ICR1 <- 0x5010
+      cpu.writeData(0x86, 0x10); // ...
+      cpu.writeData(0x81, 0x19); // TCCR1B <- WGM13 | WGM12 | CS10
+      cpu.cycles = 2; // 2 cycles should increment timer twice, beyond ICR1
+      timer.tick();
+      expect(cpu.dataView.getUint16(0x84, true)).toEqual(0); // TCNT should be 0
+      expect(cpu.data[0x36]).toEqual(0); // TOV bit in TIFR should be clear
+      expect(cpu.cycles).toEqual(2);
+    });
   });
 });
