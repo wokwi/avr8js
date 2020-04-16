@@ -1,14 +1,14 @@
 import * as fs from 'fs';
 import * as prettier from 'prettier';
+import prettierOptions from '../prettier.config';
 
-const input = fs.readFileSync('src/instruction.ts', { encoding: 'utf-8' });
+const input = fs.readFileSync('src/cpu/instruction.ts', { encoding: 'utf-8' });
 let fnName = '';
 let fnBody = '';
-let openingBrace = false;
 let currentInstruction = '';
 let pattern = '';
 let output = `
-import { ICPU } from '../src/cpu';
+import { ICPU } from '../src/cpu/cpu';
 
 function isTwoWordInstruction(opcode: number) {
   return (
@@ -22,22 +22,22 @@ function isTwoWordInstruction(opcode: number) {
     (opcode & 0xfe0e) === 0x940c
   );
 }
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
 `;
 const patternToFn: Array<[string, string]> = [];
 for (const line of input.split('\n')) {
-  if (line.startsWith('  /* ')) {
+  if (line.startsWith('    /* ') && line.includes(', ')) {
     currentInstruction = line
       .trim()
       .split(',')[0]
       .split(' ')[1];
     fnBody = '';
-    openingBrace = false;
     pattern = line.split(',')[1].split('*')[0];
     console.log(currentInstruction);
-    fnName = 'inst' + currentInstruction.replace(/[\(\)]/g, '');
+    fnName = 'inst' + currentInstruction.replace(/[()]/g, '');
     patternToFn.push([pattern.trim(), fnName]);
-  }
-  if (line.startsWith('  }')) {
+  } else if (line.startsWith('  }')) {
     output += `
       export function ${fnName}(cpu: ICPU, opcode: number) {
         /*${pattern}*/
@@ -49,10 +49,8 @@ for (const line of input.split('\n')) {
       }
     `;
     currentInstruction = '';
-  } else if (currentInstruction && openingBrace) {
+  } else if (currentInstruction) {
     fnBody += line;
-  } else if (currentInstruction && !openingBrace) {
-    openingBrace = line.includes('{');
   }
 }
 
@@ -74,7 +72,11 @@ export function executeInstruction(idx: number, cpu: ICPU, opcode: number) {
   }
 }`;
 
-const formattedOutput = prettier.format(output, { singleQuote: true, parser: 'babel' });
+const formattedOutput = prettier.format(output, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...(prettierOptions as any),
+  parser: 'babel'
+});
 
 fs.writeFileSync('benchmark/instruction-fn.ts', formattedOutput, {
   encoding: 'utf-8'

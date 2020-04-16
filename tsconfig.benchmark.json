@@ -3,7 +3,9 @@
   "compilerOptions": {
     "rootDir": ".",
     "target": "es2018",
-    "module": "commonjs"
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "allowJs": true
   },
   "include": ["src/**/*.ts", "benchmark/**/*.ts"]
 }
