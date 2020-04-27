@@ -20,74 +20,74 @@ export type GPIOListener = (value: u8, oldValue: u8) => void;
 export const portAConfig: AVRPortConfig = {
   PIN: 0x20,
   DDR: 0x21,
-  PORT: 0x22
+  PORT: 0x22,
 };
 
 export const portBConfig: AVRPortConfig = {
   PIN: 0x23,
   DDR: 0x24,
-  PORT: 0x25
+  PORT: 0x25,
 };
 
 export const portCConfig: AVRPortConfig = {
   PIN: 0x26,
   DDR: 0x27,
-  PORT: 0x28
+  PORT: 0x28,
 };
 
 export const portDConfig: AVRPortConfig = {
   PIN: 0x29,
   DDR: 0x2a,
-  PORT: 0x2b
+  PORT: 0x2b,
 };
 
 export const portEConfig: AVRPortConfig = {
   PIN: 0x2c,
   DDR: 0x2d,
-  PORT: 0x2e
+  PORT: 0x2e,
 };
 
 export const portFConfig: AVRPortConfig = {
   PIN: 0x2f,
   DDR: 0x30,
-  PORT: 0x31
+  PORT: 0x31,
 };
 
 export const portGConfig: AVRPortConfig = {
   PIN: 0x32,
   DDR: 0x33,
-  PORT: 0x34
+  PORT: 0x34,
 };
 
 export const portHConfig: AVRPortConfig = {
   PIN: 0x100,
   DDR: 0x101,
-  PORT: 0x102
+  PORT: 0x102,
 };
 
 export const portJConfig: AVRPortConfig = {
   PIN: 0x103,
   DDR: 0x104,
-  PORT: 0x105
+  PORT: 0x105,
 };
 
 export const portKConfig: AVRPortConfig = {
   PIN: 0x106,
   DDR: 0x107,
-  PORT: 0x108
+  PORT: 0x108,
 };
 
 export const portLConfig: AVRPortConfig = {
   PIN: 0x109,
   DDR: 0x10a,
-  PORT: 0x10b
+  PORT: 0x10b,
 };
 
 export enum PinState {
   Low,
   High,
   Input,
-  InputPullUp
+  InputPullUp,
 }
 
 export class AVRIOPort {

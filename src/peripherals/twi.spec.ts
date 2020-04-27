@@ -176,7 +176,7 @@ describe('TWI', () => {
         stop: jest.fn(),
         connectToSlave: jest.fn(),
         writeByte: jest.fn(),
-        readByte: jest.fn()
+        readByte: jest.fn(),
       };
 
       // Step 1: wait for start condition
@@ -344,7 +344,7 @@ describe('TWI', () => {
         stop: jest.fn(),
         connectToSlave: jest.fn(),
         writeByte: jest.fn(),
-        readByte: jest.fn()
+        readByte: jest.fn(),
       };
 
       // Step 1: wait for start condition

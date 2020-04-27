@@ -29,13 +29,13 @@ void loop() {
 declare const window: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 declare const monaco: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 window.require.config({
-  paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.20.0/min/vs' }
+  paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.20.0/min/vs' },
 });
 window.require(['vs/editor/editor.main'], () => {
   editor = monaco.editor.create(document.querySelector('.code-editor'), {
     value: EditorHistoryUtil.getValue() || BLINK_CODE,
     language: 'cpp',
-    minimap: { enabled: false }
+    minimap: { enabled: false },
   });
 });
 

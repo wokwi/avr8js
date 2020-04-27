@@ -9,7 +9,7 @@ import {
   portBConfig,
   portCConfig,
   portDConfig,
-  usart0Config
+  usart0Config,
 } from 'avr8js';
 import { loadHex } from './intelhex';
 import { MicroTaskScheduler } from './task-scheduler';

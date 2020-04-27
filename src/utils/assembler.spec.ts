@@ -13,7 +13,7 @@ describe('AVR assembler', () => {
     expect(assemble('ADD r16, r11')).toEqual({
       bytes: bytes('0b0d'),
       errors: [],
-      lines: [{ byteOffset: 0, bytes: '0d0b', line: 1, text: 'ADD r16, r11' }]
+      lines: [{ byteOffset: 0, bytes: '0d0b', line: 1, text: 'ADD r16, r11' }],
     });
   });
 
@@ -35,7 +35,7 @@ describe('AVR assembler', () => {
     expect(assemble('')).toEqual({
       bytes: new Uint8Array(0),
       errors: [],
-      lines: []
+      lines: [],
     });
   });
 
@@ -43,7 +43,7 @@ describe('AVR assembler', () => {
     expect(assemble('LDI r15, 20')).toEqual({
       bytes: new Uint8Array(0),
       errors: ['Line 0: Rd out of range: 16<>31'],
-      lines: []
+      lines: [],
     });
   });
 

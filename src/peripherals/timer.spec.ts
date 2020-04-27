@@ -214,7 +214,7 @@ describe('timer', () => {
       'LDI r16, 0x30', // TCNT <- 0x30
       'OUT 0x26, r16',
       'NOP',
-      'IN r17, 0x26' // r17 <- TCNT
+      'IN r17, 0x26', // r17 <- TCNT
     ];
     loadProgram(...program);
     const timer = new AVRTimer(cpu, timer0Config);

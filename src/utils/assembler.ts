@@ -763,7 +763,7 @@ const OPTABLE: { [key: string]: opcodeHandler } = {
       throw 'Bad param, not Z';
     }
     return zeroPad(r);
-  }
+  },
 };
 
 function passOne(inputdata: string) {
@@ -880,7 +880,7 @@ function passOne(inputdata: string) {
   return {
     labels: lableTable,
     errors: errorTable,
-    lines: lineTable
+    lines: lineTable,
   };
 }
 
@@ -950,7 +950,7 @@ export function assemble(input: string) {
     return {
       bytes: new Uint8Array(0),
       errors: mid.errors,
-      lines: []
+      lines: [],
     };
   }
   return passTwo(mid.lines, mid.labels);

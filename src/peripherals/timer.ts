@@ -17,7 +17,7 @@ const timer01Dividers = {
   4: 256,
   5: 1024,
   6: 0, // TODO: External clock source on T0 pin. Clock on falling edge.
-  7: 0 // TODO: External clock source on T0 pin. Clock on rising edge.
+  7: 0, // TODO: External clock source on T0 pin. Clock on rising edge.
 };
 
 const TOV = 1;
@@ -78,7 +78,7 @@ export const timer0Config: AVRTimerConfig = {
   TCCRB: 0x45,
   TCCRC: 0, // not available
   TIMSK: 0x6e,
-  dividers: timer01Dividers
+  dividers: timer01Dividers,
 };
 
 export const timer1Config: AVRTimerConfig = {
@@ -96,7 +96,7 @@ export const timer1Config: AVRTimerConfig = {
   TCCRB: 0x81,
   TCCRC: 0x82,
   TIMSK: 0x6f,
-  dividers: timer01Dividers
+  dividers: timer01Dividers,
 };
 
 export const timer2Config: AVRTimerConfig = {
@@ -122,8 +122,8 @@ export const timer2Config: AVRTimerConfig = {
     4: 64,
     5: 128,
     6: 256,
-    7: 1024
-  }
+    7: 1024,
+  },
 };
 
 /* All the following types and constants are related to WGM (Waveform Generation Mode) bits: */
@@ -133,19 +133,19 @@ enum TimerMode {
   CTC,
   FastPWM,
   PWMPhaseFrequencyCorrect,
-  Reserved
+  Reserved,
 }
 
 enum TOVUpdateMode {
   Max,
   Top,
-  Bottom
+  Bottom,
 }
 
 enum OCRUpdateMode {
   Immediate,
   Top,
-  Bottom
+  Bottom,
 }
 
 const TopOCRA = 1;
@@ -162,7 +162,7 @@ const wgmModes8Bit: WGMConfig[] = [
   /*4*/ [TimerMode.Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
   /*5*/ [TimerMode.PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
   /*6*/ [TimerMode.Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*7*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top]
+  /*7*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
 ];
 
 // Table 16-4 in the datasheet
@@ -182,7 +182,7 @@ const wgmModes16Bit: WGMConfig[] = [
   /*12*/ [TimerMode.CTC, TopICR, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
   /*13*/ [TimerMode.Reserved, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
   /*14*/ [TimerMode.FastPWM, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
-  /*15*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top]
+  /*15*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
 ];
 
 export class AVRTimer {

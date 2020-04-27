@@ -65,7 +65,7 @@ export const twiConfig: TWIConfig = {
   TWAR: 0xba,
   TWDR: 0xbb,
   TWCR: 0xbc,
-  TWAMR: 0xbd
+  TWAMR: 0xbd,
 };
 
 // A simple TWI Event Handler that sends a NACK for all events

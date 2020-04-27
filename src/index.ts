@@ -23,7 +23,7 @@ export {
   portJConfig,
   portKConfig,
   portLConfig,
-  PinState
+  PinState,
 } from './peripherals/gpio';
 export { AVRUSART, usart0Config } from './peripherals/usart';
 export * from './peripherals/twi';

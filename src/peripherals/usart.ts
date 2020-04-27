@@ -24,7 +24,7 @@ export const usart0Config: USARTConfig = {
   UCSRC: 0xc2,
   UBRRL: 0xc4,
   UBRRH: 0xc5,
-  UDR: 0xc6
+  UDR: 0xc6,
 };
 
 export type USARTTransmitCallback = (value: u8) => void;
