@@ -191,11 +191,13 @@ export class AVRTimer {
   private ocrB: u16 = 0;
   private timerMode: TimerMode;
   private topValue: TimerTopValue;
+  private tcntUpdated = false;
 
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
     this.updateWGMConfig();
     this.registerHook(config.TCNT, (value: u16) => {
       this.TCNT = value;
+      this.tcntUpdated = true;
       this.timerUpdated(value);
       return true;
     });
@@ -306,8 +308,11 @@ export class AVRTimer {
       this.lastCycle += counterDelta * divider;
       const val = this.TCNT;
       const newVal = (val + counterDelta) % (this.TOP + 1);
-      this.TCNT = newVal;
-      this.timerUpdated(newVal);
+      // A CPU write overrides (has priority over) all counter clear or count operations.
+      if (!this.tcntUpdated) {
+        this.TCNT = newVal;
+        this.timerUpdated(newVal);
+      }
       const { timerMode } = this;
       if (
         (timerMode === TimerMode.Normal ||
@@ -319,6 +324,7 @@ export class AVRTimer {
         this.TIFR |= TOV;
       }
     }
+    this.tcntUpdated = false;
     if (this.cpu.interruptsEnabled) {
       if (this.TIFR & TOV && this.TIMSK & TOIE) {
         avrInterrupt(this.cpu, this.config.ovfInterrupt);

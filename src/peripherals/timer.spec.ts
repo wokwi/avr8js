@@ -1,4 +1,6 @@
 import { CPU } from '../cpu/cpu';
+import { avrInstruction } from '../cpu/instruction';
+import { assemble } from '../utils/assembler';
 import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
 
 describe('timer', () => {
@@ -7,6 +9,14 @@ describe('timer', () => {
   beforeEach(() => {
     cpu = new CPU(new Uint16Array(0x1000));
   });
+
+  function loadProgram(...instructions: string[]) {
+    const { bytes, errors } = assemble(instructions.join('\n'));
+    if (errors.length) {
+      throw new Error('Assembly failed: ' + errors);
+    }
+    cpu.progBytes.set(bytes, 0);
+  }
 
   it('should update timer every tick when prescaler is 1', () => {
     const timer = new AVRTimer(cpu, timer0Config);
@@ -109,6 +119,7 @@ describe('timer', () => {
   it('should set OCF0A flag when timer equals OCRA', () => {
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(0x46, 0x10); // TCNT0 <- 0x10
+    timer.tick();
     cpu.writeData(0x47, 0x11); // OCR0A <- 0x11
     cpu.writeData(0x44, 0x0); // WGM0 <- 0 (Normal)
     cpu.writeData(0x45, 0x1); // TCCR0B.CS <- 1
@@ -122,6 +133,7 @@ describe('timer', () => {
   it('should clear the timer in CTC mode if it equals to OCRA', () => {
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(0x46, 0x10); // TCNT0 <- 0x10
+    timer.tick();
     cpu.writeData(0x47, 0x11); // OCR0A <- 0x11
     cpu.writeData(0x44, 0x2); // WGM0 <- 2 (CTC)
     cpu.writeData(0x45, 0x1); // TCCR0B.CS <- 1
@@ -135,6 +147,7 @@ describe('timer', () => {
   it('should set OCF0B flag when timer equals OCRB', () => {
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(0x46, 0x10); // TCNT0 <- 0x50
+    timer.tick();
     cpu.writeData(0x48, 0x11); // OCR0B <- 0x51
     cpu.writeData(0x44, 0x0); // WGM0 <- 0 (Normal)
     cpu.writeData(0x45, 0x1); // TCCR0B.CS <- 1
@@ -148,6 +161,7 @@ describe('timer', () => {
   it('should generate Timer Compare A interrupt when TCNT0 == TCNTA', () => {
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(0x46, 0x20); // TCNT0 <- 0x20
+    timer.tick();
     cpu.writeData(0x47, 0x21); // OCR0A <- 0x21
     cpu.writeData(0x45, 0x1); // TCCR0B.CS <- 1
     cpu.writeData(0x6e, 0x2); // TIMSK0: OCIEA
@@ -163,6 +177,7 @@ describe('timer', () => {
   it('should not generate Timer Compare A interrupt when OCIEA is disabled', () => {
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(0x46, 0x20); // TCNT0 <- 0x20
+    timer.tick();
     cpu.writeData(0x47, 0x21); // OCR0A <- 0x21
     cpu.writeData(0x45, 0x1); // TCCR0B.CS <- 1
     cpu.writeData(0x6e, 0); // TIMSK0
@@ -177,6 +192,7 @@ describe('timer', () => {
   it('should generate Timer Compare B interrupt when TCNT0 == TCNTB', () => {
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(0x46, 0x20); // TCNT0 <- 0x20
+    timer.tick();
     cpu.writeData(0x48, 0x21); // OCR0B <- 0x21
     cpu.writeData(0x45, 0x1); // TCCR0B.CS <- 1
     cpu.writeData(0x6e, 0x4); // TIMSK0: OCIEB
@@ -187,6 +203,26 @@ describe('timer', () => {
     expect(cpu.data[0x35]).toEqual(0); // OCFB bit in TIFR should be clear
     expect(cpu.pc).toEqual(0x1e);
     expect(cpu.cycles).toEqual(3);
+  });
+
+  it('should not increment TCNT on the same cycle of TCNT write (issue #36)', () => {
+    // At the end of this short program, R17 should contain 0x31. Verified against
+    // a physical ATmega328p.
+    const program = [
+      'LDI r16, 0x1', // TCCR0B = 1 << CS00;
+      'OUT 0x25, r16',
+      'LDI r16, 0x30', // TCNT <- 0x30
+      'OUT 0x26, r16',
+      'NOP',
+      'IN r17, 0x26' // r17 <- TCNT
+    ];
+    loadProgram(...program);
+    const timer = new AVRTimer(cpu, timer0Config);
+    for (let i = 0; i < program.length; i++) {
+      avrInstruction(cpu);
+      timer.tick();
+    }
+    expect(cpu.data[17]).toEqual(0x31); // r1 should be 0x31
   });
 
   it('timer2 should count every 256 ticks when prescaler is 6 (issue #5)', () => {
@@ -207,6 +243,7 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(0x85, 0x22); // TCNT1 <- 0x2233
       cpu.writeData(0x84, 0x33); // ...
+      timer.tick();
       expect(timer.TCNT).toEqual(0x2233);
       cpu.writeData(0x80, 0x0); // WGM1 <- 0 (Normal)
       cpu.writeData(0x81, 0x1); // TCCR1B.CS <- 1
@@ -219,6 +256,7 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(0x84, 0xee); // TCNT1 <- 0x10ee
       cpu.writeData(0x85, 0x10); // ...
+      timer.tick();
       cpu.writeData(0x88, 0xef); // OCR1A <- 0x10ef
       cpu.writeData(0x89, 0x10); // ...
       cpu.writeData(0x80, 0x0); // TCCR1A <- 0 (Normal Mode)
@@ -234,6 +272,7 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(0x85, 0x3); // TCNT1 <- 0x3ff
       cpu.writeData(0x84, 0xff); // ...
+      timer.tick();
       cpu.writeData(0x80, 0x3); // TCCR1A <- WGM10 | WGM11 (Fast PWM, 10-bit)
       cpu.writeData(0x81, 0x9); // TCCR1B <- WGM12 | CS10
       console.log(timer.CS);
@@ -251,6 +290,7 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(0x85, 0x50); // TCNT1 <- 0x500f
       cpu.writeData(0x84, 0x0f); // ...
+      timer.tick();
       cpu.writeData(0x87, 0x50); // ICR1 <- 0x5010
       cpu.writeData(0x86, 0x10); // ...
       cpu.writeData(0x81, 0x19); // TCCR1B <- WGM13 | WGM12 | CS10
