@@ -40,11 +40,16 @@ export interface CPUMemoryHooks {
   [key: number]: CPUMemoryHook;
 }
 
+export type CPUMemoryReadHook = (addr: u16) => u8;
+export interface CPUMemoryReadHooks {
+  [key: number]: CPUMemoryReadHook;
+}
 export class CPU implements ICPU {
   readonly data: Uint8Array = new Uint8Array(this.sramBytes + registerSpace);
   readonly data16 = new Uint16Array(this.data.buffer);
   readonly dataView = new DataView(this.data.buffer);
   readonly progBytes = new Uint8Array(this.progMem.buffer);
+  readonly readHooks: CPUMemoryReadHooks = [];
   readonly writeHooks: CPUMemoryHooks = [];
   readonly pc22Bits = this.progBytes.length > 0x20000;
 
@@ -61,6 +66,9 @@ export class CPU implements ICPU {
   }
 
   readData(addr: number) {
+    if (addr >= 32 && this.readHooks[addr]) {
+      return this.readHooks[addr](addr);
+    }
     return this.data[addr];
   }
 

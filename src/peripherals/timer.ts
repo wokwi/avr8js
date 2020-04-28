@@ -191,16 +191,24 @@ export class AVRTimer {
   private ocrB: u16 = 0;
   private timerMode: TimerMode;
   private topValue: TimerTopValue;
+  private tcnt: u16 = 0;
   private tcntUpdated = false;
 
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
     this.updateWGMConfig();
-    this.registerHook(config.TCNT, (value: u16) => {
-      this.TCNT = value;
+    this.cpu.readHooks[config.TCNT] = (addr: u8) => {
+      if (this.config.bits === 16) {
+        this.cpu.data[addr + 1] = this.tcnt >> 8;
+      }
+      return (this.cpu.data[addr] = this.tcnt & 0xff);
+    };
+
+    this.cpu.writeHooks[config.TCNT] = (value: u8) => {
+      const highByte = this.config.bits === 16 ? this.cpu.data[config.TCNT + 1] : 0;
+      this.tcnt = (highByte << 8) | value;
       this.tcntUpdated = true;
-      this.timerUpdated(value);
-      return true;
-    });
+      this.timerUpdated();
+    };
     this.registerHook(config.OCRA, (value: u16) => {
       // TODO implement buffering when timer running in PWM mode
       this.ocrA = value;
@@ -232,19 +240,6 @@ export class AVRTimer {
 
   set TIFR(value: u8) {
     this.cpu.data[this.config.TIFR] = value;
-  }
-
-  get TCNT() {
-    return this.config.bits === 16
-      ? this.cpu.dataView.getUint16(this.config.TCNT, true)
-      : this.cpu.data[this.config.TCNT];
-  }
-
-  set TCNT(value: u16) {
-    this.cpu.data[this.config.TCNT] = value & 0xff;
-    if (this.config.bits === 16) {
-      this.cpu.data[this.config.TCNT + 1] = (value >> 8) & 0xff;
-    }
   }
 
   get TCCRA() {
@@ -306,12 +301,12 @@ export class AVRTimer {
     if (divider && delta >= divider) {
       const counterDelta = Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;
-      const val = this.TCNT;
+      const val = this.tcnt;
       const newVal = (val + counterDelta) % (this.TOP + 1);
       // A CPU write overrides (has priority over) all counter clear or count operations.
       if (!this.tcntUpdated) {
-        this.TCNT = newVal;
-        this.timerUpdated(newVal);
+        this.tcnt = newVal;
+        this.timerUpdated();
       }
       const { timerMode } = this;
       if (
@@ -341,12 +336,13 @@ export class AVRTimer {
     }
   }
 
-  private timerUpdated(value: u8) {
+  private timerUpdated() {
+    const value = this.tcnt;
     if (this.ocrA && value === this.ocrA) {
       this.TIFR |= OCFA;
       if (this.timerMode === TimerMode.CTC) {
         // Clear Timer on Compare Match (CTC) Mode
-        this.TCNT = 0;
+        this.tcnt = 0;
         this.TIFR |= TOV;
       }
     }
