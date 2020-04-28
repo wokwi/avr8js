@@ -395,7 +395,7 @@ describe('avrInstruction', () => {
     cpu.data[26] = 0xc0; // X <- 0xc0
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[1]).toEqual(0x15);
     expect(cpu.data[26]).toEqual(0xc0); // verify that X was unchanged
   });
@@ -417,7 +417,7 @@ describe('avrInstruction', () => {
     cpu.data[26] = 0x99; // X <- 0x99
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[1]).toEqual(0x22);
     expect(cpu.data[26]).toEqual(0x98); // verify that X was decremented
   });
@@ -428,7 +428,7 @@ describe('avrInstruction', () => {
     cpu.data[28] = 0xc0; // Y <- 0xc0
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[8]).toEqual(0x15);
     expect(cpu.data[28]).toEqual(0xc0); // verify that Y was unchanged
   });
@@ -450,7 +450,7 @@ describe('avrInstruction', () => {
     cpu.data[28] = 0x99; // Y <- 0x99
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0]).toEqual(0x22);
     expect(cpu.data[28]).toEqual(0x98); // verify that Y was decremented
   });
@@ -461,7 +461,7 @@ describe('avrInstruction', () => {
     cpu.data[28] = 0x80; // Y <- 0x80
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[4]).toEqual(0x33);
     expect(cpu.data[28]).toEqual(0x80); // verify that Y was unchanged
   });
@@ -472,7 +472,7 @@ describe('avrInstruction', () => {
     cpu.data[30] = 0xcc; // Z <- 0xcc
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[5]).toEqual(0xf5);
     expect(cpu.data[30]).toEqual(0xcc); // verify that Z was unchanged
   });
@@ -494,7 +494,7 @@ describe('avrInstruction', () => {
     cpu.data[30] = 0x9f; // Z <- 0x9f
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0]).toEqual(0x66);
     expect(cpu.data[30]).toEqual(0x9e); // verify that Y was decremented
   });
@@ -505,7 +505,7 @@ describe('avrInstruction', () => {
     cpu.data[30] = 0x80; // Z <- 0x80
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[15]).toEqual(0x33);
     expect(cpu.data[30]).toEqual(0x80); // verify that Z was unchanged
   });
@@ -839,7 +839,7 @@ describe('avrInstruction', () => {
     cpu.data[26] = 0x9a; // X <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x9a]).toEqual(0x5a);
     expect(cpu.data[26]).toEqual(0x9a); // verify that X was unchanged
   });
@@ -850,7 +850,7 @@ describe('avrInstruction', () => {
     cpu.data[26] = 0x9a; // X <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x9a]).toEqual(0x5a);
     expect(cpu.data[26]).toEqual(0x9b); // verify that X was incremented
   });
@@ -872,7 +872,7 @@ describe('avrInstruction', () => {
     cpu.data[28] = 0x9a; // Y <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x9a]).toEqual(0x5b);
     expect(cpu.data[28]).toEqual(0x9a); // verify that Y was unchanged
   });
@@ -883,7 +883,7 @@ describe('avrInstruction', () => {
     cpu.data[28] = 0x9a; // Y <- 0x9a
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x9a]).toEqual(0x5a);
     expect(cpu.data[28]).toEqual(0x9b); // verify that Y was incremented
   });
@@ -916,7 +916,7 @@ describe('avrInstruction', () => {
     cpu.data[30] = 0x40; // Z <- 0x40
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x40]).toEqual(0xdf);
     expect(cpu.data[30]).toEqual(0x40); // verify that Z was unchanged
   });
@@ -927,7 +927,7 @@ describe('avrInstruction', () => {
     cpu.dataView.setUint16(30, 0x155, true); // Z <- 0x155
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x155]).toEqual(0x55);
     expect(cpu.dataView.getUint16(30, true)).toEqual(0x156); // verify that Z was incremented
   });
