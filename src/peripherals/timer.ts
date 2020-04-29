@@ -197,6 +197,7 @@ export class AVRTimer {
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
     this.updateWGMConfig();
     this.cpu.readHooks[config.TCNT] = (addr: u8) => {
+      this.tick();
       if (this.config.bits === 16) {
         this.cpu.data[addr + 1] = this.tcnt >> 8;
       }

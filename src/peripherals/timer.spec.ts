@@ -95,7 +95,7 @@ describe('timer', () => {
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(0x46);
-    expect(tcnt).toEqual(0); // TCNT should be 0
+    expect(tcnt).toEqual(2); // TCNT should be 2 (one tick above + 2 cycles for interrupt)
     expect(cpu.data[0x35]).toEqual(0); // TOV bit in TIFR should be clear
     expect(cpu.pc).toEqual(0x20);
     expect(cpu.cycles).toEqual(3);
@@ -183,7 +183,7 @@ describe('timer', () => {
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(0x46);
-    expect(tcnt).toEqual(0x21); // TCNT should be 0x21
+    expect(tcnt).toEqual(0x23); // TCNT should be 0x23 (one tick above + 2 cycles for interrupt)
     expect(cpu.data[0x35]).toEqual(0); // OCFA bit in TIFR should be clear
     expect(cpu.pc).toEqual(0x1c);
     expect(cpu.cycles).toEqual(3);
@@ -216,7 +216,7 @@ describe('timer', () => {
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(0x46);
-    expect(tcnt).toEqual(0x21); // TCNT should be 0x21
+    expect(tcnt).toEqual(0x23); // TCNT should be 0x23 (one tick above + 2 cycles for interrupt)
     expect(cpu.data[0x35]).toEqual(0); // OCFB bit in TIFR should be clear
     expect(cpu.pc).toEqual(0x1e);
     expect(cpu.cycles).toEqual(3);
@@ -253,6 +253,24 @@ describe('timer', () => {
     cpu.cycles = 512;
     timer.tick();
     expect(cpu.readData(0xb2)).toEqual(2); // TCNT2 should be 2
+  });
+
+  it('should update TCNT as it is being read by a 2-cycle instruction (issue #40)', () => {
+    const program = [
+      'LDI r16, 0x1', // TCCR0B = 1 << CS00;
+      'OUT 0x25, r16',
+      'LDI r16, 0x0', // TCNT0 <- 0x30
+      'OUT 0x26, r16',
+      'NOP',
+      'LDS r1, 0x46', // r17 <- TCNT0 (2 cycles)
+    ];
+    loadProgram(...program);
+    const timer = new AVRTimer(cpu, timer0Config);
+    for (let i = 0; i < program.length; i++) {
+      avrInstruction(cpu);
+      timer.tick();
+    }
+    expect(cpu.data[1]).toEqual(2); // r1 should equal 2
   });
 
   describe('16 bit timers', () => {
@@ -301,7 +319,7 @@ describe('timer', () => {
       cpu.cycles = 1;
       timer.tick();
       cpu.readData(0x84); // Refresh TCNT1
-      expect(cpu.dataView.getUint16(0x84, true)).toEqual(0); // TCNT1 should be 0
+      expect(cpu.dataView.getUint16(0x84, true)).toEqual(2); // TCNT1 should be 0 (one tick above + 2 cycles for interrupt)
       expect(cpu.data[0x36]).toEqual(0); // TOV bit in TIFR should be clear
       expect(cpu.pc).toEqual(0x1a);
       expect(cpu.cycles).toEqual(3);
