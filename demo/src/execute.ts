@@ -4,6 +4,7 @@ import {
   CPU,
   timer0Config,
   timer1Config,
+  timer2Config,
   AVRIOPort,
   AVRUSART,
   portBConfig,
@@ -22,6 +23,7 @@ export class AVRRunner {
   readonly cpu: CPU;
   readonly timer0: AVRTimer;
   readonly timer1: AVRTimer;
+  readonly timer2: AVRTimer;
   readonly portB: AVRIOPort;
   readonly portC: AVRIOPort;
   readonly portD: AVRIOPort;
@@ -35,6 +37,7 @@ export class AVRRunner {
     this.cpu = new CPU(this.program);
     this.timer0 = new AVRTimer(this.cpu, timer0Config);
     this.timer1 = new AVRTimer(this.cpu, timer1Config);
+    this.timer2 = new AVRTimer(this.cpu, timer2Config);
     this.portB = new AVRIOPort(this.cpu, portBConfig);
     this.portC = new AVRIOPort(this.cpu, portCConfig);
     this.portD = new AVRIOPort(this.cpu, portDConfig);
@@ -49,6 +52,7 @@ export class AVRRunner {
       avrInstruction(this.cpu);
       this.timer0.tick();
       this.timer1.tick();
+      this.timer2.tick();
       this.usart.tick();
     }
 
