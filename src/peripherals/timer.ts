@@ -115,7 +115,7 @@ export const timer2Config: AVRTimerConfig = {
   TCCRC: 0, // not available
   TIMSK: 0x70,
   dividers: {
-    0: 1,
+    0: 0,
     1: 1,
     2: 8,
     3: 32,
