@@ -1,10 +1,11 @@
 import '@wokwi/elements';
+import { LEDElement } from '@wokwi/elements';
+import { PinState } from 'avr8js';
 import { buildHex } from './compile';
+import { CPUPerformance } from './cpu-performance';
 import { AVRRunner } from './execute';
 import { formatTime } from './format-time';
 import './index.css';
-import { CPUPerformance } from './cpu-performance';
-import { LEDElement } from '@wokwi/elements';
 import { EditorHistoryUtil } from './utils/editor-history.util';
 
 let editor: any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -63,10 +64,8 @@ function executeProgram(hex: string) {
 
   // Hook to PORTB register
   runner.portB.addListener((value) => {
-    const D12bit = 1 << 4;
-    const D13bit = 1 << 5;
-    led12.value = value & D12bit ? true : false;
-    led13.value = value & D13bit ? true : false;
+    led12.value = runner.portB.pinState(4) === PinState.High;
+    led13.value = runner.portB.pinState(5) === PinState.High;
   });
   runner.usart.onByteTransmit = (value) => {
     serialOutputText.textContent += String.fromCharCode(value);
