@@ -90,23 +90,34 @@ export enum PinState {
   InputPullUp,
 }
 
+/* This mechanism allows timers to override specific GPIO pins */
+export enum PinOverrideMode {
+  None,
+  Enable,
+  Set,
+  Clear,
+  Toggle,
+}
+
 export class AVRIOPort {
   private listeners: GPIOListener[] = [];
   private pinValue: u8 = 0;
+  private overrideMask: u8 = 0xff;
+  private overrideValue: u8;
+  private lastValue: u8 = 0;
+  private lastDdr: u8 = 0;
 
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
-    cpu.writeHooks[portConfig.DDR] = (value, oldValue) => {
+    cpu.writeHooks[portConfig.DDR] = (value: u8) => {
       const portValue = cpu.data[portConfig.PORT];
       this.updatePinRegister(portValue, value);
-      this.writeGpio(value & portValue, oldValue & oldValue);
+      this.writeGpio(portValue, value);
     };
-    cpu.writeHooks[portConfig.PORT] = (value: u8, oldValue: u8) => {
+    cpu.writeHooks[portConfig.PORT] = (value: u8) => {
       const ddrMask = cpu.data[portConfig.DDR];
       cpu.data[portConfig.PORT] = value;
-      value &= ddrMask;
-      cpu.data[portConfig.PIN] = (cpu.data[portConfig.PIN] & ~ddrMask) | value;
       this.updatePinRegister(value, ddrMask);
-      this.writeGpio(value, oldValue & ddrMask);
+      this.writeGpio(value, ddrMask);
       return true;
     };
     cpu.writeHooks[portConfig.PIN] = (value: u8) => {
@@ -116,8 +127,33 @@ export class AVRIOPort {
       const portValue = oldPortValue ^ value;
       cpu.data[portConfig.PORT] = portValue;
       cpu.data[portConfig.PIN] = (cpu.data[portConfig.PIN] & ~ddrMask) | (portValue & ddrMask);
-      this.writeGpio(portValue & ddrMask, oldPortValue & ddrMask);
+      this.writeGpio(portValue, ddrMask);
       return true;
+    };
+    // The following hook is used by the timer compare output to override GPIO pins:
+    cpu.gpioTimerHooks[portConfig.PORT] = (pin: u8, mode: PinOverrideMode) => {
+      const pinMask = 1 << pin;
+      if (mode == PinOverrideMode.None) {
+        this.overrideMask |= pinMask;
+      } else {
+        this.overrideMask &= ~pinMask;
+        switch (mode) {
+          case PinOverrideMode.Enable:
+            this.overrideValue &= ~pinMask;
+            this.overrideValue |= cpu.data[portConfig.PORT] & pinMask;
+            break;
+          case PinOverrideMode.Set:
+            this.overrideValue |= pinMask;
+            break;
+          case PinOverrideMode.Clear:
+            this.overrideValue &= ~pinMask;
+            break;
+          case PinOverrideMode.Toggle:
+            this.overrideValue ^= pinMask;
+            break;
+        }
+      }
+      this.writeGpio(cpu.data[portConfig.PORT], cpu.data[portConfig.DDR]);
     };
   }
 
@@ -142,7 +178,7 @@ export class AVRIOPort {
     const port = this.cpu.data[this.portConfig.PORT];
     const bitMask = 1 << index;
     if (ddr & bitMask) {
-      return port & bitMask ? PinState.High : PinState.Low;
+      return this.lastValue & bitMask ? PinState.High : PinState.Low;
     } else {
       return port & bitMask ? PinState.InputPullUp : PinState.Input;
     }
@@ -165,9 +201,15 @@ export class AVRIOPort {
     this.cpu.data[this.portConfig.PIN] = (this.pinValue & ~ddr) | (port & ddr);
   }
 
-  private writeGpio(value: u8, oldValue: u8) {
-    for (const listener of this.listeners) {
-      listener(value, oldValue);
+  private writeGpio(value: u8, ddr: u8) {
+    const newValue = ((value & this.overrideMask) | this.overrideValue) & ddr;
+    const prevValue = this.lastValue;
+    if (newValue !== prevValue || ddr !== this.lastDdr) {
+      this.lastValue = newValue;
+      this.lastDdr = ddr;
+      for (const listener of this.listeners) {
+        listener(newValue, prevValue);
+      }
     }
   }
 }
