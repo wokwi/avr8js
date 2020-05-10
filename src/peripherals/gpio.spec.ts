@@ -93,4 +93,27 @@ describe('GPIO', () => {
       expect(listener).toHaveBeenCalled();
     });
   });
+
+  describe('setPin', () => {
+    it('should set the value of the given pin', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      cpu.writeData(0x24, 0); // DDRB <- 0
+      port.setPin(4, true);
+      expect(cpu.data[0x23]).toEqual(0x10);
+      port.setPin(4, false);
+      expect(cpu.data[0x23]).toEqual(0x0);
+    });
+
+    it('should only update PIN register when pin in Input mode', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      cpu.writeData(0x24, 0x10); // DDRB <- 0x10
+      cpu.writeData(0x25, 0x0); // PORTB <- 0x0
+      port.setPin(4, true);
+      expect(cpu.data[0x23]).toEqual(0x0);
+      cpu.writeData(0x24, 0x0); // DDRB <- 0x0
+      expect(cpu.data[0x23]).toEqual(0x10);
+    });
+  });
 });

@@ -92,10 +92,12 @@ export enum PinState {
 
 export class AVRIOPort {
   private listeners: GPIOListener[] = [];
+  private pinValue: u8 = 0;
 
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
     cpu.writeHooks[portConfig.DDR] = (value, oldValue) => {
       const portValue = cpu.data[portConfig.PORT];
+      this.updatePinRegister(portValue, value);
       this.writeGpio(value & portValue, oldValue & oldValue);
     };
     cpu.writeHooks[portConfig.PORT] = (value: u8, oldValue: u8) => {
@@ -103,6 +105,7 @@ export class AVRIOPort {
       cpu.data[portConfig.PORT] = value;
       value &= ddrMask;
       cpu.data[portConfig.PIN] = (cpu.data[portConfig.PIN] & ~ddrMask) | value;
+      this.updatePinRegister(value, ddrMask);
       this.writeGpio(value, oldValue & ddrMask);
       return true;
     };
@@ -143,6 +146,23 @@ export class AVRIOPort {
     } else {
       return port & bitMask ? PinState.InputPullUp : PinState.Input;
     }
+  }
+
+  /**
+   * Sets the input value for the given pin. This is the value that
+   * will be returned when reading from the PIN register.
+   */
+  setPin(index: number, value: boolean) {
+    const bitMask = 1 << index;
+    this.pinValue &= ~bitMask;
+    if (value) {
+      this.pinValue |= bitMask;
+    }
+    this.updatePinRegister(this.cpu.data[this.portConfig.PORT], this.cpu.data[this.portConfig.DDR]);
+  }
+
+  private updatePinRegister(port: u8, ddr: u8) {
+    this.cpu.data[this.portConfig.PIN] = (this.pinValue & ~ddr) | (port & ddr);
   }
 
   private writeGpio(value: u8, oldValue: u8) {
