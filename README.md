@@ -12,6 +12,12 @@ It also simulates 2 LEDs connected to pins 12 and 13 (PB4 and PB5).
 
 To run the demo project, check out this repository, run `npm install` and then `npm start`.
 
+### Walkthrough Video Tutorial
+
+A step-by-step video tutorial showing how to build a simple Arduino simulator using AVR8js and React:
+
+[![AVR8JS Walkthrough Video](https://i.imgur.com/3meSd1m.png)](https://youtu.be/fArqj-USmjA)
+
 ## Running the tests
 
 Run the tests once:
