@@ -363,15 +363,16 @@ export class AVRTimer {
     }
     this.tcntUpdated = false;
     if (this.cpu.interruptsEnabled) {
-      if (this.TIFR & TOV && this.TIMSK & TOIE) {
+      const { TIFR, TIMSK } = this;
+      if (TIFR & TOV && TIMSK & TOIE) {
         avrInterrupt(this.cpu, this.config.ovfInterrupt);
         this.TIFR &= ~TOV;
       }
-      if (this.TIFR & OCFA && this.TIMSK & OCIEA) {
+      if (TIFR & OCFA && TIMSK & OCIEA) {
         avrInterrupt(this.cpu, this.config.compAInterrupt);
         this.TIFR &= ~OCFA;
       }
-      if (this.TIFR & OCFB && this.TIMSK & OCIEB) {
+      if (TIFR & OCFB && TIMSK & OCIEB) {
         avrInterrupt(this.cpu, this.config.compBInterrupt);
         this.TIFR &= ~OCFB;
       }
