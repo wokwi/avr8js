@@ -8,6 +8,7 @@
 
 import { CPU } from '../cpu/cpu';
 import { avrInterrupt } from '../cpu/interrupt';
+import { portBConfig, portDConfig, PinOverrideMode } from './gpio';
 
 const timer01Dividers = {
   0: 0,
@@ -61,6 +62,12 @@ interface AVRTimerConfig {
   TIMSK: u8;
 
   dividers: TimerDividers;
+
+  // Output compare pins
+  compPortA: u16;
+  compPinA: u8;
+  compPortB: u16;
+  compPinB: u8;
 }
 
 export const timer0Config: AVRTimerConfig = {
@@ -79,6 +86,10 @@ export const timer0Config: AVRTimerConfig = {
   TCCRC: 0, // not available
   TIMSK: 0x6e,
   dividers: timer01Dividers,
+  compPortA: portDConfig.PORT,
+  compPinA: 6,
+  compPortB: portDConfig.PORT,
+  compPinB: 5,
 };
 
 export const timer1Config: AVRTimerConfig = {
@@ -97,6 +108,10 @@ export const timer1Config: AVRTimerConfig = {
   TCCRC: 0x82,
   TIMSK: 0x6f,
   dividers: timer01Dividers,
+  compPortA: portBConfig.PORT,
+  compPinA: 1,
+  compPortB: portBConfig.PORT,
+  compPinB: 2,
 };
 
 export const timer2Config: AVRTimerConfig = {
@@ -124,6 +139,10 @@ export const timer2Config: AVRTimerConfig = {
     6: 256,
     7: 1024,
   },
+  compPortA: portBConfig.PORT,
+  compPinA: 3,
+  compPortB: portDConfig.PORT,
+  compPinB: 3,
 };
 
 /* All the following types and constants are related to WGM (Waveform Generation Mode) bits: */
@@ -185,14 +204,36 @@ const wgmModes16Bit: WGMConfig[] = [
   /*15*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
 ];
 
+type CompBitsValue = 0 | 1 | 2 | 3;
+
+function compToOverride(comp: CompBitsValue) {
+  switch (comp) {
+    case 1:
+      return PinOverrideMode.Toggle;
+    case 2:
+      return PinOverrideMode.Clear;
+    case 3:
+      return PinOverrideMode.Set;
+    default:
+      return PinOverrideMode.Enable;
+  }
+}
+
 export class AVRTimer {
   private lastCycle = 0;
   private ocrA: u16 = 0;
   private ocrB: u16 = 0;
+  private icr: u16 = 0; // only for 16-bit timers
   private timerMode: TimerMode;
   private topValue: TimerTopValue;
   private tcnt: u16 = 0;
+  private compA: CompBitsValue;
+  private compB: CompBitsValue;
   private tcntUpdated = false;
+  private countingUp = true;
+
+  // This is the temporary register used to access 16-bit registers (section 16.3 of the datasheet)
+  private highByteTemp: u8 = 0;
 
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
     this.updateWGMConfig();
@@ -205,20 +246,36 @@ export class AVRTimer {
     };
 
     this.cpu.writeHooks[config.TCNT] = (value: u8) => {
-      const highByte = this.config.bits === 16 ? this.cpu.data[config.TCNT + 1] : 0;
-      this.tcnt = (highByte << 8) | value;
+      this.tcnt = (this.highByteTemp << 8) | value;
       this.tcntUpdated = true;
       this.timerUpdated();
     };
-    this.registerHook(config.OCRA, (value: u16) => {
+    this.cpu.writeHooks[config.OCRA] = (value: u8) => {
       // TODO implement buffering when timer running in PWM mode
-      this.ocrA = value;
-    });
-    this.registerHook(config.OCRB, (value: u16) => {
-      this.ocrB = value;
-    });
+      this.ocrA = (this.highByteTemp << 8) | value;
+    };
+    this.cpu.writeHooks[config.OCRB] = (value: u8) => {
+      // TODO implement buffering when timer running in PWM mode
+      this.ocrB = (this.highByteTemp << 8) | value;
+    };
+    this.cpu.writeHooks[config.ICR] = (value: u8) => {
+      this.icr = (this.highByteTemp << 8) | value;
+    };
+    if (this.config.bits === 16) {
+      const updateTempRegister = (value: u8) => {
+        this.highByteTemp = value;
+      };
+      this.cpu.writeHooks[config.TCNT + 1] = updateTempRegister;
+      this.cpu.writeHooks[config.OCRA + 1] = updateTempRegister;
+      this.cpu.writeHooks[config.OCRB + 1] = updateTempRegister;
+      this.cpu.writeHooks[config.ICR + 1] = updateTempRegister;
+    }
     cpu.writeHooks[config.TCCRA] = (value) => {
       this.cpu.data[config.TCCRA] = value;
+      this.compA = ((value >> 6) & 0x3) as CompBitsValue;
+      this.updateCompA(this.compA ? PinOverrideMode.Enable : PinOverrideMode.None);
+      this.compB = ((value >> 4) & 0x3) as CompBitsValue;
+      this.updateCompB(this.compB ? PinOverrideMode.Enable : PinOverrideMode.None);
       this.updateWGMConfig();
       return true;
     };
@@ -255,11 +312,6 @@ export class AVRTimer {
     return this.cpu.data[this.config.TIMSK];
   }
 
-  get ICR() {
-    // Only available for 16-bit timers
-    return (this.cpu.data[this.config.ICR + 1] << 8) | this.cpu.data[this.config.ICR];
-  }
-
   get CS() {
     return (this.TCCRB & 0x7) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
   }
@@ -274,18 +326,9 @@ export class AVRTimer {
       case TopOCRA:
         return this.ocrA;
       case TopICR:
-        return this.ICR;
+        return this.icr;
       default:
         return this.topValue;
-    }
-  }
-
-  private registerHook(address: number, hook: (value: u16) => void) {
-    if (this.config.bits === 16) {
-      this.cpu.writeHooks[address] = (value: u8) => hook((this.cpu.data[address + 1] << 8) | value);
-      this.cpu.writeHooks[address + 1] = (value: u8) => hook((value << 8) | this.cpu.data[address]);
-    } else {
-      this.cpu.writeHooks[address] = hook;
     }
   }
 
@@ -303,20 +346,18 @@ export class AVRTimer {
       const counterDelta = Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;
       const val = this.tcnt;
-      const newVal = (val + counterDelta) % (this.TOP + 1);
+      const { timerMode } = this;
+      const phasePwm =
+        timerMode === TimerMode.PWMPhaseCorrect || timerMode === TimerMode.PWMPhaseFrequencyCorrect;
+      const newVal = phasePwm
+        ? this.phasePwmCount(val, counterDelta)
+        : (val + counterDelta) % (this.TOP + 1);
       // A CPU write overrides (has priority over) all counter clear or count operations.
       if (!this.tcntUpdated) {
         this.tcnt = newVal;
         this.timerUpdated();
       }
-      const { timerMode } = this;
-      if (
-        (timerMode === TimerMode.Normal ||
-          timerMode === TimerMode.PWMPhaseCorrect ||
-          timerMode === TimerMode.PWMPhaseFrequencyCorrect ||
-          timerMode === TimerMode.FastPWM) &&
-        val > newVal
-      ) {
+      if ((timerMode === TimerMode.Normal || timerMode === TimerMode.FastPWM) && val > newVal) {
         this.TIFR |= TOV;
       }
     }
@@ -337,8 +378,28 @@ export class AVRTimer {
     }
   }
 
+  private phasePwmCount(value: u16, delta: u8) {
+    while (delta > 0) {
+      if (this.countingUp) {
+        value++;
+        if (value === this.TOP && !this.tcntUpdated) {
+          this.countingUp = false;
+        }
+      } else {
+        value--;
+        if (!value && !this.tcntUpdated) {
+          this.countingUp = true;
+          this.TIFR |= TOV;
+        }
+      }
+      delta--;
+    }
+    return value;
+  }
+
   private timerUpdated() {
     const value = this.tcnt;
+
     if (this.ocrA && value === this.ocrA) {
       this.TIFR |= OCFA;
       if (this.timerMode === TimerMode.CTC) {
@@ -346,9 +407,57 @@ export class AVRTimer {
         this.tcnt = 0;
         this.TIFR |= TOV;
       }
+      if (this.compA) {
+        this.updateCompPin(this.compA, 'A');
+      }
     }
     if (this.ocrB && value === this.ocrB) {
       this.TIFR |= OCFB;
+      if (this.compB) {
+        this.updateCompPin(this.compB, 'B');
+      }
+    }
+  }
+
+  private updateCompPin(compValue: CompBitsValue, pinName: 'A' | 'B') {
+    let newValue: PinOverrideMode = PinOverrideMode.None;
+    const inverted = compValue === 3;
+    const isSet = this.countingUp === inverted;
+    switch (this.timerMode) {
+      case TimerMode.Normal:
+      case TimerMode.CTC:
+      case TimerMode.FastPWM:
+        newValue = compToOverride(compValue);
+        break;
+
+      case TimerMode.PWMPhaseCorrect:
+      case TimerMode.PWMPhaseFrequencyCorrect:
+        newValue = isSet ? PinOverrideMode.Set : PinOverrideMode.Clear;
+        break;
+    }
+
+    if (newValue !== PinOverrideMode.None) {
+      if (pinName === 'A') {
+        this.updateCompA(newValue);
+      } else {
+        this.updateCompB(newValue);
+      }
+    }
+  }
+
+  private updateCompA(value: PinOverrideMode) {
+    const { compPortA, compPinA } = this.config;
+    const hook = this.cpu.gpioTimerHooks[compPortA];
+    if (hook) {
+      hook(compPinA, value, compPortA);
+    }
+  }
+
+  private updateCompB(value: PinOverrideMode) {
+    const { compPortB, compPinB } = this.config;
+    const hook = this.cpu.gpioTimerHooks[compPortB];
+    if (hook) {
+      hook(compPinB, value, compPortB);
     }
   }
 }

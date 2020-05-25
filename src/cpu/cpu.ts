@@ -44,6 +44,7 @@ export type CPUMemoryReadHook = (addr: u16) => u8;
 export interface CPUMemoryReadHooks {
   [key: number]: CPUMemoryReadHook;
 }
+
 export class CPU implements ICPU {
   readonly data: Uint8Array = new Uint8Array(this.sramBytes + registerSpace);
   readonly data16 = new Uint16Array(this.data.buffer);
@@ -52,6 +53,9 @@ export class CPU implements ICPU {
   readonly readHooks: CPUMemoryReadHooks = [];
   readonly writeHooks: CPUMemoryHooks = [];
   readonly pc22Bits = this.progBytes.length > 0x20000;
+
+  // This lets the Timer Compare output override GPIO pins:
+  readonly gpioTimerHooks: CPUMemoryHooks = [];
 
   pc = 0;
   cycles = 0;
