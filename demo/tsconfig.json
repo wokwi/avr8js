@@ -1,6 +1,7 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "strictNullChecks": false,
     "target": "es2018",
     "baseUrl": "..",
     "rootDir": "..",
