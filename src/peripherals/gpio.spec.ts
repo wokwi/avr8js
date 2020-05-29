@@ -92,6 +92,19 @@ describe('GPIO', () => {
       cpu.writeData(0x25, 0x01); // PORTB <- 0x01
       expect(listener).toHaveBeenCalled();
     });
+
+    it('should reflect the current port state when called inside a listener after DDR change', () => {
+      // Related issue: https://github.com/wokwi/avr8js/issues/47
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      const listener = jest.fn(() => {
+        expect(port.pinState(0)).toBe(PinState.Low);
+      });
+      expect(port.pinState(0)).toBe(PinState.Input);
+      port.addListener(listener);
+      cpu.writeData(0x24, 0x01); // DDRB <- 0x01
+      expect(listener).toHaveBeenCalled();
+    });
   });
 
   describe('setPin', () => {

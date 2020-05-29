@@ -110,8 +110,10 @@ export class AVRIOPort {
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
     cpu.writeHooks[portConfig.DDR] = (value: u8) => {
       const portValue = cpu.data[portConfig.PORT];
+      cpu.data[portConfig.DDR] = value;
       this.updatePinRegister(portValue, value);
       this.writeGpio(portValue, value);
+      return true;
     };
     cpu.writeHooks[portConfig.PORT] = (value: u8) => {
       const ddrMask = cpu.data[portConfig.DDR];
