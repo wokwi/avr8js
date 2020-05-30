@@ -18,6 +18,18 @@ A step-by-step video tutorial showing how to build a simple Arduino simulator us
 
 [![AVR8JS Walkthrough Video](https://i.imgur.com/3meSd1m.png)](https://youtu.be/fArqj-USmjA)
 
+### Unofficial Examples
+
+* [Minimal Example](https://stackblitz.com/edit/avr8js-minimal?file=main.ts)
+* [6 LEDs](https://stackblitz.com/edit/avr8js-6leds?file=index.ts)
+* [LED PWM](https://stackblitz.com/edit/avr8js-pwm?file=index.ts)
+* [Serial Monitor](https://stackblitz.com/edit/avr8js-serial?file=index.ts)
+* [NeoPixel Matrix](https://stackblitz.com/edit/avr8js-ws2812?file=index.ts)
+* [Arduino Mega NeoPixel Matrix](https://stackblitz.com/edit/avr8js-mega-ws2812?file=index.ts)
+* [Simon Game](https://stackblitz.com/edit/avr8js-simon-game?file=index.ts) - with pushbuttons and sound
+* [XMAS LEDs](https://stackblitz.com/edit/avr8js-xmas-dafna?file=index.ts)
+* [Assembly Code](https://stackblitz.com/edit/avr8js-asm?file=index.ts)
+
 ## Running the tests
 
 Run the tests once:
