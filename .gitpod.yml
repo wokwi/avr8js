@@ -1,0 +1,12 @@
+tasks:
+  - init: npm install
+    command: npm run start
+
+vscode:
+  extensions:
+    - esbenp.prettier-vscode@5.1.3:t532ajsImUSrA9N8Bd7jQw==
+    - dbaeumer.vscode-eslint@2.1.3:1NRvj3UKNTNwmYjptmUmIw==
+
+ports:
+  - port: 1234
+    onOpen: open-preview
