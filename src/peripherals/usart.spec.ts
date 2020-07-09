@@ -10,7 +10,7 @@ const SREG = 95;
 // USART0 Registers
 const UCSR0A = 0xc0;
 const UCSR0B = 0xc1;
-const UCSR0C = 0xc3;
+const UCSR0C = 0xc2;
 const UBRR0L = 0xc4;
 const UBRR0H = 0xc5;
 const UDR0 = 0xc6;
@@ -26,6 +26,9 @@ const UDRE = 0x20;
 // Interrupt address
 const PC_INT_UDRE = 0x26;
 const PC_INT_TXC = 0x28;
+const UCSZ0 = 2;
+const UCSZ1 = 4;
+const UCSZ2 = 4;
 
 describe('USART', () => {
   it('should correctly calculate the baudRate from UBRR', () => {
@@ -55,29 +58,29 @@ describe('USART', () => {
   it('should return 6-bits per byte when UCSZ = 1', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0A, 0x2);
+    cpu.writeData(UCSR0C, UCSZ0);
     expect(usart.bitsPerChar).toEqual(6);
   });
 
   it('should return 7-bits per byte when UCSZ = 2', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0A, 0x4);
+    cpu.writeData(UCSR0C, UCSZ1);
     expect(usart.bitsPerChar).toEqual(7);
   });
 
   it('should return 8-bits per byte when UCSZ = 3', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0A, 0x6);
+    cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
     expect(usart.bitsPerChar).toEqual(8);
   });
 
   it('should return 9-bits per byte when UCSZ = 7', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0A, 0x6);
-    cpu.writeData(UCSR0B, 0x4);
+    cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
+    cpu.writeData(UCSR0B, UCSZ2);
     expect(usart.bitsPerChar).toEqual(9);
   });
 

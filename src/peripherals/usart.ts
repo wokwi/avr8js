@@ -115,7 +115,7 @@ export class AVRUSART {
 
   get bitsPerChar() {
     const ucsz =
-      ((this.cpu.data[this.config.UCSRA] & (UCSRC_UCSZ1 | UCSRC_UCSZ0)) >> 1) |
+      ((this.cpu.data[this.config.UCSRC] & (UCSRC_UCSZ1 | UCSRC_UCSZ0)) >> 1) |
       (this.cpu.data[this.config.UCSRB] & UCSRB_UCSZ2);
     switch (ucsz) {
       case 0:
