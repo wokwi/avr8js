@@ -23,6 +23,10 @@ const TXCIE = 0x40;
 const TXC = 0x40;
 const UDRE = 0x20;
 
+// Interrupt address
+const PC_INT_UDRE = 0x26;
+const PC_INT_TXC = 0x28;
+
 describe('USART', () => {
   it('should correctly calculate the baudRate from UBRR', () => {
     const cpu = new CPU(new Uint16Array(1024));
@@ -103,21 +107,31 @@ describe('USART', () => {
       cpu.writeData(0xc6, 0x61);
       cpu.data[SREG] = 0x80; // SREG: I-------
       usart.tick();
-      expect(cpu.pc).toEqual(0x26);
+      expect(cpu.pc).toEqual(PC_INT_UDRE);
       expect(cpu.cycles).toEqual(2);
       expect(cpu.data[UCSR0A] & UDRE).toEqual(0);
     });
 
-    it('should trigger data tx complete interrupt if TXCIE is set', () => {
+    it('should trigger data TX Complete interrupt if TXCIE is set', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXCIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0x80; // SREG: I-------
       usart.tick();
-      expect(cpu.pc).toEqual(0x28);
+      expect(cpu.pc).toEqual(PC_INT_TXC);
       expect(cpu.cycles).toEqual(2);
       expect(cpu.data[UCSR0A] & TXC).toEqual(0);
+    });
+
+    it('should not trigger data TX Complete interrupt if UDR was not written to', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0B, TXCIE | TXEN);
+      cpu.data[SREG] = 0x80; // SREG: I-------
+      usart.tick();
+      expect(cpu.pc).toEqual(0);
+      expect(cpu.cycles).toEqual(0);
     });
 
     it('should not trigger any interrupt if interrupts are disabled', () => {
