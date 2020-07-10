@@ -60,7 +60,9 @@
     "node": ">= 8.0.0",
     "npm": ">= 5.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "emittery": "^0.7.1"
+  },
   "alias": {
     "avr8js": "./src"
   },
