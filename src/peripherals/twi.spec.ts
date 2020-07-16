@@ -5,6 +5,25 @@ import { avrInstruction } from '../cpu/instruction';
 
 const FREQ_16MHZ = 16e6;
 
+// CPU registers
+const R16 = 16;
+const R17 = 17;
+const SREG = 95;
+
+// TWI Registers
+const TWBR = 0xb8;
+const TWSR = 0xb9;
+const TWDR = 0xbb;
+const TWCR = 0xbc;
+
+// Register bit names
+const TWIE = 1;
+const TWEN = 4;
+const TWSTO = 0x10;
+const TWSTA = 0x20;
+const TWEA = 0x40;
+const TWINT = 0x80;
+
 function asmProgram(source: string) {
   const { bytes, errors, lines } = assemble(source);
   if (errors.length) {
@@ -16,8 +35,8 @@ function asmProgram(source: string) {
 function runInstructions(cpu: CPU, twi: AVRTWI, count: number) {
   for (let i = 0; i < count; i++) {
     if (cpu.progMem[cpu.pc] === 0x9598) {
-      console.log(cpu.data[0xbc].toString(16));
-      console.log(cpu.data[16]);
+      console.log(cpu.data[TWCR].toString(16));
+      console.log(cpu.data[R16]);
       throw new Error('BREAK instruction encountered');
     }
     avrInstruction(cpu);
@@ -26,35 +45,31 @@ function runInstructions(cpu: CPU, twi: AVRTWI, count: number) {
 }
 
 describe('TWI', () => {
-  const TWINT = 7;
-  const TWSTA = 5;
-  const TWEN = 2;
-
   it('should correctly calculate the sclFrequency from TWBR', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-    cpu.writeData(0xb8, 0x48); // TWBR <- 0x48
-    cpu.writeData(0xb9, 0); // TWSR <- 0 (prescaler: 1)
+    cpu.writeData(TWBR, 0x48);
+    cpu.writeData(TWSR, 0); // prescaler: 1
     expect(twi.sclFrequency).toEqual(100000);
   });
 
   it('should take the prescaler into consideration when calculating sclFrequency', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-    cpu.writeData(0xb8, 0x03); // TWBR <- 0x03
-    cpu.writeData(0xb9, 0x01); // TWSR <- 1 (prescaler: 4)
+    cpu.writeData(TWBR, 0x03);
+    cpu.writeData(TWSR, 0x01); // prescaler: 4
     expect(twi.sclFrequency).toEqual(400000);
   });
 
   it('should trigger data an interrupt if TWINT is set', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-    cpu.writeData(0xbc, 0x81); // TWCR <- TWINT | TWIE
-    cpu.data[95] = 0x80; // SREG: I-------
+    cpu.writeData(TWCR, TWINT | TWIE);
+    cpu.data[SREG] = 0x80; // SREG: I-------
     twi.tick();
     expect(cpu.pc).toEqual(0x30); // 2-wire Serial Interface Vector
     expect(cpu.cycles).toEqual(2);
-    expect(cpu.data[0xbc] & 0x80).toEqual(0); // UCSR0A should clear TWINT
+    expect(cpu.data[TWCR] & TWINT).toEqual(0);
   });
 
   describe('Master mode', () => {
@@ -62,7 +77,7 @@ describe('TWI', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
       jest.spyOn(twi.eventHandler, 'start');
-      cpu.writeData(0xbc, (1 << TWINT) | (1 << TWSTA) | (1 << TWEN));
+      cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
       twi.tick();
       expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
     });
@@ -72,15 +87,15 @@ describe('TWI', () => {
       // https://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
       const { program } = asmProgram(`
         ; register addresses
-        _REPLACE TWSR, 0xb9
-        _REPLACE TWDR, 0xbb
-        _REPLACE TWCR, 0xbc
+        _REPLACE TWSR, ${TWSR}
+        _REPLACE TWDR, ${TWDR}
+        _REPLACE TWCR, ${TWCR}
 
         ; TWCR bits
-        _REPLACE TWEN, 0x04
-        _REPLACE TWSTO, 0x10
-        _REPLACE TWSTA, 0x20
-        _REPLACE TWINT, 0x80
+        _REPLACE TWEN, ${TWEN}
+        _REPLACE TWSTO, ${TWSTO}
+        _REPLACE TWSTA, ${TWSTA}
+        _REPLACE TWINT, ${TWINT}
 
         ; TWSR states
         _REPLACE START, 0x8         ; TWI start
@@ -209,22 +224,22 @@ describe('TWI', () => {
 
       // Step 5: wait for the assembly code to indicate success by settings r17 to 0x42
       runInstructions(cpu, twi, 16);
-      expect(cpu.data[17]).toEqual(0x42);
+      expect(cpu.data[R17]).toEqual(0x42);
     });
 
     it('should successfully receive a byte from a slave', () => {
       const { program } = asmProgram(`
         ; register addresses
-        _REPLACE TWSR, 0xb9
-        _REPLACE TWDR, 0xbb
-        _REPLACE TWCR, 0xbc
+        _REPLACE TWSR, ${TWSR}
+        _REPLACE TWDR, ${TWDR}
+        _REPLACE TWCR, ${TWCR}
         
         ; TWCR bits
-        _REPLACE TWEN, 0x04
-        _REPLACE TWSTO, 0x10
-        _REPLACE TWSTA, 0x20
-        _REPLACE TWEA, 0x40
-        _REPLACE TWINT, 0x80
+        _REPLACE TWEN, ${TWEN}
+        _REPLACE TWSTO, ${TWSTO}
+        _REPLACE TWSTA, ${TWSTA}
+        _REPLACE TWEA, ${TWEA}
+        _REPLACE TWINT, ${TWINT}
 
         ; TWSR states
         _REPLACE START, 0x8         ; TWI start
@@ -384,7 +399,7 @@ describe('TWI', () => {
 
       // Step 6: wait for the assembly code to indicate success by settings r17 to 0x42
       runInstructions(cpu, twi, 16);
-      expect(cpu.data[17]).toEqual(0x42);
+      expect(cpu.data[R17]).toEqual(0x42);
     });
   });
 });
