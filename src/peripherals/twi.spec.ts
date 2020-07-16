@@ -1,7 +1,6 @@
 import { CPU } from '../cpu/cpu';
+import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRTWI, twiConfig } from './twi';
-import { assemble } from '../utils/assembler';
-import { avrInstruction } from '../cpu/instruction';
 
 const FREQ_16MHZ = 16e6;
 
@@ -24,25 +23,10 @@ const TWSTA = 0x20;
 const TWEA = 0x40;
 const TWINT = 0x80;
 
-function asmProgram(source: string) {
-  const { bytes, errors, lines } = assemble(source);
-  if (errors.length) {
-    throw new Error('Assembly failed: ' + errors);
-  }
-  return { program: new Uint16Array(bytes.buffer), lines };
-}
-
-function runInstructions(cpu: CPU, twi: AVRTWI, count: number) {
-  for (let i = 0; i < count; i++) {
-    if (cpu.progMem[cpu.pc] === 0x9598) {
-      console.log(cpu.data[TWCR].toString(16));
-      console.log(cpu.data[R16]);
-      throw new Error('BREAK instruction encountered');
-    }
-    avrInstruction(cpu);
-    twi.tick();
-  }
-}
+const onTestBreak = (cpu: CPU) => {
+  console.log(cpu.data[TWCR].toString(16));
+  console.log(cpu.data[R16]);
+};
 
 describe('TWI', () => {
   it('should correctly calculate the sclFrequency from TWBR', () => {
@@ -186,6 +170,7 @@ describe('TWI', () => {
       `);
       const cpu = new CPU(program);
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
+      const runner = new TestProgramRunner(cpu, twi, onTestBreak);
       twi.eventHandler = {
         start: jest.fn(),
         stop: jest.fn(),
@@ -195,35 +180,35 @@ describe('TWI', () => {
       };
 
       // Step 1: wait for start condition
-      runInstructions(cpu, twi, 4);
+      runner.runInstructions(4);
       expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeStart();
 
       // Step 2: wait for slave connect in write mode
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(twi.eventHandler.connectToSlave).toHaveBeenCalledWith(0x22, true);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeConnect(true);
 
       // Step 3: wait for first data byte
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(twi.eventHandler.writeByte).toHaveBeenCalledWith(0x55);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeWrite(true);
 
       // Step 4: wait for stop condition
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(twi.eventHandler.stop).toHaveBeenCalled();
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeStop();
 
       // Step 5: wait for the assembly code to indicate success by settings r17 to 0x42
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(cpu.data[R17]).toEqual(0x42);
     });
 
@@ -354,6 +339,7 @@ describe('TWI', () => {
       `);
       const cpu = new CPU(program);
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
+      const runner = new TestProgramRunner(cpu, twi, onTestBreak);
       twi.eventHandler = {
         start: jest.fn(),
         stop: jest.fn(),
@@ -363,42 +349,42 @@ describe('TWI', () => {
       };
 
       // Step 1: wait for start condition
-      runInstructions(cpu, twi, 4);
+      runner.runInstructions(4);
       expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeStart();
 
       // Step 2: wait for slave connect in read mode
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(twi.eventHandler.connectToSlave).toHaveBeenCalledWith(0x50, false);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeConnect(true);
 
       // Step 3: send the first byte to the master, expect ack
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(twi.eventHandler.readByte).toHaveBeenCalledWith(true);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeRead(0x66);
 
       // Step 4: send the first byte to the master, expect nack
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(twi.eventHandler.readByte).toHaveBeenCalledWith(false);
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeRead(0x77);
 
       // Step 5: wait for stop condition
-      runInstructions(cpu, twi, 24);
+      runner.runInstructions(24);
       expect(twi.eventHandler.stop).toHaveBeenCalled();
 
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       twi.completeStop();
 
       // Step 6: wait for the assembly code to indicate success by settings r17 to 0x42
-      runInstructions(cpu, twi, 16);
+      runner.runInstructions(16);
       expect(cpu.data[R17]).toEqual(0x42);
     });
   });

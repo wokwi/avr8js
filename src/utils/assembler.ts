@@ -46,7 +46,7 @@ interface LineTablePass1 {
   byteOffset: number;
 }
 
-interface LineTable extends LineTablePass1 {
+export interface LineTable extends LineTablePass1 {
   bytes: string;
 }
 

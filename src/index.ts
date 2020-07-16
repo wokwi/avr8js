@@ -26,4 +26,11 @@ export {
   PinState,
 } from './peripherals/gpio';
 export { AVRUSART, usart0Config } from './peripherals/usart';
+export {
+  AVREEPROM,
+  AVREEPROMConfig,
+  EEPROMBackend,
+  EEPROMMemoryBackend,
+  eepromConfig,
+} from './peripherals/eeprom';
 export * from './peripherals/twi';
