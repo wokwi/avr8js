@@ -160,6 +160,38 @@ describe('EEPROM', () => {
       expect(eepromBackend.memory[15]).toEqual(0x55);
       expect(eepromBackend.memory[16]).toEqual(0xff);
     });
+
+    it('should write two bytes sucessfully', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      const eepromBackend = new EEPROMMemoryBackend(1024);
+      const eeprom = new AVREEPROM(cpu, eepromBackend);
+
+      // Write 0x55 to address 15
+      cpu.writeData(EEDR, 0x55);
+      cpu.writeData(EEARL, 15);
+      cpu.writeData(EEARH, 0);
+      cpu.writeData(EECR, EEMPE);
+      cpu.writeData(EECR, EEPE);
+      eeprom.tick();
+      expect(cpu.cycles).toEqual(2);
+
+      // wait long enough time for the first write to finish
+      cpu.cycles += 10000000;
+      eeprom.tick();
+
+      // Write 0x66 to address 16
+      cpu.writeData(EEDR, 0x66);
+      cpu.writeData(EEARL, 16);
+      cpu.writeData(EEARH, 0);
+      cpu.writeData(EECR, EEMPE);
+      cpu.writeData(EECR, EEPE);
+      eeprom.tick();
+
+      // Ensure both writes took place
+      expect(cpu.cycles).toEqual(10000004);
+      expect(eepromBackend.memory[15]).toEqual(0x55);
+      expect(eepromBackend.memory[16]).toEqual(0x66);
+    });
   });
 
   describe('EEPROM erase', () => {

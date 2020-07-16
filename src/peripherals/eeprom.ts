@@ -101,7 +101,7 @@ export class AVREEPROM {
           return true;
         }
         // Check for write-in-progress
-        if (this.writeCompleteCycles) {
+        if (this.cpu.cycles < this.writeCompleteCycles) {
           return true;
         }
 
