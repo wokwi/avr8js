@@ -454,7 +454,6 @@ describe('timer', () => {
       timer.tick();
       cpu.writeData(TCCR1A, 0x3); // TCCR1A <- WGM10 | WGM11 (Fast PWM, 10-bit)
       cpu.writeData(TCCR1B, 0x9); // TCCR1B <- WGM12 | CS10
-      console.log(timer.CS);
       cpu.data[0x6f] = 0x1; // TIMSK1: TOIE1
       cpu.data[SREG] = 0x80; // SREG: I-------
       cpu.cycles = 1;
