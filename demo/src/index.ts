@@ -63,7 +63,7 @@ function executeProgram(hex: string) {
   const MHZ = 16000000;
 
   // Hook to PORTB register
-  runner.portB.addListener((value) => {
+  runner.portB.addListener(() => {
     led12.value = runner.portB.pinState(4) === PinState.High;
     led13.value = runner.portB.pinState(5) === PinState.High;
   });
