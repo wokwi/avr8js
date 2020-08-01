@@ -247,6 +247,7 @@ export class AVRTimer {
 
     this.cpu.writeHooks[config.TCNT] = (value: u8) => {
       this.tcnt = (this.highByteTemp << 8) | value;
+      this.countingUp = true;
       this.tcntUpdated = true;
       this.timerUpdated();
     };
@@ -281,6 +282,7 @@ export class AVRTimer {
     };
     cpu.writeHooks[config.TCCRB] = (value) => {
       this.cpu.data[config.TCCRB] = value;
+      this.tcntUpdated = true;
       this.updateWGMConfig();
       return true;
     };

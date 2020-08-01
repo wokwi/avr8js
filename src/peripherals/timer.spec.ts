@@ -6,6 +6,11 @@ import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
 // CPU registers
 const R1 = 1;
 const R17 = 17;
+const R18 = 18;
+const R19 = 19;
+const R20 = 20;
+const R21 = 21;
+const R22 = 22;
 const SREG = 95;
 
 // Port Registers
@@ -168,10 +173,10 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
-    timer.tick();
     cpu.writeData(OCR0A, 0x11);
     cpu.writeData(TCCR0A, 0x0); // WGM: Normal
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     expect(cpu.data[TIFR0]).toEqual(OCF0A);
@@ -183,10 +188,10 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
-    timer.tick();
     cpu.writeData(OCR0A, 0x11);
     cpu.writeData(TCCR0A, WGM01); // WGM: CTC
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -199,10 +204,10 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
-    timer.tick();
     cpu.writeData(OCR0B, 0x11);
     cpu.writeData(TCCR0A, 0x0); // WGM: (Normal)
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     expect(cpu.data[TIFR0]).toEqual(OCF0B);
@@ -214,11 +219,11 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x20);
-    timer.tick();
     cpu.writeData(OCR0A, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.writeData(TIMSK0, OCIE0A);
     cpu.writeData(95, 0x80); // SREG: I-------
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -232,11 +237,11 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x20);
-    timer.tick();
     cpu.writeData(OCR0A, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.writeData(TIMSK0, 0);
     cpu.writeData(95, 0x80); // SREG: I-------
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -249,11 +254,11 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x20);
-    timer.tick();
     cpu.writeData(OCR0B, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.writeData(TIMSK0, OCIE0B);
     cpu.writeData(95, 0x80); // SREG: I-------
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -311,9 +316,27 @@ describe('timer', () => {
     expect(cpu.data[R1]).toEqual(2);
   });
 
+  it('should not start counting before the prescaler is first set (issue #41)', () => {
+    const { program, instructionCount } = asmProgram(`
+      NOP
+      NOP
+      NOP
+      NOP
+      LDI r16, 0x1    ; TCCR2B = 1 << CS20;
+      STS 0xb1, r16   ; Should start counting after this line
+      NOP
+      LDS r17, 0xb2   ; TCNT should equal 2 at this point
+    `);
+    const cpu = new CPU(program);
+    const timer = new AVRTimer(cpu, timer2Config);
+    const runner = new TestProgramRunner(cpu, timer);
+    runner.runInstructions(instructionCount);
+    expect(cpu.readData(R17)).toEqual(2);
+  });
+
   describe('Phase-correct PWM mode', () => {
     it('should count up to TOP, down to 0, and then set TOV flag', () => {
-      const { program, lines, instructionCount } = asmProgram(`
+      const { program, instructionCount } = asmProgram(`
         ; Set waveform generation mode (WGM) to PWM, Phase Correct, top OCR0A
         LDI r16, 0x1   ; TCCR0A = 1 << WGM00;
         OUT 0x24, r16  
@@ -323,36 +346,26 @@ describe('timer', () => {
         OUT 0x27, r16  
         LDI r16, 0x2   ; TCNT0 = 0x2;
         OUT 0x26, r16
-        
-        NOP   ; TCNT0 will be 3
-        NOP   ; TCNT0 will be 2
-        NOP   ; TCNT0 will be 1
-        NOP   ; TCNT0 will be 0
-        NOP   ; TCNT0 will be 1 (end of test)
+
+        IN r17, 0x26   ; TCNT0 will be 2
+        IN r18, 0x26   ; TCNT0 will be 3
+        IN r19, 0x26   ; TCNT0 will be 2
+        IN r20, 0x26   ; TCNT0 will be 1
+        IN r21, 0x26   ; TCNT0 will be 0
+        IN r22, 0x26   ; TCNT0 will be 1 (end of test)
       `);
-      const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
       const cpu = new CPU(program);
       const timer = new AVRTimer(cpu, timer0Config);
       const runner = new TestProgramRunner(cpu, timer);
-      runner.runInstructions(instructionCount - nopCount);
-      expect(cpu.readData(TCNT0)).toEqual(2);
+      runner.runInstructions(instructionCount);
 
-      runner.runInstructions(1);
-      expect(cpu.readData(TCNT0)).toEqual(3);
-
-      runner.runInstructions(1);
-      expect(cpu.readData(TCNT0)).toEqual(2);
-
-      runner.runInstructions(1);
-      expect(cpu.readData(TCNT0)).toEqual(1);
-      expect(cpu.data[TIFR0] & TOV0).toEqual(0);
-
-      runner.runInstructions(1);
-      expect(cpu.readData(TCNT0)).toEqual(0);
+      expect(cpu.readData(R17)).toEqual(2);
+      expect(cpu.readData(R18)).toEqual(3);
+      expect(cpu.readData(R19)).toEqual(2);
+      expect(cpu.readData(R20)).toEqual(1);
+      expect(cpu.readData(R21)).toEqual(0);
+      expect(cpu.readData(R22)).toEqual(1);
       expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
-
-      runner.runInstructions(1);
-      expect(cpu.readData(TCNT0)).toEqual(1);
     });
 
     it('should clear OC0A when TCNT0=OCR0A and counting up', () => {
@@ -408,12 +421,12 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x22); // TCNT1 <- 0x2233
       cpu.writeData(TCNT1, 0x33); // ...
-      timer.tick();
       const timerLow = cpu.readData(TCNT1);
       const timerHigh = cpu.readData(TCNT1H);
       expect((timerHigh << 8) | timerLow).toEqual(0x2233);
       cpu.writeData(TCCR1A, 0x0); // WGM: Normal
       cpu.writeData(TCCR1B, CS10); // Set prescaler to 1
+      timer.tick();
       cpu.cycles = 1;
       timer.tick();
       cpu.readData(TCNT1);
@@ -425,11 +438,11 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x10); // TCNT1 <- 0x10ee
       cpu.writeData(TCNT1, 0xee); // ...
-      timer.tick();
       cpu.writeData(OCR1AH, 0x10); // OCR1 <- 0x10ef
       cpu.writeData(OCR1A, 0xef); // ...
       cpu.writeData(TCCR1A, 0x0); // WGM: Normal
       cpu.writeData(TCCR1B, CS10); // Set prescaler to 1
+      timer.tick();
       cpu.cycles = 1;
       timer.tick();
       expect(cpu.data[TIFR1]).toEqual(OCF1A); // TIFR1 should have OCF1A bit on
@@ -442,11 +455,11 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x3); // TCNT1 <- 0x3ff
       cpu.writeData(TCNT1, 0xff); // ...
-      timer.tick();
       cpu.writeData(TCCR1A, 0x3); // TCCR1A <- WGM10 | WGM11 (Fast PWM, 10-bit)
       cpu.writeData(TCCR1B, 0x9); // TCCR1B <- WGM12 | CS10
       cpu.data[0x6f] = 0x1; // TIMSK1: TOIE1
       cpu.data[SREG] = 0x80; // SREG: I-------
+      timer.tick();
       cpu.cycles = 1;
       timer.tick();
       cpu.readData(TCNT1); // Refresh TCNT1
@@ -461,10 +474,10 @@ describe('timer', () => {
       const timer = new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x50); // TCNT1 <- 0x500f
       cpu.writeData(TCNT1, 0x0f); // ...
-      timer.tick();
       cpu.writeData(ICR1H, 0x50); // ICR1 <- 0x5010
       cpu.writeData(ICR1, 0x10); // ...
       cpu.writeData(TCCR1B, WGM13 | WGM12 | CS10); // Set prescaler to 1, WGM: CTC
+      timer.tick();
       cpu.cycles = 2; // 2 cycles should increment timer twice, beyond ICR1
       timer.tick();
       cpu.readData(TCNT1); // Refresh TCNT1
