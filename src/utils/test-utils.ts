@@ -7,7 +7,7 @@ export function asmProgram(source: string) {
   if (errors.length) {
     throw new Error('Assembly failed: ' + errors);
   }
-  return { program: new Uint16Array(bytes.buffer), lines };
+  return { program: new Uint16Array(bytes.buffer), lines, instructionCount: lines.length };
 }
 
 export class TestProgramRunner {

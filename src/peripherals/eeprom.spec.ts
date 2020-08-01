@@ -63,7 +63,7 @@ describe('EEPROM', () => {
 
     it('should not erase the memory when writing if EEPM1 is high', () => {
       // We subtract 0x20 to translate from RAM address space to I/O register space
-      const { program } = asmProgram(`
+      const { program, instructionCount } = asmProgram(`
         ; register addresses
         _REPLACE TWSR, ${EECR - 0x20}
         _REPLACE EEARL, ${EEARL - 0x20}
@@ -85,7 +85,7 @@ describe('EEPROM', () => {
       eepromBackend.memory[9] = 0x0f; // high four bits are cleared
 
       const runner = new TestProgramRunner(cpu, eeprom);
-      runner.runInstructions(program.length);
+      runner.runInstructions(instructionCount);
 
       // EEPROM was 0x0f, and our program wrote 0x55.
       // Since write (without erase) only clears bits, we expect 0x05 now.
@@ -197,7 +197,7 @@ describe('EEPROM', () => {
   describe('EEPROM erase', () => {
     it('should only erase the memory when EEPM0 is high', () => {
       // We subtract 0x20 to translate from RAM address space to I/O register space
-      const { program } = asmProgram(`
+      const { program, instructionCount } = asmProgram(`
           ; register addresses
           _REPLACE TWSR, ${EECR - 0x20}
           _REPLACE EEARL, ${EEARL - 0x20}
@@ -219,7 +219,7 @@ describe('EEPROM', () => {
       eepromBackend.memory[9] = 0x22;
 
       const runner = new TestProgramRunner(cpu, eeprom);
-      runner.runInstructions(program.length);
+      runner.runInstructions(instructionCount);
 
       expect(eepromBackend.memory[9]).toEqual(0xff);
     });
