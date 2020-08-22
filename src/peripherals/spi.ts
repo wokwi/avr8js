@@ -10,7 +10,6 @@ export interface SPIConfig {
   SPDR: u8;
 }
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // Register bits:
 const SPCR_SPIE = 0x80; //  SPI Interrupt Enable
 const SPCR_SPE = 0x40; // SPI Enable
@@ -25,7 +24,6 @@ const SPSR_SPR_MASK = SPCR_SPR1 | SPCR_SPR0;
 const SPSR_SPIF = 0x80; // SPI Interrupt Flag
 const SPSR_WCOL = 0x40; // Write COLlision Flag
 const SPSR_SPI2X = 0x1; // Double SPI Speed Bit
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export const spiConfig: SPIConfig = {
   spiInterrupt: 0x22,
