@@ -199,7 +199,6 @@ describe('EEPROM', () => {
       // We subtract 0x20 to translate from RAM address space to I/O register space
       const { program, instructionCount } = asmProgram(`
           ; register addresses
-          _REPLACE TWSR, ${EECR - 0x20}
           _REPLACE EEARL, ${EEARL - 0x20}
           _REPLACE EEDR, ${EEDR - 0x20}
           _REPLACE EECR, ${EECR - 0x20}
