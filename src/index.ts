@@ -34,3 +34,4 @@ export {
   eepromConfig,
 } from './peripherals/eeprom';
 export * from './peripherals/twi';
+export { spiConfig, SPIConfig, SPITransferCallback, AVRSPI } from './peripherals/spi';
