@@ -224,7 +224,8 @@ export function avrInstruction(cpu: ICPU) {
     const eind = cpu.data[0x3c];
     cpu.data[sp] = retAddr & 255;
     cpu.data[sp - 1] = (retAddr >> 8) & 255;
-    cpu.dataView.setUint16(93, sp - 2, true);
+    cpu.data[sp - 2] = (retAddr >> 16) & 255;
+    cpu.dataView.setUint16(93, sp - 3, true);
     cpu.pc = ((eind << 16) | cpu.dataView.getUint16(30, true)) - 1;
     cpu.cycles += 3;
   } else if (opcode === 0x9419) {

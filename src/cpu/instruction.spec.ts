@@ -240,6 +240,7 @@ describe('avrInstruction', () => {
     avrInstruction(cpu);
     expect(cpu.pc).toEqual(0x11234);
     expect(cpu.cycles).toEqual(4);
+    expect(cpu.data[SP]).toEqual(0x80 - 3); // according to datasheet: SP ← SP - 3
     expect(cpu.data[0x80]).toEqual(1); // Return address
   });
 
