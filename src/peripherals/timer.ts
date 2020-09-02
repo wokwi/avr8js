@@ -231,6 +231,7 @@ export class AVRTimer {
   private compB: CompBitsValue;
   private tcntUpdated = false;
   private countingUp = true;
+  private divider = 0;
 
   // This is the temporary register used to access 16-bit registers (section 16.3 of the datasheet)
   private highByteTemp: u8 = 0;
@@ -283,12 +284,14 @@ export class AVRTimer {
     cpu.writeHooks[config.TCCRB] = (value) => {
       this.cpu.data[config.TCCRB] = value;
       this.tcntUpdated = true;
+      this.divider = this.config.dividers[this.CS];
       this.updateWGMConfig();
       return true;
     };
   }
 
   reset() {
+    this.divider = 0;
     this.lastCycle = 0;
     this.ocrA = 0;
     this.ocrB = 0;
@@ -342,8 +345,8 @@ export class AVRTimer {
   }
 
   tick() {
-    const divider = this.config.dividers[this.CS];
-    const delta = this.cpu.cycles - this.lastCycle;
+    const { divider, lastCycle } = this;
+    const delta = this.cpu.cycles - lastCycle;
     if (divider && delta >= divider) {
       const counterDelta = Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;

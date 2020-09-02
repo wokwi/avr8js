@@ -67,7 +67,8 @@ describe('timer', () => {
   it('should update timer every tick when prescaler is 1', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
-    cpu.data[TCCR0B] = CS00; // Set prescaler to 1
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    timer.tick();
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -77,7 +78,8 @@ describe('timer', () => {
   it('should update timer every 64 ticks when prescaler is 3', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
-    cpu.data[TCCR0B] = CS01 | CS00; // Set prescaler to 64
+    cpu.writeData(TCCR0B, CS01 | CS00); // Set prescaler to 64
+    timer.tick();
     cpu.cycles = 64;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -87,7 +89,7 @@ describe('timer', () => {
   it('should not update timer if it has been disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
-    cpu.data[TCCR0B] = 0; // No prescaler (timer disabled)
+    cpu.writeData(TCCR0B, 0); // No prescaler (timer disabled)
     cpu.cycles = 100000;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -98,8 +100,8 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     timer.tick();
-    cpu.data[TCCR0B] = CS00; // Set prescaler to 1
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -111,10 +113,10 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     timer.tick();
     cpu.writeData(OCR0A, 0x7f);
     cpu.writeData(TCCR0A, WGM01 | WGM00); // WGM: Fast PWM
-    cpu.data[TCCR0B] = CS00; // Set prescaler to 1
     cpu.cycles = 1;
     timer.tick();
     const tcnt = cpu.readData(TCNT0);
@@ -126,8 +128,8 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     timer.tick();
-    cpu.data[TCCR0B] = CS00; // Set prescaler to 1
     cpu.data[TIMSK0] = TOIE0;
     cpu.data[SREG] = 0x80; // SREG: I-------
     cpu.cycles = 1;
@@ -143,8 +145,8 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     timer.tick();
-    cpu.data[TCCR0B] = CS00; // Set prescaler to 1
     cpu.data[TIMSK0] = TOIE0;
     cpu.data[SREG] = 0x0; // SREG: --------
     cpu.cycles = 1;
@@ -158,8 +160,8 @@ describe('timer', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     timer.tick();
-    cpu.data[TCCR0B] = CS00; // Set prescaler to 1
     cpu.data[TIMSK0] = 0;
     cpu.data[SREG] = 0x80; // SREG: I-------
     cpu.cycles = 1;
@@ -289,7 +291,8 @@ describe('timer', () => {
   it('timer2 should count every 256 ticks when prescaler is 6 (issue #5)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer2Config);
-    cpu.data[TCCR2B] = CS22 | CS21; // Set prescaler to 256
+    cpu.writeData(TCCR2B, CS22 | CS21); // Set prescaler to 256
+    timer.tick();
 
     cpu.cycles = 511;
     timer.tick();
