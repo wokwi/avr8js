@@ -232,6 +232,7 @@ export class AVRTimer {
   private tcntUpdated = false;
   private countingUp = true;
   private divider = 0;
+  private pendingInterrupt = false;
 
   // This is the temporary register used to access 16-bit registers (section 16.3 of the datasheet)
   private highByteTemp: u8 = 0;
@@ -302,6 +303,7 @@ export class AVRTimer {
   }
 
   set TIFR(value: u8) {
+    this.pendingInterrupt = value > 0;
     this.cpu.data[this.config.TIFR] = value;
   }
 
@@ -367,7 +369,7 @@ export class AVRTimer {
       }
     }
     this.tcntUpdated = false;
-    if (this.cpu.interruptsEnabled) {
+    if (this.cpu.interruptsEnabled && this.pendingInterrupt) {
       const { TIFR, TIMSK } = this;
       if (TIFR & TOV && TIMSK & TOIE) {
         avrInterrupt(this.cpu, this.config.ovfInterrupt);
@@ -381,6 +383,7 @@ export class AVRTimer {
         avrInterrupt(this.cpu, this.config.compBInterrupt);
         this.TIFR &= ~OCFB;
       }
+      this.pendingInterrupt = false;
     }
   }
 
