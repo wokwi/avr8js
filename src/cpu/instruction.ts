@@ -221,7 +221,7 @@ export function avrInstruction(cpu: ICPU) {
     /* EICALL, 1001 0101 0001 1001 */
     const retAddr = cpu.pc + 1;
     const sp = cpu.dataView.getUint16(93, true);
-    const eind = cpu.data[0x3c];
+    const eind = cpu.data[0x5c];
     cpu.data[sp] = retAddr & 255;
     cpu.data[sp - 1] = (retAddr >> 8) & 255;
     cpu.data[sp - 2] = (retAddr >> 16) & 255;
@@ -230,28 +230,28 @@ export function avrInstruction(cpu: ICPU) {
     cpu.cycles += 3;
   } else if (opcode === 0x9419) {
     /* EIJMP, 1001 0100 0001 1001 */
-    const eind = cpu.data[0x3c];
+    const eind = cpu.data[0x5c];
     cpu.pc = ((eind << 16) | cpu.dataView.getUint16(30, true)) - 1;
     cpu.cycles++;
   } else if (opcode === 0x95d8) {
     /* ELPM, 1001 0101 1101 1000 */
-    const rampz = cpu.data[0x3b];
+    const rampz = cpu.data[0x5b];
     cpu.data[0] = cpu.progBytes[(rampz << 16) | cpu.dataView.getUint16(30, true)];
     cpu.cycles += 2;
   } else if ((opcode & 0xfe0f) === 0x9006) {
     /* ELPM(REG), 1001 000d dddd 0110 */
-    const rampz = cpu.data[0x3b];
+    const rampz = cpu.data[0x5b];
     cpu.data[(opcode & 0x1f0) >> 4] =
       cpu.progBytes[(rampz << 16) | cpu.dataView.getUint16(30, true)];
     cpu.cycles += 2;
   } else if ((opcode & 0xfe0f) === 0x9007) {
     /* ELPM(INC), 1001 000d dddd 0111 */
-    const rampz = cpu.data[0x3b];
+    const rampz = cpu.data[0x5b];
     const i = cpu.dataView.getUint16(30, true);
     cpu.data[(opcode & 0x1f0) >> 4] = cpu.progBytes[(rampz << 16) | i];
     cpu.dataView.setUint16(30, i + 1, true);
     if (i === 0xffff) {
-      cpu.data[0x3b] = (rampz + 1) % (cpu.progBytes.length >> 16);
+      cpu.data[0x5b] = (rampz + 1) % (cpu.progBytes.length >> 16);
     }
     cpu.cycles += 2;
   } else if ((opcode & 0xfc00) === 0x2400) {
