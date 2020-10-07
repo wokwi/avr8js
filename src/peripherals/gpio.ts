@@ -204,7 +204,7 @@ export class AVRIOPort {
   }
 
   private writeGpio(value: u8, ddr: u8) {
-    const newValue = ((value & this.overrideMask) | this.overrideValue) & ddr;
+    const newValue = (((value & this.overrideMask) | this.overrideValue) & ddr) | (value & ~ddr);
     const prevValue = this.lastValue;
     if (newValue !== prevValue || ddr !== this.lastDdr) {
       this.lastValue = newValue;

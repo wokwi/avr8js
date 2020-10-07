@@ -9,7 +9,7 @@ describe('GPIO', () => {
     cpu.writeData(0x24, 0x0f); // DDRB <- 0x0f
     port.addListener(listener);
     cpu.writeData(0x25, 0x55); // PORTB <- 0x55
-    expect(listener).toHaveBeenCalledWith(0x05, 0);
+    expect(listener).toHaveBeenCalledWith(0x55, 0);
     expect(cpu.data[0x23]).toEqual(0x5); // PINB should return port value
   });
 
@@ -20,7 +20,16 @@ describe('GPIO', () => {
     cpu.writeData(0x25, 0x55); // PORTB <- 0x55
     port.addListener(listener);
     cpu.writeData(0x24, 0xf0); // DDRB <- 0xf0
-    expect(listener).toHaveBeenCalledWith(0x50, 0);
+    expect(listener).toHaveBeenCalledWith(0x55, 0x55);
+  });
+
+  it('should invoke the listeners when pullup register enabled (issue #62)', () => {
+    const cpu = new CPU(new Uint16Array(1024));
+    const port = new AVRIOPort(cpu, portBConfig);
+    const listener = jest.fn();
+    port.addListener(listener);
+    cpu.writeData(0x25, 0x55); // PORTB <- 0x55
+    expect(listener).toHaveBeenCalledWith(0x55, 0);
   });
 
   it('should toggle the pin when writing to the PIN register', () => {
@@ -31,7 +40,7 @@ describe('GPIO', () => {
     cpu.writeData(0x24, 0x0f); // DDRB <- 0x0f
     cpu.writeData(0x25, 0x55); // PORTB <- 0x55
     cpu.writeData(0x23, 0x01); // PINB <- 0x0f
-    expect(listener).toHaveBeenCalledWith(0x04, 0x5);
+    expect(listener).toHaveBeenCalledWith(0x54, 0x55);
     expect(cpu.data[0x23]).toEqual(0x4); // PINB should return port value
   });
 
