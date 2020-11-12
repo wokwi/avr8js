@@ -29,6 +29,7 @@ A step-by-step video tutorial showing how to build a simple Arduino simulator us
 * [Arduino Mega NeoPixel Matrix](https://stackblitz.com/edit/avr8js-mega-ws2812?file=index.ts)
 * [Simon Game](https://stackblitz.com/edit/avr8js-simon-game?file=index.ts) - with pushbuttons and sound
 * [XMAS LEDs](https://stackblitz.com/edit/avr8js-xmas-dafna?file=index.ts)
+* [ATtiny85 Simulation](https://avr8js-attiny85.stackblitz.io?file=index.ts)
 * [Assembly Code](https://stackblitz.com/edit/avr8js-asm?file=index.ts)
 
 ## Running the tests
