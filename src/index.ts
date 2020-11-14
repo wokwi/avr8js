@@ -7,7 +7,13 @@
 export { CPU, ICPU, CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
-export { AVRTimer, timer0Config, timer1Config, timer2Config } from './peripherals/timer';
+export {
+  AVRTimer,
+  AVRTimerConfig,
+  timer0Config,
+  timer1Config,
+  timer2Config,
+} from './peripherals/timer';
 export {
   AVRIOPort,
   GPIOListener,

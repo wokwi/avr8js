@@ -43,7 +43,7 @@ interface TimerDividers {
   7: number;
 }
 
-interface AVRTimerConfig {
+export interface AVRTimerConfig {
   bits: 8 | 16;
   captureInterrupt: u8;
   compAInterrupt: u8;
