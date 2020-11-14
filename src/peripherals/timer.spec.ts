@@ -141,6 +141,33 @@ describe('timer', () => {
     expect(cpu.cycles).toEqual(3);
   });
 
+  it('should support overriding TIFR/TOV and TIMSK/TOIE bits (issue #64)', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    const timer = new AVRTimer(cpu, {
+      ...timer0Config,
+
+      // The following values correspond ATtiny85 config:
+      TOV: 2,
+      OCFA: 2,
+      OCFB: 8,
+      TOIE: 2,
+      OCIEA: 16,
+      OCIEB: 8,
+    });
+    cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    timer.tick();
+    cpu.data[TIMSK0] = 2;
+    cpu.data[SREG] = 0x80; // SREG: I-------
+    cpu.cycles = 1;
+    timer.tick();
+    const tcnt = cpu.readData(TCNT0);
+    expect(tcnt).toEqual(2); // TCNT should be 2 (one tick above + 2 cycles for interrupt)
+    expect(cpu.data[TIFR0] & 2).toEqual(0);
+    expect(cpu.pc).toEqual(0x20);
+    expect(cpu.cycles).toEqual(3);
+  });
+
   it('should not generate an overflow interrupt when global interrupts disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     const timer = new AVRTimer(cpu, timer0Config);

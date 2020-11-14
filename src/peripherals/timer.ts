@@ -21,14 +21,6 @@ const timer01Dividers = {
   7: 0, // TODO: External clock source on T0 pin. Clock on rising edge.
 };
 
-const TOV = 1;
-const OCFA = 2;
-const OCFB = 4;
-
-const TOIE = 1;
-const OCIEA = 2;
-const OCIEB = 4;
-
 type u8 = number;
 type u16 = number;
 
@@ -45,6 +37,9 @@ interface TimerDividers {
 
 export interface AVRTimerConfig {
   bits: 8 | 16;
+  dividers: TimerDividers;
+
+  // Interrupt vectors
   captureInterrupt: u8;
   compAInterrupt: u8;
   compBInterrupt: u8;
@@ -61,7 +56,15 @@ export interface AVRTimerConfig {
   TCCRC: u8;
   TIMSK: u8;
 
-  dividers: TimerDividers;
+  // TIFR bits
+  TOV: u8;
+  OCFA: u8;
+  OCFB: u8;
+
+  // TIMSK bits
+  TOIE: u8;
+  OCIEA: u8;
+  OCIEB: u8;
 
   // Output compare pins
   compPortA: u16;
@@ -69,6 +72,19 @@ export interface AVRTimerConfig {
   compPortB: u16;
   compPinB: u8;
 }
+
+/** These are differnet for some devices (e.g. ATtiny85) */
+const defaultTimerBits = {
+  // TIFR bits
+  TOV: 1,
+  OCFA: 2,
+  OCFB: 4,
+
+  // TIMSK bits
+  TOIE: 1,
+  OCIEA: 2,
+  OCIEB: 4,
+};
 
 export const timer0Config: AVRTimerConfig = {
   bits: 8,
@@ -90,6 +106,7 @@ export const timer0Config: AVRTimerConfig = {
   compPinA: 6,
   compPortB: portDConfig.PORT,
   compPinB: 5,
+  ...defaultTimerBits,
 };
 
 export const timer1Config: AVRTimerConfig = {
@@ -112,6 +129,7 @@ export const timer1Config: AVRTimerConfig = {
   compPinA: 1,
   compPortB: portBConfig.PORT,
   compPinB: 2,
+  ...defaultTimerBits,
 };
 
 export const timer2Config: AVRTimerConfig = {
@@ -143,6 +161,7 @@ export const timer2Config: AVRTimerConfig = {
   compPinA: 3,
   compPortB: portDConfig.PORT,
   compPinB: 3,
+  ...defaultTimerBits,
 };
 
 /* All the following types and constants are related to WGM (Waveform Generation Mode) bits: */
@@ -365,12 +384,13 @@ export class AVRTimer {
         this.timerUpdated();
       }
       if ((timerMode === TimerMode.Normal || timerMode === TimerMode.FastPWM) && val > newVal) {
-        this.TIFR |= TOV;
+        this.TIFR |= this.config.TOV;
       }
     }
     this.tcntUpdated = false;
     if (this.cpu.interruptsEnabled && this.pendingInterrupt) {
       const { TIFR, TIMSK } = this;
+      const { TOV, OCFA, OCFB, TOIE, OCIEA, OCIEB } = this.config;
       if (TIFR & TOV && TIMSK & TOIE) {
         avrInterrupt(this.cpu, this.config.ovfInterrupt);
         this.TIFR &= ~TOV;
@@ -398,7 +418,7 @@ export class AVRTimer {
         value--;
         if (!value && !this.tcntUpdated) {
           this.countingUp = true;
-          this.TIFR |= TOV;
+          this.TIFR |= this.config.TOV;
         }
       }
       delta--;
@@ -410,6 +430,7 @@ export class AVRTimer {
     const value = this.tcnt;
 
     if (this.ocrA && value === this.ocrA) {
+      const { TOV, OCFA } = this.config;
       this.TIFR |= OCFA;
       if (this.timerMode === TimerMode.CTC) {
         // Clear Timer on Compare Match (CTC) Mode
@@ -421,7 +442,7 @@ export class AVRTimer {
       }
     }
     if (this.ocrB && value === this.ocrB) {
-      this.TIFR |= OCFB;
+      this.TIFR |= this.config.OCFB;
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');
       }
