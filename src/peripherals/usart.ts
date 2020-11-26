@@ -1,3 +1,11 @@
+/**
+ * AVR-8 USART Peripheral
+ * Part of AVR8js
+ * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
+ *
+ * Copyright (C) 2019, 2020, Uri Shaked
+ */
+
 import { CPU } from '../cpu/cpu';
 import { avrInterrupt } from '../cpu/interrupt';
 import { u8 } from '../types';
@@ -64,11 +72,10 @@ export class AVRUSART {
 
   private lineBuffer = '';
 
+  private txCompleteCycles = 0;
+
   constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
-    this.cpu.writeHooks[config.UCSRA] = (value) => {
-      this.cpu.data[config.UCSRA] = value | UCSRA_UDRE | UCSRA_TXC;
-      return true;
-    };
+    this.reset();
     this.cpu.writeHooks[config.UCSRB] = (value, oldValue) => {
       if (value & UCSRB_TXEN && !(oldValue & UCSRB_TXEN)) {
         // Enabling the transmission - mark UDR as empty
@@ -88,29 +95,48 @@ export class AVRUSART {
           this.lineBuffer += ch;
         }
       }
-      this.cpu.data[config.UCSRA] |= UCSRA_UDRE | UCSRA_TXC;
+      const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
+      this.txCompleteCycles = this.cpu.cycles + (this.UBRR * this.multiplier + 1) * symbolsPerChar;
+      this.cpu.data[config.UCSRA] &= ~(UCSRA_TXC | UCSRA_UDRE);
     };
   }
 
+  reset() {
+    this.cpu.data[this.config.UCSRA] = UCSRA_UDRE;
+    this.cpu.data[this.config.UCSRB] = 0;
+    this.cpu.data[this.config.UCSRC] = UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
+  }
+
   tick() {
-    if (this.cpu.interruptsEnabled) {
-      const ucsra = this.cpu.data[this.config.UCSRA];
-      const ucsrb = this.cpu.data[this.config.UCSRB];
+    const { txCompleteCycles, cpu } = this;
+    if (txCompleteCycles && cpu.cycles >= txCompleteCycles) {
+      this.cpu.data[this.config.UCSRA] |= UCSRA_UDRE | UCSRA_TXC;
+      this.txCompleteCycles = 0;
+    }
+    if (cpu.interruptsEnabled) {
+      const ucsra = cpu.data[this.config.UCSRA];
+      const ucsrb = cpu.data[this.config.UCSRB];
       if (ucsra & UCSRA_UDRE && ucsrb & UCSRB_UDRIE) {
-        avrInterrupt(this.cpu, this.config.dataRegisterEmptyInterrupt);
-        this.cpu.data[this.config.UCSRA] &= ~UCSRA_UDRE;
+        avrInterrupt(cpu, this.config.dataRegisterEmptyInterrupt);
+        cpu.data[this.config.UCSRA] &= ~UCSRA_UDRE;
       }
       if (ucsra & UCSRA_TXC && ucsrb & UCSRB_TXCIE) {
-        avrInterrupt(this.cpu, this.config.txCompleteInterrupt);
-        this.cpu.data[this.config.UCSRA] &= ~UCSRA_TXC;
+        avrInterrupt(cpu, this.config.txCompleteInterrupt);
+        cpu.data[this.config.UCSRA] &= ~UCSRA_TXC;
       }
     }
   }
 
+  private get UBRR() {
+    return (this.cpu.data[this.config.UBRRH] << 8) | this.cpu.data[this.config.UBRRL];
+  }
+
+  private get multiplier() {
+    return this.cpu.data[this.config.UCSRA] & UCSRA_U2X ? 8 : 16;
+  }
+
   get baudRate() {
-    const UBRR = (this.cpu.data[this.config.UBRRH] << 8) | this.cpu.data[this.config.UBRRL];
-    const multiplier = this.cpu.data[this.config.UCSRA] & UCSRA_U2X ? 8 : 16;
-    return Math.floor(this.freqMHz / (multiplier * (1 + UBRR)));
+    return Math.floor(this.freqMHz / (this.multiplier * (1 + this.UBRR)));
   }
 
   get bitsPerChar() {
@@ -130,5 +156,17 @@ export class AVRUSART {
       case 7:
         return 9;
     }
+  }
+
+  get stopBits() {
+    return this.cpu.data[this.config.UCSRC] & UCSRC_USBS ? 2 : 1;
+  }
+
+  get parityEnabled() {
+    return this.cpu.data[this.config.UCSRC] & UCSRC_UPM1 ? true : false;
+  }
+
+  get parityOdd() {
+    return this.cpu.data[this.config.UCSRC] & UCSRC_UPM0 ? true : false;
   }
 }

@@ -22,6 +22,9 @@ const UDRIE = 0x20;
 const TXCIE = 0x40;
 const TXC = 0x40;
 const UDRE = 0x20;
+const USBS = 0x08;
+const UPM0 = 0x10;
+const UPM1 = 0x20;
 
 // Interrupt address
 const PC_INT_UDRE = 0x26;
@@ -48,40 +51,87 @@ describe('USART', () => {
     expect(usart.baudRate).toEqual(2400);
   });
 
-  it('should return 5-bits per byte when UCSZ = 0', () => {
-    const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0C, 0);
-    expect(usart.bitsPerChar).toEqual(5);
+  describe('bitsPerChar', () => {
+    it('should return 5-bits per byte when UCSZ = 0', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, 0);
+      expect(usart.bitsPerChar).toEqual(5);
+    });
+
+    it('should return 6-bits per byte when UCSZ = 1', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, UCSZ0);
+      expect(usart.bitsPerChar).toEqual(6);
+    });
+
+    it('should return 7-bits per byte when UCSZ = 2', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, UCSZ1);
+      expect(usart.bitsPerChar).toEqual(7);
+    });
+
+    it('should return 8-bits per byte when UCSZ = 3', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
+      expect(usart.bitsPerChar).toEqual(8);
+    });
+
+    it('should return 9-bits per byte when UCSZ = 7', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
+      cpu.writeData(UCSR0B, UCSZ2);
+      expect(usart.bitsPerChar).toEqual(9);
+    });
   });
 
-  it('should return 6-bits per byte when UCSZ = 1', () => {
-    const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0C, UCSZ0);
-    expect(usart.bitsPerChar).toEqual(6);
+  describe('stopBits', () => {
+    it('should return 1 when USBS = 0', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      expect(usart.stopBits).toEqual(1);
+    });
+
+    it('should return 2 when USBS = 1', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, USBS);
+      expect(usart.stopBits).toEqual(2);
+    });
   });
 
-  it('should return 7-bits per byte when UCSZ = 2', () => {
-    const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0C, UCSZ1);
-    expect(usart.bitsPerChar).toEqual(7);
+  describe('parityEnabled', () => {
+    it('should return false when UPM1 = 0', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      expect(usart.parityEnabled).toEqual(false);
+    });
+
+    it('should return true when UPM1 = 1', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, UPM1);
+      expect(usart.parityEnabled).toEqual(true);
+    });
   });
 
-  it('should return 8-bits per byte when UCSZ = 3', () => {
-    const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
-    expect(usart.bitsPerChar).toEqual(8);
-  });
+  describe('parityOdd', () => {
+    it('should return false when UPM0 = 0', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      expect(usart.parityOdd).toEqual(false);
+    });
 
-  it('should return 9-bits per byte when UCSZ = 7', () => {
-    const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
-    cpu.writeData(UCSR0B, UCSZ2);
-    expect(usart.bitsPerChar).toEqual(9);
+    it('should return true when UPM0 = 1', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0C, UPM0);
+      expect(usart.parityOdd).toEqual(true);
+    });
   });
 
   it('should invoke onByteTransmit when UDR0 is written to', () => {
@@ -93,21 +143,11 @@ describe('USART', () => {
     expect(usart.onByteTransmit).toHaveBeenCalledWith(0x61);
   });
 
-  it('should set UDRE and TXC flags after UDR0', () => {
-    const cpu = new CPU(new Uint16Array(1024));
-    new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    cpu.writeData(UCSR0B, TXEN);
-    cpu.writeData(UCSR0A, 0);
-    cpu.writeData(UDR0, 0x61);
-    expect(cpu.data[UCSR0A]).toEqual(TXC | UDRE);
-  });
-
   describe('tick()', () => {
     it('should trigger data register empty interrupt if UDRE is set', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, UDRIE | TXEN);
-      cpu.writeData(0xc6, 0x61);
       cpu.data[SREG] = 0x80; // SREG: I-------
       usart.tick();
       expect(cpu.pc).toEqual(PC_INT_UDRE);
@@ -121,9 +161,10 @@ describe('USART', () => {
       cpu.writeData(UCSR0B, TXCIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0x80; // SREG: I-------
+      cpu.cycles = 1e6;
       usart.tick();
       expect(cpu.pc).toEqual(PC_INT_TXC);
-      expect(cpu.cycles).toEqual(2);
+      expect(cpu.cycles).toEqual(1e6 + 2);
       expect(cpu.data[UCSR0A] & TXC).toEqual(0);
     });
 
@@ -143,9 +184,10 @@ describe('USART', () => {
       cpu.writeData(UCSR0B, UDRIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0; // SREG: 0 (disable interrupts)
+      cpu.cycles = 1e6;
       usart.tick();
       expect(cpu.pc).toEqual(0);
-      expect(cpu.cycles).toEqual(0);
+      expect(cpu.cycles).toEqual(1e6);
       expect(cpu.data[UCSR0A]).toEqual(TXC | UDRE);
     });
   });
@@ -190,6 +232,22 @@ describe('USART', () => {
       cpu.writeData(UDR0, 0x65); // 'e'
       cpu.writeData(UDR0, 0xa); // '\n'
       expect(usart.onLineTransmit).toHaveBeenCalledWith('there');
+    });
+  });
+
+  describe('integration', () => {
+    it('should set the TXC bit after ~1.04mS when baud rate set to 9600', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0B, TXEN);
+      cpu.writeData(UBRR0L, 103); // baud: 9600
+      cpu.writeData(UDR0, 0x48); // 'H'
+      cpu.cycles += 16000; // 1ms
+      usart.tick();
+      expect(cpu.data[UCSR0A] & TXC).toEqual(0);
+      cpu.cycles += 800; // 0.05ms
+      usart.tick();
+      expect(cpu.data[UCSR0A] & TXC).toEqual(TXC);
     });
   });
 });
