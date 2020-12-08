@@ -28,6 +28,7 @@ describe('EEPROM', () => {
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EERE);
       eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(4);
       expect(cpu.data[EEDR]).toEqual(0xff);
     });
@@ -41,6 +42,7 @@ describe('EEPROM', () => {
       cpu.writeData(EEARH, 0x2);
       cpu.writeData(EECR, EERE);
       eeprom.tick();
+      cpu.tick();
       expect(cpu.data[EEDR]).toEqual(0x42);
     });
   });
@@ -56,6 +58,7 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
       eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(2);
       expect(eepromBackend.memory[15]).toEqual(0x55);
       expect(cpu.data[EECR] & EEPE).toEqual(EEPE);
@@ -104,12 +107,14 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEPE);
       cpu.cycles += 1000;
       eeprom.tick();
+      cpu.tick();
       // At this point, write shouldn't be complete yet
       expect(cpu.data[EECR] & EEPE).toEqual(EEPE);
       expect(cpu.pc).toEqual(0);
       cpu.cycles += 10000000;
       // And now, 10 million cycles later, it should.
       eeprom.tick();
+      cpu.tick();
       expect(eepromBackend.memory[15]).toEqual(0x55);
       expect(cpu.data[EECR] & EEPE).toEqual(0);
       expect(cpu.pc).toEqual(0x2c); // EEPROM Ready interrupt
@@ -125,8 +130,10 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEMPE);
       cpu.cycles = 8; // waiting for more than 4 cycles should clear EEMPE
       eeprom.tick();
+      cpu.tick();
       cpu.writeData(EECR, EEPE);
       eeprom.tick();
+      cpu.tick();
       // Ensure that nothing was written, and EEPE bit is clear
       expect(cpu.cycles).toEqual(8);
       expect(eepromBackend.memory[15]).toEqual(0xff);
@@ -145,6 +152,7 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
       eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(2);
 
       // Write 0x66 to address 16 (first write is still in progress)
@@ -154,6 +162,7 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
       eeprom.tick();
+      cpu.tick();
 
       // Ensure that second write didn't happen
       expect(cpu.cycles).toEqual(2);
@@ -173,11 +182,13 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
       eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(2);
 
       // wait long enough time for the first write to finish
       cpu.cycles += 10000000;
       eeprom.tick();
+      cpu.tick();
 
       // Write 0x66 to address 16
       cpu.writeData(EEDR, 0x66);
@@ -186,6 +197,7 @@ describe('EEPROM', () => {
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
       eeprom.tick();
+      cpu.tick();
 
       // Ensure both writes took place
       expect(cpu.cycles).toEqual(10000004);

@@ -48,9 +48,11 @@ describe('TWI', () => {
   it('should trigger data an interrupt if TWINT is set', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-    cpu.writeData(TWCR, TWINT | TWIE);
+    cpu.writeData(TWCR, TWIE);
     cpu.data[SREG] = 0x80; // SREG: I-------
+    twi.completeStart(); // This will set the TWINT flag
     twi.tick();
+    cpu.tick();
     expect(cpu.pc).toEqual(0x30); // 2-wire Serial Interface Vector
     expect(cpu.cycles).toEqual(2);
     expect(cpu.data[TWCR] & TWINT).toEqual(0);
@@ -63,6 +65,7 @@ describe('TWI', () => {
       jest.spyOn(twi.eventHandler, 'start');
       cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
       twi.tick();
+      cpu.tick();
       expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
     });
 

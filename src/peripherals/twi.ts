@@ -1,5 +1,4 @@
-import { CPU } from '../cpu/cpu';
-import { avrInterrupt } from '../cpu/interrupt';
+import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 
 export interface TWIEventHandler {
@@ -98,13 +97,22 @@ export class AVRTWI {
 
   private nextTick: (() => void) | null = null;
 
+  // Interrupts
+  private TWI: AVRInterruptConfig = {
+    address: this.config.twiInterrupt,
+    flagRegister: this.config.TWCR,
+    flagMask: TWCR_TWINT,
+    enableRegister: this.config.TWCR,
+    enableMask: TWCR_TWIE,
+  };
+
   constructor(private cpu: CPU, private config: TWIConfig, private freqMHz: number) {
     this.updateStatus(STATUS_TWI_IDLE);
     this.cpu.writeHooks[config.TWCR] = (value) => {
+      this.cpu.data[config.TWCR] = value;
       const clearInt = value & TWCR_TWINT;
-      if (clearInt) {
-        value &= ~TWCR_TWINT;
-      }
+      this.cpu.clearInterruptByFlag(this.TWI, value);
+      this.cpu.updateInterruptEnable(this.TWI, value);
       const { status } = this;
       if (clearInt && value & TWCR_TWEN) {
         const twdrValue = this.cpu.data[this.config.TWDR];
@@ -122,7 +130,6 @@ export class AVRTWI {
             this.eventHandler.readByte(ack);
           }
         };
-        this.cpu.data[config.TWCR] = value;
         return true;
       }
     };
@@ -132,13 +139,6 @@ export class AVRTWI {
     if (this.nextTick) {
       this.nextTick();
       this.nextTick = null;
-    }
-    if (this.cpu.interruptsEnabled) {
-      const { TWCR, twiInterrupt } = this.config;
-      if (this.cpu.data[TWCR] & TWCR_TWIE && this.cpu.data[TWCR] & TWCR_TWINT) {
-        avrInterrupt(this.cpu, twiInterrupt);
-        this.cpu.data[TWCR] &= ~TWCR_TWINT;
-      }
     }
   }
 
@@ -193,8 +193,8 @@ export class AVRTWI {
   }
 
   private updateStatus(value: u8) {
-    const { TWCR, TWSR } = this.config;
+    const { TWSR } = this.config;
     this.cpu.data[TWSR] = (this.cpu.data[TWSR] & ~TWSR_TWS_MASK) | value;
-    this.cpu.data[TWCR] |= TWCR_TWINT;
+    this.cpu.setInterruptFlag(this.TWI);
   }
 }

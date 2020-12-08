@@ -54,6 +54,7 @@ export class AVRRunner {
       this.timer1.tick();
       this.timer2.tick();
       this.usart.tick();
+      this.cpu.tick();
     }
 
     callback(this.cpu);

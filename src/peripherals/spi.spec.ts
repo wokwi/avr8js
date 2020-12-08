@@ -177,6 +177,7 @@ describe('SPI', () => {
     cpu.writeData(SPCR, SPE | MSTR);
     cpu.writeData(SPDR, 0x50);
     spi.tick();
+    cpu.tick();
     expect(cpu.readData(SPSR) & WCOL).toEqual(0);
 
     cpu.writeData(SPDR, 0x51);
@@ -194,11 +195,13 @@ describe('SPI', () => {
     // At this point, write shouldn't be complete yet
     cpu.cycles += 10;
     spi.tick();
+    cpu.tick();
     expect(cpu.pc).toEqual(0);
 
     // 100 cycles later, it should (8 bits * 8 cycles per bit = 64).
     cpu.cycles += 100;
     spi.tick();
+    cpu.tick();
     expect(cpu.data[SPSR] & SPIF).toEqual(0);
     expect(cpu.pc).toEqual(0x22); // SPI Ready interrupt
   });
@@ -213,10 +216,12 @@ describe('SPI', () => {
 
     cpu.cycles = 10;
     spi.tick();
+    cpu.tick();
     expect(cpu.readData(SPDR)).toEqual(0);
 
     cpu.cycles = 32; // 4 cycles per bit * 8 bits = 32
     spi.tick();
+    cpu.tick();
     expect(cpu.readData(SPDR)).toEqual(0x88);
   });
 });
