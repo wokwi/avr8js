@@ -23,11 +23,11 @@ describe('EEPROM', () => {
   describe('Reading the EEPROM', () => {
     it('should return 0xff when reading from an empty location', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const eeprom = new AVREEPROM(cpu, new EEPROMMemoryBackend(1024));
+      new AVREEPROM(cpu, new EEPROMMemoryBackend(1024));
       cpu.writeData(EEARL, 0);
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EERE);
-      eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(4);
       expect(cpu.data[EEDR]).toEqual(0xff);
     });
@@ -35,12 +35,12 @@ describe('EEPROM', () => {
     it('should return the value stored at the given EEPROM address', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
       eepromBackend.memory[0x250] = 0x42;
       cpu.writeData(EEARL, 0x50);
       cpu.writeData(EEARH, 0x2);
       cpu.writeData(EECR, EERE);
-      eeprom.tick();
+      cpu.tick();
       expect(cpu.data[EEDR]).toEqual(0x42);
     });
   });
@@ -49,13 +49,13 @@ describe('EEPROM', () => {
     it('should write a byte to the given EEPROM address', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
       cpu.writeData(EEDR, 0x55);
       cpu.writeData(EEARL, 15);
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
-      eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(2);
       expect(eepromBackend.memory[15]).toEqual(0x55);
       expect(cpu.data[EECR] & EEPE).toEqual(EEPE);
@@ -81,10 +81,10 @@ describe('EEPROM', () => {
 
       const cpu = new CPU(program);
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
       eepromBackend.memory[9] = 0x0f; // high four bits are cleared
 
-      const runner = new TestProgramRunner(cpu, eeprom);
+      const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
 
       // EEPROM was 0x0f, and our program wrote 0x55.
@@ -95,7 +95,7 @@ describe('EEPROM', () => {
     it('should clear the EEPE bit and fire an interrupt when write has been completed', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
       cpu.writeData(EEDR, 0x55);
       cpu.writeData(EEARL, 15);
       cpu.writeData(EEARH, 0);
@@ -103,13 +103,13 @@ describe('EEPROM', () => {
       cpu.data[SREG] = 0x80; // SREG: I-------
       cpu.writeData(EECR, EEPE);
       cpu.cycles += 1000;
-      eeprom.tick();
+      cpu.tick();
       // At this point, write shouldn't be complete yet
       expect(cpu.data[EECR] & EEPE).toEqual(EEPE);
       expect(cpu.pc).toEqual(0);
       cpu.cycles += 10000000;
       // And now, 10 million cycles later, it should.
-      eeprom.tick();
+      cpu.tick();
       expect(eepromBackend.memory[15]).toEqual(0x55);
       expect(cpu.data[EECR] & EEPE).toEqual(0);
       expect(cpu.pc).toEqual(0x2c); // EEPROM Ready interrupt
@@ -118,15 +118,15 @@ describe('EEPROM', () => {
     it('should skip the write if EEMPE is clear', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
       cpu.writeData(EEDR, 0x55);
       cpu.writeData(EEARL, 15);
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EEMPE);
       cpu.cycles = 8; // waiting for more than 4 cycles should clear EEMPE
-      eeprom.tick();
+      cpu.tick();
       cpu.writeData(EECR, EEPE);
-      eeprom.tick();
+      cpu.tick();
       // Ensure that nothing was written, and EEPE bit is clear
       expect(cpu.cycles).toEqual(8);
       expect(eepromBackend.memory[15]).toEqual(0xff);
@@ -136,7 +136,7 @@ describe('EEPROM', () => {
     it('should skip the write if another write is already in progress', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
 
       // Write 0x55 to address 15
       cpu.writeData(EEDR, 0x55);
@@ -144,7 +144,7 @@ describe('EEPROM', () => {
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
-      eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(2);
 
       // Write 0x66 to address 16 (first write is still in progress)
@@ -153,7 +153,7 @@ describe('EEPROM', () => {
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
-      eeprom.tick();
+      cpu.tick();
 
       // Ensure that second write didn't happen
       expect(cpu.cycles).toEqual(2);
@@ -164,7 +164,7 @@ describe('EEPROM', () => {
     it('should write two bytes sucessfully', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
 
       // Write 0x55 to address 15
       cpu.writeData(EEDR, 0x55);
@@ -172,12 +172,12 @@ describe('EEPROM', () => {
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
-      eeprom.tick();
+      cpu.tick();
       expect(cpu.cycles).toEqual(2);
 
       // wait long enough time for the first write to finish
       cpu.cycles += 10000000;
-      eeprom.tick();
+      cpu.tick();
 
       // Write 0x66 to address 16
       cpu.writeData(EEDR, 0x66);
@@ -185,7 +185,7 @@ describe('EEPROM', () => {
       cpu.writeData(EEARH, 0);
       cpu.writeData(EECR, EEMPE);
       cpu.writeData(EECR, EEPE);
-      eeprom.tick();
+      cpu.tick();
 
       // Ensure both writes took place
       expect(cpu.cycles).toEqual(10000004);
@@ -214,10 +214,10 @@ describe('EEPROM', () => {
 
       const cpu = new CPU(program);
       const eepromBackend = new EEPROMMemoryBackend(1024);
-      const eeprom = new AVREEPROM(cpu, eepromBackend);
+      new AVREEPROM(cpu, eepromBackend);
       eepromBackend.memory[9] = 0x22;
 
-      const runner = new TestProgramRunner(cpu, eeprom);
+      const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
 
       expect(eepromBackend.memory[9]).toEqual(0xff);

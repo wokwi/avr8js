@@ -1,6 +1,5 @@
-import { CPU } from '../cpu/cpu';
+import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
-import { avrInterrupt } from '../cpu/interrupt';
 
 export interface SPIConfig {
   spiInterrupt: u8;
@@ -39,8 +38,17 @@ const bitsPerByte = 8;
 export class AVRSPI {
   public onTransfer: SPITransferCallback | null = null;
 
-  private transmissionCompleteCycles = 0;
+  private transmissionActive = false;
   private receivedByte: u8 = 0;
+
+  // Interrupts
+  private SPI: AVRInterruptConfig = {
+    address: this.config.spiInterrupt,
+    flagRegister: this.config.SPSR,
+    flagMask: SPSR_SPIF,
+    enableRegister: this.config.SPCR,
+    enableMask: SPCR_SPIE,
+  };
 
   constructor(private cpu: CPU, private config: SPIConfig, private freqMHz: number) {
     const { SPCR, SPSR, SPDR } = config;
@@ -51,34 +59,34 @@ export class AVRSPI {
       }
 
       // Write collision
-      if (this.transmissionCompleteCycles > this.cpu.cycles) {
+      if (this.transmissionActive) {
         cpu.data[SPSR] |= SPSR_WCOL;
         return true;
       }
 
       // Clear write collision / interrupt flags
-      cpu.data[SPSR] &= ~SPSR_WCOL & ~SPSR_SPIF;
+      cpu.data[SPSR] &= ~SPSR_WCOL;
+      this.cpu.clearInterrupt(this.SPI);
 
       this.receivedByte = this.onTransfer?.(value) ?? 0;
-      this.transmissionCompleteCycles = this.cpu.cycles + this.clockDivider * bitsPerByte;
+      const cyclesToComplete = this.clockDivider * bitsPerByte;
+      this.transmissionActive = true;
+      this.cpu.addClockEvent(() => {
+        this.cpu.data[SPDR] = this.receivedByte;
+        this.cpu.setInterruptFlag(this.SPI);
+        this.transmissionActive = false;
+      }, cyclesToComplete);
       return true;
+    };
+    cpu.writeHooks[SPSR] = (value: u8) => {
+      this.cpu.data[SPSR] = value;
+      this.cpu.clearInterruptByFlag(this.SPI, value);
     };
   }
 
-  tick() {
-    if (this.transmissionCompleteCycles && this.cpu.cycles >= this.transmissionCompleteCycles) {
-      const { SPSR, SPDR } = this.config;
-      this.cpu.data[SPSR] |= SPSR_SPIF;
-      this.cpu.data[SPDR] = this.receivedByte;
-      this.transmissionCompleteCycles = 0;
-    }
-    if (this.cpu.interruptsEnabled) {
-      const { SPSR, SPCR, spiInterrupt } = this.config;
-      if (this.cpu.data[SPCR] & SPCR_SPIE && this.cpu.data[SPSR] & SPSR_SPIF) {
-        avrInterrupt(this.cpu, spiInterrupt);
-        this.cpu.data[SPSR] &= ~SPSR_SPIF;
-      }
-    }
+  reset() {
+    this.transmissionActive = false;
+    this.receivedByte = 0;
   }
 
   get isMaster() {

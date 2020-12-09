@@ -50,10 +50,7 @@ export class AVRRunner {
     const cyclesToRun = this.cpu.cycles + this.workUnitCycles;
     while (this.cpu.cycles < cyclesToRun) {
       avrInstruction(this.cpu);
-      this.timer0.tick();
-      this.timer1.tick();
-      this.timer2.tick();
-      this.usart.tick();
+      this.cpu.tick();
     }
 
     callback(this.cpu);

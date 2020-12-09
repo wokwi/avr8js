@@ -6,9 +6,8 @@
  * Copyright (C) 2019, 2020, Uri Shaked
  */
 
-import { CPU } from '../cpu/cpu';
-import { avrInterrupt } from '../cpu/interrupt';
-import { portBConfig, portDConfig, PinOverrideMode } from './gpio';
+import { AVRInterruptConfig, CPU } from '../cpu/cpu';
+import { PinOverrideMode, portBConfig, portDConfig } from './gpio';
 
 const timer01Dividers = {
   0: 0,
@@ -246,20 +245,43 @@ export class AVRTimer {
   private timerMode: TimerMode;
   private topValue: TimerTopValue;
   private tcnt: u16 = 0;
+  private tcntNext: u16 = 0;
   private compA: CompBitsValue;
   private compB: CompBitsValue;
   private tcntUpdated = false;
   private countingUp = true;
   private divider = 0;
-  private pendingInterrupt = false;
 
   // This is the temporary register used to access 16-bit registers (section 16.3 of the datasheet)
   private highByteTemp: u8 = 0;
 
+  // Interrupts
+  private OVF: AVRInterruptConfig = {
+    address: this.config.ovfInterrupt,
+    flagRegister: this.config.TIFR,
+    flagMask: this.config.TOV,
+    enableRegister: this.config.TIMSK,
+    enableMask: this.config.TOIE,
+  };
+  private OCFA: AVRInterruptConfig = {
+    address: this.config.compAInterrupt,
+    flagRegister: this.config.TIFR,
+    flagMask: this.config.OCFA,
+    enableRegister: this.config.TIMSK,
+    enableMask: this.config.OCIEA,
+  };
+  private OCFB: AVRInterruptConfig = {
+    address: this.config.compBInterrupt,
+    flagRegister: this.config.TIFR,
+    flagMask: this.config.OCFB,
+    enableRegister: this.config.TIMSK,
+    enableMask: this.config.OCIEB,
+  };
+
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
     this.updateWGMConfig();
     this.cpu.readHooks[config.TCNT] = (addr: u8) => {
-      this.tick();
+      this.count(false);
       if (this.config.bits === 16) {
         this.cpu.data[addr + 1] = this.tcnt >> 8;
       }
@@ -267,9 +289,10 @@ export class AVRTimer {
     };
 
     this.cpu.writeHooks[config.TCNT] = (value: u8) => {
-      this.tcnt = (this.highByteTemp << 8) | value;
+      this.tcntNext = (this.highByteTemp << 8) | value;
       this.countingUp = true;
       this.tcntUpdated = true;
+      this.cpu.updateClockEvent(this.count, 0);
       this.timerUpdated();
     };
     this.cpu.writeHooks[config.OCRA] = (value: u8) => {
@@ -303,10 +326,24 @@ export class AVRTimer {
     };
     cpu.writeHooks[config.TCCRB] = (value) => {
       this.cpu.data[config.TCCRB] = value;
-      this.tcntUpdated = true;
       this.divider = this.config.dividers[this.CS];
+      this.reschedule();
+      this.tcntUpdated = true;
+      this.cpu.updateClockEvent(this.count, 0);
       this.updateWGMConfig();
       return true;
+    };
+    cpu.writeHooks[config.TIFR] = (value) => {
+      this.cpu.data[config.TIFR] = value;
+      this.cpu.clearInterruptByFlag(this.OVF, value);
+      this.cpu.clearInterruptByFlag(this.OCFA, value);
+      this.cpu.clearInterruptByFlag(this.OCFB, value);
+      return true;
+    };
+    cpu.writeHooks[config.TIMSK] = (value) => {
+      this.cpu.updateInterruptEnable(this.OVF, value);
+      this.cpu.updateInterruptEnable(this.OCFA, value);
+      this.cpu.updateInterruptEnable(this.OCFB, value);
     };
   }
 
@@ -315,15 +352,11 @@ export class AVRTimer {
     this.lastCycle = 0;
     this.ocrA = 0;
     this.ocrB = 0;
-  }
-
-  get TIFR() {
-    return this.cpu.data[this.config.TIFR];
-  }
-
-  set TIFR(value: u8) {
-    this.pendingInterrupt = value > 0;
-    this.cpu.data[this.config.TIFR] = value;
+    this.icr = 0;
+    this.tcnt = 0;
+    this.tcntNext = 0;
+    this.tcntUpdated = false;
+    this.countingUp = false;
   }
 
   get TCCRA() {
@@ -365,7 +398,7 @@ export class AVRTimer {
     this.topValue = topValue;
   }
 
-  tick() {
+  count = (reschedule = true) => {
     const { divider, lastCycle } = this;
     const delta = this.cpu.cycles - lastCycle;
     if (divider && delta >= divider) {
@@ -384,27 +417,21 @@ export class AVRTimer {
         this.timerUpdated();
       }
       if ((timerMode === TimerMode.Normal || timerMode === TimerMode.FastPWM) && val > newVal) {
-        this.TIFR |= this.config.TOV;
+        this.cpu.setInterruptFlag(this.OVF);
       }
     }
-    this.tcntUpdated = false;
-    if (this.cpu.interruptsEnabled && this.pendingInterrupt) {
-      const { TIFR, TIMSK } = this;
-      const { TOV, OCFA, OCFB, TOIE, OCIEA, OCIEB } = this.config;
-      if (TIFR & TOV && TIMSK & TOIE) {
-        avrInterrupt(this.cpu, this.config.ovfInterrupt);
-        this.TIFR &= ~TOV;
-      }
-      if (TIFR & OCFA && TIMSK & OCIEA) {
-        avrInterrupt(this.cpu, this.config.compAInterrupt);
-        this.TIFR &= ~OCFA;
-      }
-      if (TIFR & OCFB && TIMSK & OCIEB) {
-        avrInterrupt(this.cpu, this.config.compBInterrupt);
-        this.TIFR &= ~OCFB;
-      }
-      this.pendingInterrupt = false;
+    if (this.tcntUpdated) {
+      this.tcnt = this.tcntNext;
+      this.tcntUpdated = false;
     }
+    if (reschedule) {
+      this.cpu.addClockEvent(this.count, this.lastCycle + divider - this.cpu.cycles);
+    }
+  };
+
+  private reschedule() {
+    this.cpu.clearClockEvent(this.count);
+    this.cpu.addClockEvent(this.count, this.lastCycle + this.divider - this.cpu.cycles);
   }
 
   private phasePwmCount(value: u16, delta: u8) {
@@ -418,7 +445,7 @@ export class AVRTimer {
         value--;
         if (!value && !this.tcntUpdated) {
           this.countingUp = true;
-          this.TIFR |= this.config.TOV;
+          this.cpu.setInterruptFlag(this.OVF);
         }
       }
       delta--;
@@ -430,19 +457,18 @@ export class AVRTimer {
     const value = this.tcnt;
 
     if (this.ocrA && value === this.ocrA) {
-      const { TOV, OCFA } = this.config;
-      this.TIFR |= OCFA;
+      this.cpu.setInterruptFlag(this.OCFA);
       if (this.timerMode === TimerMode.CTC) {
         // Clear Timer on Compare Match (CTC) Mode
         this.tcnt = 0;
-        this.TIFR |= TOV;
+        this.cpu.setInterruptFlag(this.OVF);
       }
       if (this.compA) {
         this.updateCompPin(this.compA, 'A');
       }
     }
     if (this.ocrB && value === this.ocrB) {
-      this.TIFR |= this.config.OCFB;
+      this.cpu.setInterruptFlag(this.OCFB);
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');
       }

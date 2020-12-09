@@ -1,6 +1,5 @@
-import { CPU } from '../cpu/cpu';
-import { avrInterrupt } from '../cpu/interrupt';
-import { u8, u16, u32 } from '../types';
+import { AVRInterruptConfig, CPU } from '../cpu/cpu';
+import { u16, u32, u8 } from '../types';
 
 export interface EEPROMBackend {
   readMemory(addr: u16): u8;
@@ -71,6 +70,16 @@ export class AVREEPROM {
 
   private writeCompleteCycles = 0;
 
+  // Interrupts
+  private EER: AVRInterruptConfig = {
+    address: this.config.eepromReadyInterrupt,
+    flagRegister: this.config.EECR,
+    flagMask: EEPE,
+    enableRegister: this.config.EECR,
+    enableMask: EERIE,
+    constant: true,
+  };
+
   constructor(
     private cpu: CPU,
     private backend: EEPROMBackend,
@@ -81,8 +90,16 @@ export class AVREEPROM {
 
       const addr = (this.cpu.data[EEARH] << 8) | this.cpu.data[EEARL];
 
+      if (eecr & EERE) {
+        this.cpu.clearInterrupt(this.EER);
+      }
+
       if (eecr & EEMPE) {
-        this.writeEnabledCycles = this.cpu.cycles + 4;
+        const eempeCycles = 4;
+        this.writeEnabledCycles = this.cpu.cycles + eempeCycles;
+        this.cpu.addClockEvent(() => {
+          this.cpu.data[EECR] &= ~EEMPE;
+        }, eempeCycles);
       }
 
       // Read
@@ -121,6 +138,11 @@ export class AVREEPROM {
         }
 
         this.cpu.data[EECR] |= EEPE;
+
+        this.cpu.addClockEvent(() => {
+          this.cpu.setInterruptFlag(this.EER);
+        }, this.writeCompleteCycles - this.cpu.cycles);
+
         // When EEPE has been set, the CPU is halted for two cycles before the
         // next instruction is executed.
         this.cpu.cycles += 2;
@@ -129,19 +151,5 @@ export class AVREEPROM {
 
       return false;
     };
-  }
-
-  tick() {
-    const { EECR, eepromReadyInterrupt } = this.config;
-
-    if (this.writeEnabledCycles && this.cpu.cycles > this.writeEnabledCycles) {
-      this.cpu.data[EECR] &= ~EEMPE;
-    }
-    if (this.writeCompleteCycles && this.cpu.cycles > this.writeCompleteCycles) {
-      this.cpu.data[EECR] &= ~EEPE;
-      if (this.cpu.interruptsEnabled && this.cpu.data[EECR] & EERIE) {
-        avrInterrupt(this.cpu, eepromReadyInterrupt);
-      }
-    }
   }
 }

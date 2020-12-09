@@ -6,8 +6,7 @@
  * Copyright (C) 2019, 2020, Uri Shaked
  */
 
-import { CPU } from '../cpu/cpu';
-import { avrInterrupt } from '../cpu/interrupt';
+import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 
 export interface USARTConfig {
@@ -72,14 +71,36 @@ export class AVRUSART {
 
   private lineBuffer = '';
 
-  private txCompleteCycles = 0;
+  // Interrupts
+  private UDRE: AVRInterruptConfig = {
+    address: this.config.dataRegisterEmptyInterrupt,
+    flagRegister: this.config.UCSRA,
+    flagMask: UCSRA_UDRE,
+    enableRegister: this.config.UCSRB,
+    enableMask: UCSRB_UDRIE,
+  };
+  private TXC: AVRInterruptConfig = {
+    address: this.config.txCompleteInterrupt,
+    flagRegister: this.config.UCSRA,
+    flagMask: UCSRA_TXC,
+    enableRegister: this.config.UCSRB,
+    enableMask: UCSRB_TXCIE,
+  };
 
   constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
     this.reset();
+    this.cpu.writeHooks[config.UCSRA] = (value) => {
+      cpu.data[config.UCSRA] = value;
+      cpu.clearInterruptByFlag(this.UDRE, value);
+      cpu.clearInterruptByFlag(this.TXC, value);
+      return true;
+    };
     this.cpu.writeHooks[config.UCSRB] = (value, oldValue) => {
+      cpu.updateInterruptEnable(this.UDRE, value);
+      cpu.updateInterruptEnable(this.TXC, value);
       if (value & UCSRB_TXEN && !(oldValue & UCSRB_TXEN)) {
         // Enabling the transmission - mark UDR as empty
-        this.cpu.data[config.UCSRA] |= UCSRA_UDRE;
+        cpu.setInterruptFlag(this.UDRE);
       }
     };
     this.cpu.writeHooks[config.UDR] = (value) => {
@@ -96,8 +117,13 @@ export class AVRUSART {
         }
       }
       const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
-      this.txCompleteCycles = this.cpu.cycles + (this.UBRR * this.multiplier + 1) * symbolsPerChar;
-      this.cpu.data[config.UCSRA] &= ~(UCSRA_TXC | UCSRA_UDRE);
+      const cyclesToComplete = (this.UBRR * this.multiplier + 1) * symbolsPerChar;
+      this.cpu.addClockEvent(() => {
+        cpu.setInterruptFlag(this.UDRE);
+        cpu.setInterruptFlag(this.TXC);
+      }, cyclesToComplete);
+      this.cpu.clearInterrupt(this.TXC);
+      this.cpu.clearInterrupt(this.UDRE);
     };
   }
 
@@ -105,26 +131,6 @@ export class AVRUSART {
     this.cpu.data[this.config.UCSRA] = UCSRA_UDRE;
     this.cpu.data[this.config.UCSRB] = 0;
     this.cpu.data[this.config.UCSRC] = UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
-  }
-
-  tick() {
-    const { txCompleteCycles, cpu } = this;
-    if (txCompleteCycles && cpu.cycles >= txCompleteCycles) {
-      this.cpu.data[this.config.UCSRA] |= UCSRA_UDRE | UCSRA_TXC;
-      this.txCompleteCycles = 0;
-    }
-    if (cpu.interruptsEnabled) {
-      const ucsra = cpu.data[this.config.UCSRA];
-      const ucsrb = cpu.data[this.config.UCSRB];
-      if (ucsra & UCSRA_UDRE && ucsrb & UCSRB_UDRIE) {
-        avrInterrupt(cpu, this.config.dataRegisterEmptyInterrupt);
-        cpu.data[this.config.UCSRA] &= ~UCSRA_UDRE;
-      }
-      if (ucsra & UCSRA_TXC && ucsrb & UCSRB_TXCIE) {
-        avrInterrupt(cpu, this.config.txCompleteInterrupt);
-        cpu.data[this.config.UCSRA] &= ~UCSRA_TXC;
-      }
-    }
   }
 
   private get UBRR() {

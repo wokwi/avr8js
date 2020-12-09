@@ -146,10 +146,10 @@ describe('USART', () => {
   describe('tick()', () => {
     it('should trigger data register empty interrupt if UDRE is set', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, UDRIE | TXEN);
       cpu.data[SREG] = 0x80; // SREG: I-------
-      usart.tick();
+      cpu.tick();
       expect(cpu.pc).toEqual(PC_INT_UDRE);
       expect(cpu.cycles).toEqual(2);
       expect(cpu.data[UCSR0A] & UDRE).toEqual(0);
@@ -157,12 +157,12 @@ describe('USART', () => {
 
     it('should trigger data TX Complete interrupt if TXCIE is set', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXCIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0x80; // SREG: I-------
       cpu.cycles = 1e6;
-      usart.tick();
+      cpu.tick();
       expect(cpu.pc).toEqual(PC_INT_TXC);
       expect(cpu.cycles).toEqual(1e6 + 2);
       expect(cpu.data[UCSR0A] & TXC).toEqual(0);
@@ -170,22 +170,22 @@ describe('USART', () => {
 
     it('should not trigger data TX Complete interrupt if UDR was not written to', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXCIE | TXEN);
       cpu.data[SREG] = 0x80; // SREG: I-------
-      usart.tick();
+      cpu.tick();
       expect(cpu.pc).toEqual(0);
       expect(cpu.cycles).toEqual(0);
     });
 
     it('should not trigger any interrupt if interrupts are disabled', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, UDRIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0; // SREG: 0 (disable interrupts)
       cpu.cycles = 1e6;
-      usart.tick();
+      cpu.tick();
       expect(cpu.pc).toEqual(0);
       expect(cpu.cycles).toEqual(1e6);
       expect(cpu.data[UCSR0A]).toEqual(TXC | UDRE);
@@ -238,15 +238,15 @@ describe('USART', () => {
   describe('integration', () => {
     it('should set the TXC bit after ~1.04mS when baud rate set to 9600', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UBRR0L, 103); // baud: 9600
       cpu.writeData(UDR0, 0x48); // 'H'
       cpu.cycles += 16000; // 1ms
-      usart.tick();
+      cpu.tick();
       expect(cpu.data[UCSR0A] & TXC).toEqual(0);
       cpu.cycles += 800; // 0.05ms
-      usart.tick();
+      cpu.tick();
       expect(cpu.data[UCSR0A] & TXC).toEqual(TXC);
     });
   });

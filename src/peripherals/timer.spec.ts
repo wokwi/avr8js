@@ -25,6 +25,7 @@ const TCNT0 = 0x46;
 const OCR0A = 0x47;
 const OCR0B = 0x48;
 const TIMSK0 = 0x6e;
+const TIMSK1 = 0x6f;
 
 // Timer 1 Registers
 const TIFR1 = 0x36;
@@ -66,59 +67,79 @@ const nopOpCode = '0000';
 describe('timer', () => {
   it('should update timer every tick when prescaler is 1', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(1);
   });
 
   it('should update timer every 64 ticks when prescaler is 3', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCCR0B, CS01 | CS00); // Set prescaler to 64
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.cycles = 64;
-    timer.tick();
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(1);
   });
 
   it('should not update timer if it has been disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCCR0B, 0); // No prescaler (timer disabled)
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.cycles = 100000;
-    timer.tick();
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0); // TCNT should stay 0
   });
 
   it('should set TOV if timer overflows', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0);
     expect(cpu.data[TIFR0]).toEqual(TOV0);
   });
 
-  it('should set TOV if timer overflows in FAST PWM mode', () => {
+  it('should clear the TOV flag when writing 1 to the TOV bit, and not trigger the interrupt', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
+    expect(cpu.data[TIFR0]).toEqual(TOV0);
+    cpu.writeData(TIFR0, TOV0);
+    expect(cpu.data[TIFR0]).toEqual(0);
+  });
+
+  it('should set TOV if timer overflows in FAST PWM mode', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.writeData(OCR0A, 0x7f);
     cpu.writeData(TCCR0A, WGM01 | WGM00); // WGM: Fast PWM
-    cpu.cycles = 1;
-    timer.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0);
     expect(cpu.data[TIFR0]).toEqual(TOV0);
@@ -126,24 +147,25 @@ describe('timer', () => {
 
   it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.data[TIMSK0] = TOIE0;
     cpu.data[SREG] = 0x80; // SREG: I-------
-    cpu.cycles = 1;
-    timer.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(2); // TCNT should be 2 (one tick above + 2 cycles for interrupt)
     expect(cpu.data[TIFR0] & TOV0).toEqual(0);
     expect(cpu.pc).toEqual(0x20);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(4);
   });
 
   it('should support overriding TIFR/TOV and TIMSK/TOIE bits (issue #64)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, {
+    new AVRTimer(cpu, {
       ...timer0Config,
 
       // The following values correspond ATtiny85 config:
@@ -156,145 +178,154 @@ describe('timer', () => {
     });
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.data[TIMSK0] = 2;
     cpu.data[SREG] = 0x80; // SREG: I-------
-    cpu.cycles = 1;
-    timer.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(2); // TCNT should be 2 (one tick above + 2 cycles for interrupt)
     expect(cpu.data[TIFR0] & 2).toEqual(0);
     expect(cpu.pc).toEqual(0x20);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(4);
   });
 
   it('should not generate an overflow interrupt when global interrupts disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.data[TIMSK0] = TOIE0;
     cpu.data[SREG] = 0x0; // SREG: --------
-    cpu.cycles = 1;
-    timer.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     expect(cpu.data[TIFR0]).toEqual(TOV0);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
   });
 
   it('should not generate an overflow interrupt when TOIE0 is clear', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
     cpu.data[TIMSK0] = 0;
     cpu.data[SREG] = 0x80; // SREG: I-------
-    cpu.cycles = 1;
-    timer.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     expect(cpu.data[TIFR0]).toEqual(TOV0);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
   });
 
   it('should set OCF0A flag when timer equals OCRA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
     cpu.writeData(OCR0A, 0x11);
     cpu.writeData(TCCR0A, 0x0); // WGM: Normal
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     expect(cpu.data[TIFR0]).toEqual(OCF0A);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
   });
 
   it('should clear the timer in CTC mode if it equals to OCRA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
     cpu.writeData(OCR0A, 0x11);
     cpu.writeData(TCCR0A, WGM01); // WGM: CTC
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
   });
 
   it('should set OCF0B flag when timer equals OCRB', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
     cpu.writeData(OCR0B, 0x11);
     cpu.writeData(TCCR0A, 0x0); // WGM: (Normal)
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     expect(cpu.data[TIFR0]).toEqual(OCF0B);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
   });
 
   it('should generate Timer Compare A interrupt when TCNT0 == TCNTA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x20);
     cpu.writeData(OCR0A, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.writeData(TIMSK0, OCIE0A);
     cpu.writeData(95, 0x80); // SREG: I-------
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0x23); // TCNT should be 0x23 (one tick above + 2 cycles for interrupt)
     expect(cpu.data[TIFR0] & OCF0A).toEqual(0);
     expect(cpu.pc).toEqual(0x1c);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(4);
   });
 
   it('should not generate Timer Compare A interrupt when OCIEA is disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x20);
     cpu.writeData(OCR0A, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.writeData(TIMSK0, 0);
     cpu.writeData(95, 0x80); // SREG: I-------
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0x21);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(1);
+    expect(cpu.cycles).toEqual(2);
   });
 
   it('should generate Timer Compare B interrupt when TCNT0 == TCNTB', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x20);
     cpu.writeData(OCR0B, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.writeData(TIMSK0, OCIE0B);
     cpu.writeData(95, 0x80); // SREG: I-------
-    timer.tick();
     cpu.cycles = 1;
-    timer.tick();
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0x23); // TCNT should be 0x23 (0x23 + 2 cycles for interrupt)
     expect(cpu.data[TIFR0] & OCF0B).toEqual(0);
     expect(cpu.pc).toEqual(0x1e);
-    expect(cpu.cycles).toEqual(3);
+    expect(cpu.cycles).toEqual(4);
   });
 
   it('should not increment TCNT on the same cycle of TCNT write (issue #36)', () => {
@@ -309,24 +340,25 @@ describe('timer', () => {
       IN r17, 0x26    ; r17 <- TCNT
     `);
     const cpu = new CPU(program);
-    const timer = new AVRTimer(cpu, timer0Config);
-    const runner = new TestProgramRunner(cpu, timer);
+    new AVRTimer(cpu, timer0Config);
+    const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.data[R17]).toEqual(0x31);
   });
 
   it('timer2 should count every 256 ticks when prescaler is 6 (issue #5)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    const timer = new AVRTimer(cpu, timer2Config);
+    new AVRTimer(cpu, timer2Config);
     cpu.writeData(TCCR2B, CS22 | CS21); // Set prescaler to 256
-    timer.tick();
+    cpu.cycles = 1;
+    cpu.tick();
 
     cpu.cycles = 511;
-    timer.tick();
+    cpu.tick();
     expect(cpu.readData(TCNT2)).toEqual(1);
 
     cpu.cycles = 512;
-    timer.tick();
+    cpu.tick();
     expect(cpu.readData(TCNT2)).toEqual(2);
   });
 
@@ -340,8 +372,8 @@ describe('timer', () => {
       LDS r1, 0x46      ; r1 <- TCNT0 (2 cycles)
     `);
     const cpu = new CPU(program);
-    const timer = new AVRTimer(cpu, timer0Config);
-    const runner = new TestProgramRunner(cpu, timer);
+    new AVRTimer(cpu, timer0Config);
+    const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.data[R1]).toEqual(2);
   });
@@ -358,8 +390,8 @@ describe('timer', () => {
       LDS r17, 0xb2   ; TCNT should equal 2 at this point
     `);
     const cpu = new CPU(program);
-    const timer = new AVRTimer(cpu, timer2Config);
-    const runner = new TestProgramRunner(cpu, timer);
+    new AVRTimer(cpu, timer2Config);
+    const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.readData(R17)).toEqual(2);
   });
@@ -385,8 +417,8 @@ describe('timer', () => {
         IN r22, 0x26   ; TCNT0 will be 1 (end of test)
       `);
       const cpu = new CPU(program);
-      const timer = new AVRTimer(cpu, timer0Config);
-      const runner = new TestProgramRunner(cpu, timer);
+      new AVRTimer(cpu, timer0Config);
+      const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
 
       expect(cpu.readData(R17)).toEqual(2);
@@ -416,14 +448,14 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      const timer = new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
       const gpioCallback = jest.fn();
       cpu.gpioTimerHooks[PORTD] = gpioCallback;
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
-      const runner = new TestProgramRunner(cpu, timer);
+      const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount - nopCount);
 
       expect(cpu.readData(TCNT0)).toEqual(0xfd);
@@ -448,7 +480,7 @@ describe('timer', () => {
   describe('16 bit timers', () => {
     it('should increment 16-bit TCNT by 1', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const timer = new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x22); // TCNT1 <- 0x2233
       cpu.writeData(TCNT1, 0x33); // ...
       const timerLow = cpu.readData(TCNT1);
@@ -456,72 +488,79 @@ describe('timer', () => {
       expect((timerHigh << 8) | timerLow).toEqual(0x2233);
       cpu.writeData(TCCR1A, 0x0); // WGM: Normal
       cpu.writeData(TCCR1B, CS10); // Set prescaler to 1
-      timer.tick();
       cpu.cycles = 1;
-      timer.tick();
+      cpu.tick();
+      cpu.cycles = 2;
+      cpu.tick();
       cpu.readData(TCNT1);
       expect(cpu.dataView.getUint16(TCNT1, true)).toEqual(0x2234); // TCNT1 should increment
     });
 
     it('should set OCF0A flag when timer equals OCRA (16 bit mode)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const timer = new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x10); // TCNT1 <- 0x10ee
       cpu.writeData(TCNT1, 0xee); // ...
       cpu.writeData(OCR1AH, 0x10); // OCR1 <- 0x10ef
       cpu.writeData(OCR1A, 0xef); // ...
       cpu.writeData(TCCR1A, 0x0); // WGM: Normal
       cpu.writeData(TCCR1B, CS10); // Set prescaler to 1
-      timer.tick();
       cpu.cycles = 1;
-      timer.tick();
+      cpu.tick();
+      cpu.cycles = 2;
+      cpu.tick();
       expect(cpu.data[TIFR1]).toEqual(OCF1A); // TIFR1 should have OCF1A bit on
       expect(cpu.pc).toEqual(0);
-      expect(cpu.cycles).toEqual(1);
+      expect(cpu.cycles).toEqual(2);
     });
 
     it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const timer = new AVRTimer(cpu, timer1Config);
-      cpu.writeData(TCNT1H, 0x3); // TCNT1 <- 0x3ff
-      cpu.writeData(TCNT1, 0xff); // ...
+      new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCCR1A, 0x3); // TCCR1A <- WGM10 | WGM11 (Fast PWM, 10-bit)
       cpu.writeData(TCCR1B, 0x9); // TCCR1B <- WGM12 | CS10
-      cpu.data[0x6f] = 0x1; // TIMSK1: TOIE1
+      cpu.writeData(TIMSK1, 0x1); // TIMSK1: TOIE1
       cpu.data[SREG] = 0x80; // SREG: I-------
-      timer.tick();
+      cpu.writeData(TCNT1H, 0x3); // TCNT1 <- 0x3ff
       cpu.cycles = 1;
-      timer.tick();
+      cpu.tick();
+      cpu.writeData(TCNT1, 0xff); // ...
+      cpu.cycles++; // This cycle shouldn't be counted
+      cpu.tick();
+      cpu.cycles++;
+      cpu.tick(); // This is where we cause the overflow
       cpu.readData(TCNT1); // Refresh TCNT1
       expect(cpu.dataView.getUint16(TCNT1, true)).toEqual(2);
       expect(cpu.data[TIFR1] & TOV1).toEqual(0);
       expect(cpu.pc).toEqual(0x1a);
-      expect(cpu.cycles).toEqual(3);
+      expect(cpu.cycles).toEqual(5);
     });
 
     it('should reset the timer once it reaches ICR value in mode 12', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const timer = new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x50); // TCNT1 <- 0x500f
       cpu.writeData(TCNT1, 0x0f); // ...
       cpu.writeData(ICR1H, 0x50); // ICR1 <- 0x5010
       cpu.writeData(ICR1, 0x10); // ...
       cpu.writeData(TCCR1B, WGM13 | WGM12 | CS10); // Set prescaler to 1, WGM: CTC
-      timer.tick();
-      cpu.cycles = 2; // 2 cycles should increment timer twice, beyond ICR1
-      timer.tick();
+      cpu.cycles = 1;
+      cpu.tick();
+      cpu.cycles = 3; // 2 cycles should increment timer twice, beyond ICR1
+      cpu.tick();
       cpu.readData(TCNT1); // Refresh TCNT1
       expect(cpu.dataView.getUint16(TCNT1, true)).toEqual(0); // TCNT should be 0
       expect(cpu.data[TIFR1] & TOV1).toEqual(0);
-      expect(cpu.cycles).toEqual(2);
+      expect(cpu.cycles).toEqual(3);
     });
 
     it('should not update the high byte of TCNT if written after the low byte (issue #37)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const timer = new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1, 0x22);
       cpu.writeData(TCNT1H, 0x55);
-      timer.tick();
+      cpu.cycles = 1;
+      cpu.tick();
       const timerLow = cpu.readData(TCNT1);
       const timerHigh = cpu.readData(TCNT1H);
       expect((timerHigh << 8) | timerLow).toEqual(0x22);
@@ -529,13 +568,14 @@ describe('timer', () => {
 
     it('reading from TCNT1H before TCNT1L should return old value (issue #37)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      const timer = new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0xff);
       cpu.writeData(TCNT1, 0xff);
       cpu.writeData(TCCR1B, WGM12 | CS10); // Set prescaler to 1, WGM: CTC
-      timer.tick();
       cpu.cycles = 1;
-      timer.tick();
+      cpu.tick();
+      cpu.cycles = 2;
+      cpu.tick();
       // We read the high byte before the low byte, so the high byte should still have
       // the previous value:
       const timerHigh = cpu.readData(TCNT1H);
@@ -564,14 +604,14 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      const timer = new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, timer1Config);
 
       // Listen to Port B's internal callback
       const gpioCallback = jest.fn();
       cpu.gpioTimerHooks[PORTB] = gpioCallback;
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
-      const runner = new TestProgramRunner(cpu, timer);
+      const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount - nopCount);
 
       expect(cpu.readData(TCNT1)).toEqual(0x49);

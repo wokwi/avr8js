@@ -5,7 +5,8 @@
  * Copyright (C) 2019, Uri Shaked
  */
 
-import { u32, u16, u8 } from '../types';
+import { u32, u16, u8, i16 } from '../types';
+import { avrInterrupt } from './interrupt';
 
 const registerSpace = 0x100;
 
@@ -45,6 +46,22 @@ export interface CPUMemoryReadHooks {
   [key: number]: CPUMemoryReadHook;
 }
 
+export interface AVRInterruptConfig {
+  address: u8;
+  enableRegister: u16;
+  enableMask: u8;
+  flagRegister: u16;
+  flagMask: u8;
+  constant?: boolean;
+}
+
+export type AVRClockEventCallback = () => void;
+
+interface AVRClockEventEntry {
+  cycles: number;
+  callback: AVRClockEventCallback;
+}
+
 export class CPU implements ICPU {
   readonly data: Uint8Array = new Uint8Array(this.sramBytes + registerSpace);
   readonly data16 = new Uint16Array(this.data.buffer);
@@ -52,13 +69,17 @@ export class CPU implements ICPU {
   readonly progBytes = new Uint8Array(this.progMem.buffer);
   readonly readHooks: CPUMemoryReadHooks = [];
   readonly writeHooks: CPUMemoryHooks = [];
+  private readonly pendingInterrupts: AVRInterruptConfig[] = [];
+  private readonly clockEvents: AVRClockEventEntry[] = [];
   readonly pc22Bits = this.progBytes.length > 0x20000;
 
   // This lets the Timer Compare output override GPIO pins:
   readonly gpioTimerHooks: CPUMemoryHooks = [];
 
-  pc = 0;
-  cycles = 0;
+  pc: u32 = 0;
+  cycles: u32 = 0;
+  nextInterrupt: i16 = -1;
+  private nextClockEvent: u32 = 0;
 
   constructor(public progMem: Uint16Array, private sramBytes = 8192) {
     this.reset();
@@ -67,6 +88,8 @@ export class CPU implements ICPU {
   reset() {
     this.data.fill(0);
     this.SP = this.data.length - 1;
+    this.pendingInterrupts.splice(0, this.pendingInterrupts.length);
+    this.nextInterrupt = -1;
   }
 
   readData(addr: number) {
@@ -100,5 +123,98 @@ export class CPU implements ICPU {
 
   get interruptsEnabled() {
     return this.SREG & 0x80 ? true : false;
+  }
+
+  private updateNextInterrupt() {
+    this.nextInterrupt = this.pendingInterrupts.findIndex((item) => !!item);
+  }
+
+  setInterruptFlag(interrupt: AVRInterruptConfig) {
+    const { flagRegister, flagMask, enableRegister, enableMask } = interrupt;
+    if (interrupt.constant) {
+      this.data[flagRegister] &= ~flagMask;
+    } else {
+      this.data[flagRegister] |= flagMask;
+    }
+    if (this.data[enableRegister] & enableMask) {
+      this.queueInterrupt(interrupt);
+    }
+  }
+
+  updateInterruptEnable(interrupt: AVRInterruptConfig, registerValue: u8) {
+    const { enableMask, flagRegister, flagMask } = interrupt;
+    if (registerValue & enableMask) {
+      if (this.data[flagRegister] & flagMask) {
+        this.queueInterrupt(interrupt);
+      }
+    } else {
+      this.clearInterrupt(interrupt, false);
+    }
+  }
+
+  queueInterrupt(interrupt: AVRInterruptConfig) {
+    this.pendingInterrupts[interrupt.address] = interrupt;
+    this.updateNextInterrupt();
+  }
+
+  clearInterrupt({ address, flagRegister, flagMask }: AVRInterruptConfig, clearFlag = true) {
+    delete this.pendingInterrupts[address];
+    if (clearFlag) {
+      this.data[flagRegister] &= ~flagMask;
+    }
+    this.updateNextInterrupt();
+  }
+
+  clearInterruptByFlag(interrupt: AVRInterruptConfig, registerValue: number) {
+    const { flagRegister, flagMask } = interrupt;
+    if (registerValue & flagMask) {
+      this.data[flagRegister] &= ~flagMask;
+      this.clearInterrupt(interrupt);
+    }
+  }
+
+  private updateClockEvents() {
+    this.clockEvents.sort((a, b) => a.cycles - b.cycles);
+    this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
+  }
+
+  addClockEvent(callback: AVRClockEventCallback, cycles: number) {
+    const entry = { cycles: this.cycles + Math.max(1, cycles), callback };
+    this.clockEvents.push(entry);
+    this.updateClockEvents();
+    return callback;
+  }
+
+  updateClockEvent(callback: AVRClockEventCallback, cycles: number) {
+    const entry = this.clockEvents.find((item) => (item.callback = callback));
+    if (entry) {
+      entry.cycles = this.cycles + Math.max(1, cycles);
+      this.updateClockEvents();
+      return true;
+    }
+    return false;
+  }
+
+  clearClockEvent(callback: AVRClockEventCallback) {
+    const index = this.clockEvents.findIndex((item) => (item.callback = callback));
+    if (index >= 0) {
+      this.clockEvents.splice(index, 1);
+      this.updateClockEvents();
+    }
+  }
+
+  tick() {
+    if (this.nextClockEvent && this.nextClockEvent <= this.cycles) {
+      const clockEvent = this.clockEvents.shift();
+      clockEvent?.callback();
+      this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
+    }
+    if (this.interruptsEnabled && this.nextInterrupt >= 0) {
+      const interrupt = this.pendingInterrupts[this.nextInterrupt];
+      avrInterrupt(this, interrupt.address);
+      if (!interrupt.constant) {
+        this.clearInterrupt(interrupt);
+      }
+    }
   }
 }
