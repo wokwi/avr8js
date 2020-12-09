@@ -38,7 +38,7 @@ const bitsPerByte = 8;
 export class AVRSPI {
   public onTransfer: SPITransferCallback | null = null;
 
-  private transmissionCompleteCycles = 0;
+  private transmissionActive = false;
   private receivedByte: u8 = 0;
 
   // Interrupts
@@ -59,7 +59,7 @@ export class AVRSPI {
       }
 
       // Write collision
-      if (this.transmissionCompleteCycles > this.cpu.cycles) {
+      if (this.transmissionActive) {
         cpu.data[SPSR] |= SPSR_WCOL;
         return true;
       }
@@ -69,7 +69,13 @@ export class AVRSPI {
       this.cpu.clearInterrupt(this.SPI);
 
       this.receivedByte = this.onTransfer?.(value) ?? 0;
-      this.transmissionCompleteCycles = this.cpu.cycles + this.clockDivider * bitsPerByte;
+      const cyclesToComplete = this.clockDivider * bitsPerByte;
+      this.transmissionActive = true;
+      this.cpu.addClockEvent(() => {
+        this.cpu.data[SPDR] = this.receivedByte;
+        this.cpu.setInterruptFlag(this.SPI);
+        this.transmissionActive = false;
+      }, cyclesToComplete);
       return true;
     };
     cpu.writeHooks[SPSR] = (value: u8) => {
@@ -78,13 +84,9 @@ export class AVRSPI {
     };
   }
 
-  tick() {
-    if (this.transmissionCompleteCycles && this.cpu.cycles >= this.transmissionCompleteCycles) {
-      const { SPDR } = this.config;
-      this.cpu.data[SPDR] = this.receivedByte;
-      this.cpu.setInterruptFlag(this.SPI);
-      this.transmissionCompleteCycles = 0;
-    }
+  reset() {
+    this.transmissionActive = false;
+    this.receivedByte = 0;
   }
 
   get isMaster() {

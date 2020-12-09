@@ -87,8 +87,6 @@ export class AVRUSART {
     enableMask: UCSRB_TXCIE,
   };
 
-  private txCompleteCycles = 0;
-
   constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
     this.reset();
     this.cpu.writeHooks[config.UCSRA] = (value) => {
@@ -119,7 +117,11 @@ export class AVRUSART {
         }
       }
       const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
-      this.txCompleteCycles = this.cpu.cycles + (this.UBRR * this.multiplier + 1) * symbolsPerChar;
+      const cyclesToComplete = (this.UBRR * this.multiplier + 1) * symbolsPerChar;
+      this.cpu.addClockEvent(() => {
+        cpu.setInterruptFlag(this.UDRE);
+        cpu.setInterruptFlag(this.TXC);
+      }, cyclesToComplete);
       this.cpu.clearInterrupt(this.TXC);
       this.cpu.clearInterrupt(this.UDRE);
     };
@@ -129,15 +131,6 @@ export class AVRUSART {
     this.cpu.data[this.config.UCSRA] = UCSRA_UDRE;
     this.cpu.data[this.config.UCSRB] = 0;
     this.cpu.data[this.config.UCSRC] = UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
-  }
-
-  tick() {
-    const { txCompleteCycles, cpu } = this;
-    if (txCompleteCycles && cpu.cycles >= txCompleteCycles) {
-      cpu.setInterruptFlag(this.UDRE);
-      cpu.setInterruptFlag(this.TXC);
-      this.txCompleteCycles = 0;
-    }
   }
 
   private get UBRR() {

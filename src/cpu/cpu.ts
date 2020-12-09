@@ -55,6 +55,13 @@ export interface AVRInterruptConfig {
   constant?: boolean;
 }
 
+export type AVRClockEventCallback = () => void;
+
+interface AVRClockEventEntry {
+  cycles: number;
+  callback: AVRClockEventCallback;
+}
+
 export class CPU implements ICPU {
   readonly data: Uint8Array = new Uint8Array(this.sramBytes + registerSpace);
   readonly data16 = new Uint16Array(this.data.buffer);
@@ -63,6 +70,7 @@ export class CPU implements ICPU {
   readonly readHooks: CPUMemoryReadHooks = [];
   readonly writeHooks: CPUMemoryHooks = [];
   private readonly pendingInterrupts: AVRInterruptConfig[] = [];
+  private readonly clockEvents: AVRClockEventEntry[] = [];
   readonly pc22Bits = this.progBytes.length > 0x20000;
 
   // This lets the Timer Compare output override GPIO pins:
@@ -71,6 +79,7 @@ export class CPU implements ICPU {
   pc: u32 = 0;
   cycles: u32 = 0;
   nextInterrupt: i16 = -1;
+  private nextClockEvent: u32 = 0;
 
   constructor(public progMem: Uint16Array, private sramBytes = 8192) {
     this.reset();
@@ -164,10 +173,44 @@ export class CPU implements ICPU {
     }
   }
 
+  private updateClockEvents() {
+    this.clockEvents.sort((a, b) => a.cycles - b.cycles);
+    this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
+  }
+
+  addClockEvent(callback: AVRClockEventCallback, cycles: number) {
+    const entry = { cycles: this.cycles + Math.max(1, cycles), callback };
+    this.clockEvents.push(entry);
+    this.updateClockEvents();
+    return callback;
+  }
+
+  updateClockEvent(callback: AVRClockEventCallback, cycles: number) {
+    const entry = this.clockEvents.find((item) => (item.callback = callback));
+    if (entry) {
+      entry.cycles = this.cycles + Math.max(1, cycles);
+      this.updateClockEvents();
+      return true;
+    }
+    return false;
+  }
+
+  clearClockEvent(callback: AVRClockEventCallback) {
+    const index = this.clockEvents.findIndex((item) => (item.callback = callback));
+    if (index >= 0) {
+      this.clockEvents.splice(index, 1);
+      this.updateClockEvents();
+    }
+  }
+
   tick() {
+    if (this.nextClockEvent && this.nextClockEvent <= this.cycles) {
+      const clockEvent = this.clockEvents.shift();
+      clockEvent?.callback();
+      this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
+    }
     if (this.interruptsEnabled && this.nextInterrupt >= 0) {
       const interrupt = this.pendingInterrupts[this.nextInterrupt];
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       avrInterrupt(this, interrupt.address);
       if (!interrupt.constant) {
         this.clearInterrupt(interrupt);

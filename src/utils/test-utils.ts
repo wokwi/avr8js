@@ -13,33 +13,29 @@ export function asmProgram(source: string) {
 }
 
 export class TestProgramRunner {
-  constructor(
-    private readonly cpu: CPU,
-    private readonly peripheral: { tick: () => void },
-    private readonly onBreak?: (cpu: CPU) => void
-  ) {}
+  constructor(private readonly cpu: CPU, private readonly onBreak?: (cpu: CPU) => void) {}
 
   runInstructions(count: number) {
-    const { cpu, peripheral, onBreak } = this;
+    const { cpu, onBreak } = this;
     for (let i = 0; i < count; i++) {
       if (cpu.progMem[cpu.pc] === BREAK_OPCODE) {
         onBreak?.(cpu);
         throw new Error('BREAK instruction encountered');
       }
       avrInstruction(cpu);
-      peripheral.tick();
+      cpu.tick();
     }
   }
 
   runToBreak(maxIterations = 5000) {
-    const { cpu, peripheral, onBreak } = this;
+    const { cpu, onBreak } = this;
     for (let i = 0; i < maxIterations; i++) {
       if (cpu.progMem[cpu.pc] === BREAK_OPCODE) {
         onBreak?.(cpu);
         return;
       }
       avrInstruction(cpu);
-      peripheral.tick();
+      cpu.tick();
     }
     throw new Error('Program ran for too long without a BREAK instruction');
   }

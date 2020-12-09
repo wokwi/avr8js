@@ -160,7 +160,7 @@ describe('SPI', () => {
       return 0x5b; // we copy this byte to
     };
 
-    const runner = new TestProgramRunner(cpu, spi);
+    const runner = new TestProgramRunner(cpu);
     runner.runToBreak();
 
     // 16 cycles per clock * 8 bits = 128
@@ -172,11 +172,10 @@ describe('SPI', () => {
 
   it('should set the WCOL bit in SPSR if writing to SPDR while SPI is already transmitting', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
+    new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
 
     cpu.writeData(SPCR, SPE | MSTR);
     cpu.writeData(SPDR, 0x50);
-    spi.tick();
     cpu.tick();
     expect(cpu.readData(SPSR) & WCOL).toEqual(0);
 
@@ -186,7 +185,7 @@ describe('SPI', () => {
 
   it('should clear the SPIF bit and fire an interrupt when SPI transfer completes', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
+    new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
 
     cpu.writeData(SPCR, SPE | SPIE | MSTR);
     cpu.writeData(SPDR, 0x50);
@@ -194,13 +193,11 @@ describe('SPI', () => {
 
     // At this point, write shouldn't be complete yet
     cpu.cycles += 10;
-    spi.tick();
     cpu.tick();
     expect(cpu.pc).toEqual(0);
 
     // 100 cycles later, it should (8 bits * 8 cycles per bit = 64).
     cpu.cycles += 100;
-    spi.tick();
     cpu.tick();
     expect(cpu.data[SPSR] & SPIF).toEqual(0);
     expect(cpu.pc).toEqual(0x22); // SPI Ready interrupt
@@ -215,12 +212,10 @@ describe('SPI', () => {
     cpu.writeData(SPDR, 0x8f);
 
     cpu.cycles = 10;
-    spi.tick();
     cpu.tick();
     expect(cpu.readData(SPDR)).toEqual(0);
 
     cpu.cycles = 32; // 4 cycles per bit * 8 bits = 32
-    spi.tick();
     cpu.tick();
     expect(cpu.readData(SPDR)).toEqual(0x88);
   });

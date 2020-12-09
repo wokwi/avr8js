@@ -51,7 +51,6 @@ describe('TWI', () => {
     cpu.writeData(TWCR, TWIE);
     cpu.data[SREG] = 0x80; // SREG: I-------
     twi.completeStart(); // This will set the TWINT flag
-    twi.tick();
     cpu.tick();
     expect(cpu.pc).toEqual(0x30); // 2-wire Serial Interface Vector
     expect(cpu.cycles).toEqual(2);
@@ -64,7 +63,7 @@ describe('TWI', () => {
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
       jest.spyOn(twi.eventHandler, 'start');
       cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
-      twi.tick();
+      cpu.cycles++;
       cpu.tick();
       expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
     });
@@ -173,7 +172,7 @@ describe('TWI', () => {
       `);
       const cpu = new CPU(program);
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-      const runner = new TestProgramRunner(cpu, twi, onTestBreak);
+      const runner = new TestProgramRunner(cpu, onTestBreak);
       twi.eventHandler = {
         start: jest.fn(),
         stop: jest.fn(),
@@ -342,7 +341,7 @@ describe('TWI', () => {
       `);
       const cpu = new CPU(program);
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-      const runner = new TestProgramRunner(cpu, twi, onTestBreak);
+      const runner = new TestProgramRunner(cpu, onTestBreak);
       twi.eventHandler = {
         start: jest.fn(),
         stop: jest.fn(),

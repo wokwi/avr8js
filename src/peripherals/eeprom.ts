@@ -95,7 +95,11 @@ export class AVREEPROM {
       }
 
       if (eecr & EEMPE) {
-        this.writeEnabledCycles = this.cpu.cycles + 4;
+        const eempeCycles = 4;
+        this.writeEnabledCycles = this.cpu.cycles + eempeCycles;
+        this.cpu.addClockEvent(() => {
+          this.cpu.data[EECR] &= ~EEMPE;
+        }, eempeCycles);
       }
 
       // Read
@@ -134,6 +138,11 @@ export class AVREEPROM {
         }
 
         this.cpu.data[EECR] |= EEPE;
+
+        this.cpu.addClockEvent(() => {
+          this.cpu.setInterruptFlag(this.EER);
+        }, this.writeCompleteCycles - this.cpu.cycles);
+
         // When EEPE has been set, the CPU is halted for two cycles before the
         // next instruction is executed.
         this.cpu.cycles += 2;
@@ -142,16 +151,5 @@ export class AVREEPROM {
 
       return false;
     };
-  }
-
-  tick() {
-    const { EECR } = this.config;
-
-    if (this.writeEnabledCycles && this.cpu.cycles > this.writeEnabledCycles) {
-      this.cpu.data[EECR] &= ~EEMPE;
-    }
-    if (this.writeCompleteCycles && this.cpu.cycles > this.writeCompleteCycles) {
-      this.cpu.setInterruptFlag(this.EER);
-    }
   }
 }
