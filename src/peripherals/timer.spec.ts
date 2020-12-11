@@ -83,7 +83,7 @@ describe('timer', () => {
     cpu.writeData(TCCR0B, CS01 | CS00); // Set prescaler to 64
     cpu.cycles = 1;
     cpu.tick();
-    cpu.cycles = 64;
+    cpu.cycles = 1 + 64;
     cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(1);
@@ -353,11 +353,11 @@ describe('timer', () => {
     cpu.cycles = 1;
     cpu.tick();
 
-    cpu.cycles = 511;
+    cpu.cycles = 1 + 511;
     cpu.tick();
     expect(cpu.readData(TCNT2)).toEqual(1);
 
-    cpu.cycles = 512;
+    cpu.cycles = 1 + 512;
     cpu.tick();
     expect(cpu.readData(TCNT2)).toEqual(2);
   });
@@ -366,7 +366,7 @@ describe('timer', () => {
     const { program, instructionCount } = asmProgram(`
       LDI r16, 0x1      ; TCCR0B = 1 << CS00
       OUT 0x25, r16
-      LDI r16, 0x0      ; TCNT0 <- 0x30
+      LDI r16, 0x0      ; TCNT0 <- 0
       OUT 0x26, r16
       NOP
       LDS r1, 0x46      ; r1 <- TCNT0 (2 cycles)
@@ -389,6 +389,22 @@ describe('timer', () => {
       NOP
       LDS r17, 0xb2   ; TCNT should equal 2 at this point
     `);
+    const cpu = new CPU(program);
+    new AVRTimer(cpu, timer2Config);
+    const runner = new TestProgramRunner(cpu);
+    runner.runInstructions(instructionCount);
+    expect(cpu.readData(R17)).toEqual(2);
+  });
+
+  it('should not keep counting for one more instruction when the timer is disabled (issue #72)', () => {
+    const { program, instructionCount } = asmProgram(`
+      EOR r1, r1      ; r1 = 0;
+      LDI r16, 0x1    ; TCCR2B = 1 << CS20;
+      STS 0xb1, r16   ; Should start counting after this instruction,
+      STS 0xb1, r1    ; and stop counting *after* this one.
+      NOP
+      LDS r17, 0xb2   ; TCNT2 should equal 2 at this point (not counting the NOP)
+  `);
     const cpu = new CPU(program);
     new AVRTimer(cpu, timer2Config);
     const runner = new TestProgramRunner(cpu);

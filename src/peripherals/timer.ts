@@ -249,6 +249,7 @@ export class AVRTimer {
   private compA: CompBitsValue;
   private compB: CompBitsValue;
   private tcntUpdated = false;
+  private updateDivider = false;
   private countingUp = true;
   private divider = 0;
 
@@ -326,10 +327,9 @@ export class AVRTimer {
     };
     cpu.writeHooks[config.TCCRB] = (value) => {
       this.cpu.data[config.TCCRB] = value;
-      this.divider = this.config.dividers[this.CS];
-      this.reschedule();
-      this.tcntUpdated = true;
-      this.cpu.updateClockEvent(this.count, 0);
+      this.updateDivider = true;
+      this.cpu.clearClockEvent(this.count);
+      this.cpu.addClockEvent(this.count, 0);
       this.updateWGMConfig();
       return true;
     };
@@ -357,6 +357,7 @@ export class AVRTimer {
     this.tcntNext = 0;
     this.tcntUpdated = false;
     this.countingUp = false;
+    this.updateDivider = true;
   }
 
   get TCCRA() {
@@ -399,8 +400,9 @@ export class AVRTimer {
   }
 
   count = (reschedule = true) => {
-    const { divider, lastCycle } = this;
-    const delta = this.cpu.cycles - lastCycle;
+    const { divider, lastCycle, cpu } = this;
+    const { cycles } = cpu;
+    const delta = cycles - lastCycle;
     if (divider && delta >= divider) {
       const counterDelta = Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;
@@ -417,22 +419,27 @@ export class AVRTimer {
         this.timerUpdated();
       }
       if ((timerMode === TimerMode.Normal || timerMode === TimerMode.FastPWM) && val > newVal) {
-        this.cpu.setInterruptFlag(this.OVF);
+        cpu.setInterruptFlag(this.OVF);
       }
     }
     if (this.tcntUpdated) {
       this.tcnt = this.tcntNext;
       this.tcntUpdated = false;
     }
-    if (reschedule) {
-      this.cpu.addClockEvent(this.count, this.lastCycle + divider - this.cpu.cycles);
+    if (this.updateDivider) {
+      const newDivider = this.config.dividers[this.CS];
+      this.lastCycle = newDivider ? this.cpu.cycles : 0;
+      this.updateDivider = false;
+      this.divider = newDivider;
+      if (newDivider) {
+        cpu.addClockEvent(this.count, this.lastCycle + newDivider - cpu.cycles);
+      }
+      return;
+    }
+    if (reschedule && divider) {
+      cpu.addClockEvent(this.count, this.lastCycle + divider - cpu.cycles);
     }
   };
-
-  private reschedule() {
-    this.cpu.clearClockEvent(this.count);
-    this.cpu.addClockEvent(this.count, this.lastCycle + this.divider - this.cpu.cycles);
-  }
 
   private phasePwmCount(value: u16, delta: u8) {
     while (delta > 0) {
