@@ -173,23 +173,29 @@ export class CPU implements ICPU {
     }
   }
 
-  private updateClockEvents() {
-    this.clockEvents.sort((a, b) => a.cycles - b.cycles);
-    this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
-  }
-
   addClockEvent(callback: AVRClockEventCallback, cycles: number) {
     const entry = { cycles: this.cycles + Math.max(1, cycles), callback };
-    this.clockEvents.push(entry);
-    this.updateClockEvents();
+    // Add the new entry while keeping the array sorted
+    const { clockEvents } = this;
+    if (!clockEvents.length || clockEvents[clockEvents.length - 1].cycles <= entry.cycles) {
+      clockEvents.push(entry);
+    } else if (clockEvents[0].cycles >= entry.cycles) {
+      clockEvents.unshift(entry);
+    } else {
+      for (let i = 1; i < clockEvents.length; i++) {
+        if (clockEvents[i].cycles >= entry.cycles) {
+          clockEvents.splice(i, 0, entry);
+          break;
+        }
+      }
+    }
+    this.nextClockEvent = this.clockEvents[0].cycles;
     return callback;
   }
 
   updateClockEvent(callback: AVRClockEventCallback, cycles: number) {
-    const entry = this.clockEvents.find((item) => item.callback === callback);
-    if (entry) {
-      entry.cycles = this.cycles + Math.max(1, cycles);
-      this.updateClockEvents();
+    if (this.clearClockEvent(callback)) {
+      this.addClockEvent(callback, cycles);
       return true;
     }
     return false;
@@ -199,18 +205,22 @@ export class CPU implements ICPU {
     const index = this.clockEvents.findIndex((item) => item.callback === callback);
     if (index >= 0) {
       this.clockEvents.splice(index, 1);
-      this.updateClockEvents();
+      this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
+      return true;
     }
+    return false;
   }
 
   tick() {
-    if (this.nextClockEvent && this.nextClockEvent <= this.cycles) {
-      const clockEvent = this.clockEvents.shift();
-      clockEvent?.callback();
-      this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
+    const { nextClockEvent, clockEvents } = this;
+    if (nextClockEvent && nextClockEvent <= this.cycles) {
+      clockEvents.shift()?.callback();
+      this.nextClockEvent = clockEvents[0]?.cycles ?? 0;
     }
-    if (this.interruptsEnabled && this.nextInterrupt >= 0) {
-      const interrupt = this.pendingInterrupts[this.nextInterrupt];
+
+    const { nextInterrupt } = this;
+    if (this.interruptsEnabled && nextInterrupt >= 0) {
+      const interrupt = this.pendingInterrupts[nextInterrupt];
       avrInterrupt(this, interrupt.address);
       if (!interrupt.constant) {
         this.clearInterrupt(interrupt);
