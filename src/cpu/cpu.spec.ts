@@ -1,5 +1,7 @@
 import { CPU } from './cpu';
 
+type ITestEvent = [number, number]; // Expected cycles, actual cycles
+
 describe('cpu', () => {
   it('should set initial value of SP to the last byte of internal SRAM', () => {
     const cpu = new CPU(new Uint16Array(1024), 0x1000);
@@ -9,7 +11,7 @@ describe('cpu', () => {
   describe('events', () => {
     it('should execute queued events after the given number of cycles has passed', () => {
       const cpu = new CPU(new Uint16Array(1024), 0x1000);
-      const events = [];
+      const events: ITestEvent[] = [];
       for (const i of [1, 4, 10]) {
         cpu.addClockEvent(() => events.push([i, cpu.cycles]), i);
       }
@@ -27,7 +29,7 @@ describe('cpu', () => {
     describe('updateClockEvent', () => {
       it('should update the number of cycles for the given clock event', () => {
         const cpu = new CPU(new Uint16Array(1024), 0x1000);
-        const events = [];
+        const events: ITestEvent[] = [];
         const callbacks = [];
         for (const i of [1, 4, 10]) {
           callbacks[i] = cpu.addClockEvent(() => events.push([i, cpu.cycles]), i);
@@ -48,7 +50,7 @@ describe('cpu', () => {
       describe('clearClockEvent', () => {
         it('should remove the given clock event', () => {
           const cpu = new CPU(new Uint16Array(1024), 0x1000);
-          const events = [];
+          const events: ITestEvent[] = [];
           const callbacks = [];
           for (const i of [1, 4, 10]) {
             callbacks[i] = cpu.addClockEvent(() => events.push([i, cpu.cycles]), i);
