@@ -186,7 +186,7 @@ export class CPU implements ICPU {
   }
 
   updateClockEvent(callback: AVRClockEventCallback, cycles: number) {
-    const entry = this.clockEvents.find((item) => (item.callback = callback));
+    const entry = this.clockEvents.find((item) => item.callback === callback);
     if (entry) {
       entry.cycles = this.cycles + Math.max(1, cycles);
       this.updateClockEvents();
@@ -196,7 +196,7 @@ export class CPU implements ICPU {
   }
 
   clearClockEvent(callback: AVRClockEventCallback) {
-    const index = this.clockEvents.findIndex((item) => (item.callback = callback));
+    const index = this.clockEvents.findIndex((item) => item.callback === callback);
     if (index >= 0) {
       this.clockEvents.splice(index, 1);
       this.updateClockEvents();
