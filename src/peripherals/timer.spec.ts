@@ -415,13 +415,13 @@ describe('timer', () => {
   describe('Phase-correct PWM mode', () => {
     it('should count up to TOP, down to 0, and then set TOV flag', () => {
       const { program, instructionCount } = asmProgram(`
+        LDI r16, 0x3   ; OCR0A = 0x3;   // <- TOP value
+        OUT 0x27, r16  
         ; Set waveform generation mode (WGM) to PWM, Phase Correct, top OCR0A
         LDI r16, 0x1   ; TCCR0A = 1 << WGM00;
         OUT 0x24, r16  
         LDI r16, 0x9   ; TCCR0B = (1 << WGM02) | (1 << CS00);
         OUT 0x25, r16  
-        LDI r16, 0x3   ; OCR0A = 0x3;
-        OUT 0x27, r16  
         LDI r16, 0x2   ; TCNT0 = 0x2;
         OUT 0x26, r16
 
@@ -448,13 +448,13 @@ describe('timer', () => {
 
     it('should clear OC0A when TCNT0=OCR0A and counting up', () => {
       const { program, lines, instructionCount } = asmProgram(`
+        LDI r16, 0xfe   ; OCR0A = 0xfe;   // <- TOP value
+        OUT 0x27, r16  
         ; Set waveform generation mode (WGM) to PWM, Phase Correct
-        LDI r16, 0x81   ; TCCR0A = (1 << COM0A1) || (1 << WGM01);
+        LDI r16, 0x81   ; TCCR0A = (1 << COM0A1) | (1 << WGM00);
         OUT 0x24, r16  
         LDI r16, 0x1   ; TCCR0B = (1 << CS00);
         OUT 0x25, r16  
-        LDI r16, 0xfe   ; OCR0A = 0xfe;
-        OUT 0x27, r16  
         LDI r16, 0xfd   ; TCNT0 = 0xfd;
         OUT 0x26, r16  
 
@@ -490,6 +490,46 @@ describe('timer', () => {
       runner.runInstructions(1);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
       expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b);
+    });
+
+    it('should only update OCR0A when TCNT0=TOP in PWM Phase Correct mode (issue #76)', () => {
+      const { program, instructionCount } = asmProgram(`
+        LDI r16, 0x4   ; OCR0A = 0x4;
+        OUT 0x27, r16  
+        ; Set waveform generation mode (WGM) to PWM, Phase Correct
+        LDI r16, 0x01   ; TCCR0A = (1 << WGM00);
+        OUT 0x24, r16  
+        LDI r16, 0x09   ; TCCR0B = (1 << WGM02) | (1 << CS00);
+        OUT 0x25, r16  
+        LDI r16, 0x0   ; TCNT0 = 0x0;
+        OUT 0x26, r16  
+
+        LDI r16, 0x2    ; OCR0A = 0x2; // TCNT0 should read 0x0
+        OUT 0x27, r16   ; // TCNT0 should read 0x1
+        NOP             ; // TCNT0 should read 0x2
+        NOP             ; // TCNT0 should read 0x3
+        IN r17, 0x26    ; R17 = TCNT;  // TCNT0 should read 0x4 (that's old OCR0A / TOP)
+        NOP             ; // TCNT0 should read 0x3
+        NOP             ; // TCNT0 should read 0x2
+        NOP             ; // TCNT0 should read 0x1
+        NOP             ; // TCNT0 should read 0x0
+        NOP             ; // TCNT0 should read 0x1
+        NOP             ; // TCNT0 should read 0x2
+        IN r18, 0x26    ; R18 = TCNT; // TCNT0 should read 0x1
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      expect(cpu.readData(R17)).toEqual(0x4);
+      expect(cpu.readData(R18)).toEqual(0x1);
     });
   });
 
@@ -637,6 +677,53 @@ describe('timer', () => {
       runner.runInstructions(1);
       expect(cpu.readData(TCNT1)).toEqual(0x4a);
       expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Toggle, 0x25);
+    });
+
+    it('should only update OCR0A when TCNT0=BOTTOM in PWM Phase/Frequency Correct mode (issue #76)', () => {
+      const { program, instructionCount } = asmProgram(`
+        LDI r16, 0x0    ; OCR1AH = 0x0;
+        STS 0x89, r16  
+        LDI r16, 0x4   ; OCR1AL = 0x4;
+        STS 0x88, r16  
+        ; Set waveform generation mode (WGM) to PWM Phase/Frequency Correct mode (9)
+        LDI r16, 0x01   ; TCCR1A = (1 << WGM10);
+        STS 0x80, r16  
+        LDI r16, 0x11   ; TCCR1B = (1 << WGM13) | (1 << CS00);
+        STS 0x81, r16  
+        LDI r16, 0x0    ; TCNT1H = 0x0;
+        STS 0x85, r16  
+        LDI r16, 0x0    ; TCNT1L = 0x0;
+        STS 0x84, r16  
+
+        LDI r16, 0x8   ; OCR1AL = 0x8; // TCNT1 should read 0x0
+        STS 0x88, r16  ; // TCNT1 should read 0x2 (going up)
+        LDS r17, 0x84  ; // TCNT1 should read 0x4 (going down)
+        LDS r18, 0x84  ; // TCNT1 should read 0x2 (going down)
+        NOP            ; // TCNT1 should read 0x0 (going up)
+        NOP            ; // TCNT1 should read 0x1 (going up)
+        NOP            ; // TCNT1 should read 0x2 (going up)
+        NOP            ; // TCNT1 should read 0x3 (going up)
+        NOP            ; // TCNT1 should read 0x4 (going up)
+        NOP            ; // TCNT1 should read 0x5 (going up)
+        LDS r19, 0x84  ; // TCNT1 should read 0x6 (going up)
+        NOP            ; // TCNT1 should read 0x8 (going up)
+        LDS r20, 0x84  ; // TCNT1 should read 0x7 (going up)
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer1Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      expect(cpu.readData(R17)).toEqual(0x4);
+      expect(cpu.readData(R18)).toEqual(0x2);
+      expect(cpu.readData(R19)).toEqual(0x6);
+      expect(cpu.readData(R20)).toEqual(0x7);
     });
   });
 });
