@@ -239,7 +239,7 @@ describe('timer', () => {
     expect(cpu.cycles).toEqual(2);
   });
 
-  it('should clear the timer in CTC mode if it equals to OCRA', () => {
+  it('should reset the counter in CTC mode if it equals to OCRA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0x10);
@@ -248,12 +248,44 @@ describe('timer', () => {
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
     cpu.tick();
-    cpu.cycles = 2;
+    cpu.cycles = 3;
     cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0);
     expect(cpu.pc).toEqual(0);
-    expect(cpu.cycles).toEqual(2);
+    expect(cpu.cycles).toEqual(3);
+  });
+
+  it('should not set the TOV bit when TOP < MAX in CTC mode (issue #75)', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCNT0, 0x1e);
+    cpu.writeData(OCR0A, 0x1f);
+    cpu.writeData(TCCR0A, WGM01); // WGM: CTC
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    cpu.cycles = 1;
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
+    const tcnt = cpu.readData(TCNT0);
+    expect(tcnt).toEqual(0x1f);
+    expect(cpu.data[TIFR0]).toEqual(OCF0A); // TOV0 clear
+  });
+
+  it('should set the TOV bit when TOP == MAX in CTC mode (issue #75)', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCNT0, 0xfe);
+    cpu.writeData(OCR0A, 0xff);
+    cpu.writeData(TCCR0A, WGM01); // WGM: CTC
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    cpu.cycles = 1;
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
+    const tcnt = cpu.readData(TCNT0);
+    expect(tcnt).toEqual(0xff);
+    expect(cpu.data[TIFR0]).toEqual(OCF0A | TOV0);
   });
 
   it('should set OCF0B flag when timer equals OCRB', () => {

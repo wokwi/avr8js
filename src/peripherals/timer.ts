@@ -238,12 +238,14 @@ function compToOverride(comp: CompBitsValue) {
 }
 
 export class AVRTimer {
+  private readonly MAX = this.config.bits === 16 ? 0xffff : 0xff;
   private lastCycle = 0;
   private ocrA: u16 = 0;
   private nextOcrA: u16 = 0;
   private ocrB: u16 = 0;
   private nextOcrB: u16 = 0;
   private ocrUpdateMode = OCRUpdateMode.Immediate;
+  private tovUpdateMode = TOVUpdateMode.Max;
   private icr: u16 = 0; // only for 16-bit timers
   private timerMode: TimerMode;
   private topValue: TimerTopValue;
@@ -403,10 +405,11 @@ export class AVRTimer {
 
   private updateWGMConfig() {
     const wgmModes = this.config.bits === 16 ? wgmModes16Bit : wgmModes8Bit;
-    const [timerMode, topValue, ocrUpdateMode] = wgmModes[this.WGM];
+    const [timerMode, topValue, ocrUpdateMode, tovUpdateMode] = wgmModes[this.WGM];
     this.timerMode = timerMode;
     this.topValue = topValue;
     this.ocrUpdateMode = ocrUpdateMode;
+    this.tovUpdateMode = tovUpdateMode;
   }
 
   count = (reschedule = true) => {
@@ -417,28 +420,34 @@ export class AVRTimer {
       const counterDelta = Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;
       const val = this.tcnt;
-      const { timerMode } = this;
+      const { timerMode, TOP } = this;
       const phasePwm =
         timerMode === TimerMode.PWMPhaseCorrect || timerMode === TimerMode.PWMPhaseFrequencyCorrect;
-      const limit = this.TOP + 1;
       const newVal = phasePwm
         ? this.phasePwmCount(val, counterDelta)
-        : (val + counterDelta) % limit;
-      const overflow = val + counterDelta >= limit;
+        : (val + counterDelta) % (TOP + 1);
+      const overflow = val + counterDelta > TOP;
       // A CPU write overrides (has priority over) all counter clear or count operations.
       if (!this.tcntUpdated) {
         this.tcnt = newVal;
         this.timerUpdated();
       }
 
-      if (!phasePwm && this.ocrUpdateMode == OCRUpdateMode.Bottom && overflow) {
-        // OCRUpdateMode.Top only occurs in Phase Correct modes, handled by phasePwmCount()
-        this.ocrA = this.nextOcrA;
-        this.ocrB = this.nextOcrB;
-      }
+      if (!phasePwm) {
+        if (this.ocrUpdateMode == OCRUpdateMode.Bottom && overflow) {
+          // OCRUpdateMode.Top only occurs in Phase Correct modes, handled by phasePwmCount()
+          this.ocrA = this.nextOcrA;
+          this.ocrB = this.nextOcrB;
+        }
 
-      if ((timerMode === TimerMode.Normal || timerMode === TimerMode.FastPWM) && val > newVal) {
-        cpu.setInterruptFlag(this.OVF);
+        // OCRUpdateMode.Bottom only occurs in Phase Correct modes, handled by phasePwmCount().
+        // Thus we only handle TOVUpdateMode.Top or TOVUpdateMode.Max here.
+        if (
+          (newVal === TOP || overflow) &&
+          (this.tovUpdateMode == TOVUpdateMode.Top || TOP === this.MAX)
+        ) {
+          cpu.setInterruptFlag(this.OVF);
+        }
       }
     }
     if (this.tcntUpdated) {
@@ -492,11 +501,6 @@ export class AVRTimer {
 
     if (this.ocrA && value === this.ocrA) {
       this.cpu.setInterruptFlag(this.OCFA);
-      if (this.timerMode === TimerMode.CTC) {
-        // Clear Timer on Compare Match (CTC) Mode
-        this.tcnt = 0;
-        this.cpu.setInterruptFlag(this.OVF);
-      }
       if (this.compA) {
         this.updateCompPin(this.compA, 'A');
       }
