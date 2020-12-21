@@ -112,7 +112,7 @@ describe('timer', () => {
     cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0);
-    expect(cpu.data[TIFR0]).toEqual(TOV0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
   });
 
   it('should clear the TOV flag when writing 1 to the TOV bit, and not trigger the interrupt', () => {
@@ -124,9 +124,9 @@ describe('timer', () => {
     cpu.tick();
     cpu.cycles = 2;
     cpu.tick();
-    expect(cpu.data[TIFR0]).toEqual(TOV0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
     cpu.writeData(TIFR0, TOV0);
-    expect(cpu.data[TIFR0]).toEqual(0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(0);
   });
 
   it('should set TOV if timer overflows in FAST PWM mode', () => {
@@ -142,7 +142,7 @@ describe('timer', () => {
     cpu.tick();
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0);
-    expect(cpu.data[TIFR0]).toEqual(TOV0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
   });
 
   it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
@@ -202,7 +202,7 @@ describe('timer', () => {
     cpu.data[SREG] = 0x0; // SREG: --------
     cpu.cycles = 2;
     cpu.tick();
-    expect(cpu.data[TIFR0]).toEqual(TOV0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
     expect(cpu.pc).toEqual(0);
     expect(cpu.cycles).toEqual(2);
   });
@@ -218,7 +218,24 @@ describe('timer', () => {
     cpu.data[SREG] = 0x80; // SREG: I-------
     cpu.cycles = 2;
     cpu.tick();
-    expect(cpu.data[TIFR0]).toEqual(TOV0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
+    expect(cpu.pc).toEqual(0);
+    expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should set OCF0A/B flags when OCRA/B == 0 and the timer equals to OCRA (issue #74)', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCNT0, 0xff);
+    cpu.writeData(OCR0A, 0x0);
+    cpu.writeData(OCR0B, 0x0);
+    cpu.writeData(TCCR0A, 0x0); // WGM: Normal
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    cpu.cycles = 1;
+    cpu.tick();
+    cpu.cycles = 2;
+    cpu.tick();
+    expect(cpu.data[TIFR0] & (OCF0A | OCF0B)).toEqual(OCF0A | OCF0B);
     expect(cpu.pc).toEqual(0);
     expect(cpu.cycles).toEqual(2);
   });

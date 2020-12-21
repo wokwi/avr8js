@@ -299,7 +299,9 @@ export class AVRTimer {
       this.countingUp = true;
       this.tcntUpdated = true;
       this.cpu.updateClockEvent(this.count, 0);
-      this.timerUpdated();
+      if (this.divider) {
+        this.timerUpdated();
+      }
     };
     this.cpu.writeHooks[config.OCRA] = (value: u8) => {
       this.nextOcrA = (this.highByteTemp << 8) | value;
@@ -498,14 +500,13 @@ export class AVRTimer {
 
   private timerUpdated() {
     const value = this.tcnt;
-
-    if (this.ocrA && value === this.ocrA) {
+    if (value === this.ocrA) {
       this.cpu.setInterruptFlag(this.OCFA);
       if (this.compA) {
         this.updateCompPin(this.compA, 'A');
       }
     }
-    if (this.ocrB && value === this.ocrB) {
+    if (value === this.ocrB) {
       this.cpu.setInterruptFlag(this.OCFB);
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');
