@@ -300,7 +300,7 @@ export class AVRTimer {
       this.tcntUpdated = true;
       this.cpu.updateClockEvent(this.count, 0);
       if (this.divider) {
-        this.timerUpdated();
+        this.timerUpdated(this.tcntNext, this.tcntNext);
       }
     };
     this.cpu.writeHooks[config.OCRA] = (value: u8) => {
@@ -432,7 +432,7 @@ export class AVRTimer {
       // A CPU write overrides (has priority over) all counter clear or count operations.
       if (!this.tcntUpdated) {
         this.tcnt = newVal;
-        this.timerUpdated();
+        this.timerUpdated(newVal, val);
       }
 
       if (!phasePwm) {
@@ -498,15 +498,23 @@ export class AVRTimer {
     return value;
   }
 
-  private timerUpdated() {
-    const value = this.tcnt;
-    if (value === this.ocrA) {
+  private timerUpdated(value: number, prevValue: number) {
+    const { ocrA, ocrB, countingUp } = this;
+    if (
+      (countingUp && prevValue < ocrA && value >= ocrA) ||
+      (countingUp && prevValue > value && ocrA >= value) ||
+      (!countingUp && prevValue > ocrA && value <= ocrA)
+    ) {
       this.cpu.setInterruptFlag(this.OCFA);
       if (this.compA) {
         this.updateCompPin(this.compA, 'A');
       }
     }
-    if (value === this.ocrB) {
+    if (
+      (countingUp && prevValue < ocrB && value >= ocrB) ||
+      (countingUp && prevValue > value && ocrB >= value) ||
+      (!countingUp && prevValue > ocrB && value <= ocrB)
+    ) {
       this.cpu.setInterruptFlag(this.OCFB);
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');

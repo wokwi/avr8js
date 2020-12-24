@@ -541,6 +541,37 @@ describe('timer', () => {
       expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b);
     });
 
+    it('should not miss Compare Match when executing multi-cycle instruction (issue #79)', () => {
+      const { program, instructionCount } = asmProgram(`
+        LDI r16, 0x10   ; OCR0A = 0x10;   // <- TOP value
+        OUT 0x27, r16  
+        ; Set waveform generation mode (WGM) to normal, enable OC0A (Set on match)
+        LDI r16, 0xc0   ; TCCR0A = (1 << COM0A1) | (1 << COM0A0);
+        OUT 0x24, r16  
+        LDI r16, 0x1    ; TCCR0B = (1 << CS00);
+        OUT 0x25, r16  
+        LDI r16, 0xf    ; TCNT0 = 0xf;
+        OUT 0x26, r16  
+        RJMP 1          ; TCNT0 will be 0x11 (RJMP takes 2 cycles)
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      expect(cpu.readData(TCNT0)).toEqual(0x11);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+
+      // Verify that Compare Match has occured and set the OC0A pin (PD6 on ATmega328p)
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b);
+    });
+
     it('should only update OCR0A when TCNT0=TOP in PWM Phase Correct mode (issue #76)', () => {
       const { program, instructionCount } = asmProgram(`
         LDI r16, 0x4   ; OCR0A = 0x4;
