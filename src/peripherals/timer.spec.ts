@@ -101,17 +101,28 @@ describe('timer', () => {
     expect(tcnt).toEqual(0); // TCNT should stay 0
   });
 
-  it('should set TOV if timer overflows', () => {
+  it('should set the TOV flag when timer reaches the TOP value', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     new AVRTimer(cpu, timer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
     cpu.tick();
-    cpu.cycles = 2;
+    expect(cpu.readData(TCNT0)).toEqual(0xff);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
+  });
+
+  it('should set the TOV if timer overflows past TOP without reaching TOP', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCNT0, 0xfe);
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+    cpu.cycles = 1;
     cpu.tick();
-    const tcnt = cpu.readData(TCNT0);
-    expect(tcnt).toEqual(0);
+    expect(cpu.readData(TCNT0)).toEqual(0xfe);
+    cpu.cycles += 4;
+    cpu.tick();
+    expect(cpu.readData(TCNT0)).toEqual(0x2);
     expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
   });
 
@@ -152,7 +163,7 @@ describe('timer', () => {
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
     cpu.tick();
-    cpu.data[TIMSK0] = TOIE0;
+    cpu.writeData(TIMSK0, TOIE0);
     cpu.data[SREG] = 0x80; // SREG: I-------
     cpu.cycles = 2;
     cpu.tick();
@@ -180,7 +191,7 @@ describe('timer', () => {
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
     cpu.tick();
-    cpu.data[TIMSK0] = 2;
+    cpu.writeData(TIMSK0, 2);
     cpu.data[SREG] = 0x80; // SREG: I-------
     cpu.cycles = 2;
     cpu.tick();
@@ -303,6 +314,29 @@ describe('timer', () => {
     const tcnt = cpu.readData(TCNT0);
     expect(tcnt).toEqual(0xff);
     expect(cpu.data[TIFR0]).toEqual(OCF0A | TOV0);
+  });
+
+  it('should not set the TOV bit twice on overflow (issue #80)', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCNT0, 0xfe);
+    cpu.writeData(OCR0A, 0xff);
+    cpu.writeData(TCCR0A, WGM01); // WGM: CTC
+    cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
+
+    cpu.cycles = 1;
+    cpu.tick();
+
+    cpu.cycles = 2;
+    cpu.tick();
+    expect(cpu.readData(TCNT0)).toEqual(0xff);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(TOV0);
+    cpu.data[TIFR0] &= ~TOV0; // Clear the TOV0 bit
+
+    cpu.cycles = 3;
+    cpu.tick();
+    expect(cpu.readData(TCNT0)).toEqual(0);
+    expect(cpu.data[TIFR0] & TOV0).toEqual(0);
   });
 
   it('should set OCF0B flag when timer equals OCRB', () => {

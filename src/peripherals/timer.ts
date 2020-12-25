@@ -445,7 +445,7 @@ export class AVRTimer {
         // OCRUpdateMode.Bottom only occurs in Phase Correct modes, handled by phasePwmCount().
         // Thus we only handle TOVUpdateMode.Top or TOVUpdateMode.Max here.
         if (
-          (newVal === TOP || overflow) &&
+          (newVal === TOP || (overflow && val < TOP)) &&
           (this.tovUpdateMode == TOVUpdateMode.Top || TOP === this.MAX)
         ) {
           cpu.setInterruptFlag(this.OVF);
@@ -453,7 +453,11 @@ export class AVRTimer {
       }
     }
     if (this.tcntUpdated) {
+      const { TOP } = this;
       this.tcnt = this.tcntNext;
+      if (this.tcnt === TOP && (this.tovUpdateMode == TOVUpdateMode.Top || TOP === this.MAX)) {
+        cpu.setInterruptFlag(this.OVF);
+      }
       this.tcntUpdated = false;
     }
     if (this.updateDivider) {
