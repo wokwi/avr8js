@@ -160,7 +160,7 @@ describe('SPI', () => {
       return 0x5b; // we copy this byte to
     };
 
-    const runner = new TestProgramRunner(cpu);
+    const runner = new TestProgramRunner(cpu, () => 0);
     runner.runToBreak();
 
     // 16 cycles per clock * 8 bits = 128

@@ -189,37 +189,42 @@ const TopOCRA = 1;
 const TopICR = 2;
 type TimerTopValue = 0xff | 0x1ff | 0x3ff | 0xffff | typeof TopOCRA | typeof TopICR;
 
-type WGMConfig = [TimerMode, TimerTopValue, OCRUpdateMode, TOVUpdateMode];
+type WGMConfig = [TimerMode, TimerTopValue, OCRUpdateMode, TOVUpdateMode, number];
+
+// Enable Toggle mode for OCxA in PWM Wave Generation mode
+const OCToggle = 1;
+
+const { Normal, PWMPhaseCorrect, CTC, FastPWM, Reserved, PWMPhaseFrequencyCorrect } = TimerMode;
 
 const wgmModes8Bit: WGMConfig[] = [
-  /*0*/ [TimerMode.Normal, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*1*/ [TimerMode.PWMPhaseCorrect, 0xff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*2*/ [TimerMode.CTC, TopOCRA, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*3*/ [TimerMode.FastPWM, 0xff, OCRUpdateMode.Bottom, TOVUpdateMode.Max],
-  /*4*/ [TimerMode.Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*5*/ [TimerMode.PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*6*/ [TimerMode.Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*7*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
+  /*0*/ [Normal, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*1*/ [PWMPhaseCorrect, 0xff, OCRUpdateMode.Top, TOVUpdateMode.Bottom, 0],
+  /*2*/ [CTC, TopOCRA, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*3*/ [FastPWM, 0xff, OCRUpdateMode.Bottom, TOVUpdateMode.Max, 0],
+  /*4*/ [Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*5*/ [PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom, OCToggle],
+  /*6*/ [Reserved, 0xff, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*7*/ [FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top, OCToggle],
 ];
 
 // Table 16-4 in the datasheet
 const wgmModes16Bit: WGMConfig[] = [
-  /*0 */ [TimerMode.Normal, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*1 */ [TimerMode.PWMPhaseCorrect, 0x00ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*2 */ [TimerMode.PWMPhaseCorrect, 0x01ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*3 */ [TimerMode.PWMPhaseCorrect, 0x03ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*4 */ [TimerMode.CTC, TopOCRA, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*5 */ [TimerMode.FastPWM, 0x00ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
-  /*6 */ [TimerMode.FastPWM, 0x01ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
-  /*7 */ [TimerMode.FastPWM, 0x03ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
-  /*8 */ [TimerMode.PWMPhaseFrequencyCorrect, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Bottom],
-  /*9 */ [TimerMode.PWMPhaseFrequencyCorrect, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Bottom],
-  /*10*/ [TimerMode.PWMPhaseCorrect, TopICR, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*11*/ [TimerMode.PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom],
-  /*12*/ [TimerMode.CTC, TopICR, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*13*/ [TimerMode.Reserved, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max],
-  /*14*/ [TimerMode.FastPWM, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
-  /*15*/ [TimerMode.FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top],
+  /*0 */ [Normal, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*1 */ [PWMPhaseCorrect, 0x00ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom, 0],
+  /*2 */ [PWMPhaseCorrect, 0x01ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom, 0],
+  /*3 */ [PWMPhaseCorrect, 0x03ff, OCRUpdateMode.Top, TOVUpdateMode.Bottom, 0],
+  /*4 */ [CTC, TopOCRA, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*5 */ [FastPWM, 0x00ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top, 0],
+  /*6 */ [FastPWM, 0x01ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top, 0],
+  /*7 */ [FastPWM, 0x03ff, OCRUpdateMode.Bottom, TOVUpdateMode.Top, 0],
+  /*8 */ [PWMPhaseFrequencyCorrect, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Bottom, 0],
+  /*9 */ [PWMPhaseFrequencyCorrect, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Bottom, OCToggle],
+  /*10*/ [PWMPhaseCorrect, TopICR, OCRUpdateMode.Top, TOVUpdateMode.Bottom, 0],
+  /*11*/ [PWMPhaseCorrect, TopOCRA, OCRUpdateMode.Top, TOVUpdateMode.Bottom, OCToggle],
+  /*12*/ [CTC, TopICR, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*13*/ [Reserved, 0xffff, OCRUpdateMode.Immediate, TOVUpdateMode.Max, 0],
+  /*14*/ [FastPWM, TopICR, OCRUpdateMode.Bottom, TOVUpdateMode.Top, OCToggle],
+  /*15*/ [FastPWM, TopOCRA, OCRUpdateMode.Bottom, TOVUpdateMode.Top, OCToggle],
 ];
 
 type CompBitsValue = 0 | 1 | 2 | 3;
@@ -329,10 +334,6 @@ export class AVRTimer {
     }
     cpu.writeHooks[config.TCCRA] = (value) => {
       this.cpu.data[config.TCCRA] = value;
-      this.compA = ((value >> 6) & 0x3) as CompBitsValue;
-      this.updateCompA(this.compA ? PinOverrideMode.Enable : PinOverrideMode.None);
-      this.compB = ((value >> 4) & 0x3) as CompBitsValue;
-      this.updateCompB(this.compB ? PinOverrideMode.Enable : PinOverrideMode.None);
       this.updateWGMConfig();
       return true;
     };
@@ -406,12 +407,37 @@ export class AVRTimer {
   }
 
   private updateWGMConfig() {
-    const wgmModes = this.config.bits === 16 ? wgmModes16Bit : wgmModes8Bit;
-    const [timerMode, topValue, ocrUpdateMode, tovUpdateMode] = wgmModes[this.WGM];
+    const { config, WGM } = this;
+    const wgmModes = config.bits === 16 ? wgmModes16Bit : wgmModes8Bit;
+    const TCCRA = this.cpu.data[config.TCCRA];
+    const [timerMode, topValue, ocrUpdateMode, tovUpdateMode, flags] = wgmModes[WGM];
     this.timerMode = timerMode;
     this.topValue = topValue;
     this.ocrUpdateMode = ocrUpdateMode;
     this.tovUpdateMode = tovUpdateMode;
+
+    const pwmMode =
+      timerMode === FastPWM ||
+      timerMode === PWMPhaseCorrect ||
+      timerMode === PWMPhaseFrequencyCorrect;
+
+    const prevCompA = this.compA;
+    this.compA = ((TCCRA >> 6) & 0x3) as CompBitsValue;
+    if (this.compA === 1 && pwmMode && !(flags & OCToggle)) {
+      this.compA = 0;
+    }
+    if (!!prevCompA !== !!this.compA) {
+      this.updateCompA(this.compA ? PinOverrideMode.Enable : PinOverrideMode.None);
+    }
+
+    const prevCompB = this.compB;
+    this.compB = ((TCCRA >> 4) & 0x3) as CompBitsValue;
+    if (this.compB === 1 && pwmMode) {
+      this.compB = 0; // Reserved, according to the datasheet
+    }
+    if (!!prevCompB !== !!this.compB) {
+      this.updateCompB(this.compB ? PinOverrideMode.Enable : PinOverrideMode.None);
+    }
   }
 
   count = (reschedule = true) => {
@@ -423,8 +449,7 @@ export class AVRTimer {
       this.lastCycle += counterDelta * divider;
       const val = this.tcnt;
       const { timerMode, TOP } = this;
-      const phasePwm =
-        timerMode === TimerMode.PWMPhaseCorrect || timerMode === TimerMode.PWMPhaseFrequencyCorrect;
+      const phasePwm = timerMode === PWMPhaseCorrect || timerMode === PWMPhaseFrequencyCorrect;
       const newVal = phasePwm
         ? this.phasePwmCount(val, counterDelta)
         : (val + counterDelta) % (TOP + 1);
@@ -432,10 +457,22 @@ export class AVRTimer {
       // A CPU write overrides (has priority over) all counter clear or count operations.
       if (!this.tcntUpdated) {
         this.tcnt = newVal;
-        this.timerUpdated(newVal, val);
+        if (!phasePwm) {
+          this.timerUpdated(newVal, val);
+        }
       }
 
       if (!phasePwm) {
+        if (timerMode === FastPWM && overflow) {
+          const { compA, compB } = this;
+          if (compA) {
+            this.updateCompPin(compA, 'A', true);
+          }
+          if (compB) {
+            this.updateCompPin(compB, 'B', true);
+          }
+        }
+
         if (this.ocrUpdateMode == OCRUpdateMode.Bottom && overflow) {
           // OCRUpdateMode.Top only occurs in Phase Correct modes, handled by phasePwmCount()
           this.ocrA = this.nextOcrA;
@@ -476,10 +513,11 @@ export class AVRTimer {
   };
 
   private phasePwmCount(value: u16, delta: u8) {
+    const { ocrA, ocrB, TOP, tcntUpdated } = this;
     while (delta > 0) {
       if (this.countingUp) {
         value++;
-        if (value === this.TOP && !this.tcntUpdated) {
+        if (value === TOP && !tcntUpdated) {
           this.countingUp = false;
           if (this.ocrUpdateMode === OCRUpdateMode.Top) {
             this.ocrA = this.nextOcrA;
@@ -488,7 +526,7 @@ export class AVRTimer {
         }
       } else {
         value--;
-        if (!value && !this.tcntUpdated) {
+        if (!value && !tcntUpdated) {
           this.countingUp = true;
           this.cpu.setInterruptFlag(this.OVF);
           if (this.ocrUpdateMode === OCRUpdateMode.Bottom) {
@@ -497,28 +535,33 @@ export class AVRTimer {
           }
         }
       }
+      if (!tcntUpdated && value === ocrA) {
+        this.cpu.setInterruptFlag(this.OCFA);
+        if (this.compA) {
+          this.updateCompPin(this.compA, 'A');
+        }
+      }
+      if (!tcntUpdated && value === ocrB) {
+        this.cpu.setInterruptFlag(this.OCFB);
+        if (this.compB) {
+          this.updateCompPin(this.compB, 'B');
+        }
+      }
       delta--;
     }
     return value;
   }
 
   private timerUpdated(value: number, prevValue: number) {
-    const { ocrA, ocrB, countingUp } = this;
-    if (
-      (countingUp && prevValue < ocrA && value >= ocrA) ||
-      (countingUp && prevValue > value && ocrA >= value) ||
-      (!countingUp && prevValue > ocrA && value <= ocrA)
-    ) {
+    const { ocrA, ocrB } = this;
+    const overflow = prevValue > value;
+    if ((prevValue < ocrA || overflow) && value >= ocrA) {
       this.cpu.setInterruptFlag(this.OCFA);
       if (this.compA) {
         this.updateCompPin(this.compA, 'A');
       }
     }
-    if (
-      (countingUp && prevValue < ocrB && value >= ocrB) ||
-      (countingUp && prevValue > value && ocrB >= value) ||
-      (!countingUp && prevValue > ocrB && value <= ocrB)
-    ) {
+    if ((prevValue < ocrB || overflow) && value >= ocrB) {
       this.cpu.setInterruptFlag(this.OCFB);
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');
@@ -526,20 +569,31 @@ export class AVRTimer {
     }
   }
 
-  private updateCompPin(compValue: CompBitsValue, pinName: 'A' | 'B') {
+  private updateCompPin(compValue: CompBitsValue, pinName: 'A' | 'B', bottom = false) {
     let newValue: PinOverrideMode = PinOverrideMode.None;
-    const inverted = compValue === 3;
-    const isSet = this.countingUp === inverted;
+    const invertingMode = compValue === 3;
+    const isSet = this.countingUp === invertingMode;
     switch (this.timerMode) {
-      case TimerMode.Normal:
-      case TimerMode.CTC:
-      case TimerMode.FastPWM:
+      case Normal:
+      case CTC:
         newValue = compToOverride(compValue);
         break;
 
-      case TimerMode.PWMPhaseCorrect:
-      case TimerMode.PWMPhaseFrequencyCorrect:
-        newValue = isSet ? PinOverrideMode.Set : PinOverrideMode.Clear;
+      case FastPWM:
+        if (compValue === 1) {
+          newValue = bottom ? PinOverrideMode.None : PinOverrideMode.Toggle;
+        } else {
+          newValue = invertingMode !== bottom ? PinOverrideMode.Set : PinOverrideMode.Clear;
+        }
+        break;
+
+      case PWMPhaseCorrect:
+      case PWMPhaseFrequencyCorrect:
+        if (compValue === 1) {
+          newValue = PinOverrideMode.Toggle;
+        } else {
+          newValue = isSet ? PinOverrideMode.Set : PinOverrideMode.Clear;
+        }
         break;
     }
 

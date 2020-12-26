@@ -29,7 +29,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-interface LabelTable {
+export interface LabelTable {
   [key: string]: number;
 }
 
@@ -938,7 +938,7 @@ function passTwo(lineTable: LineTablePass1[], labels: LabelTable) {
     }
   }
 
-  return { errors: errorTable, bytes: resultTable, lines: lineTable as LineTable[] };
+  return { errors: errorTable, bytes: resultTable, lines: lineTable as LineTable[], labels };
 }
 
 /**
@@ -951,6 +951,7 @@ export function assemble(input: string) {
       bytes: new Uint8Array(0),
       errors: mid.errors,
       lines: [],
+      labels: {},
     };
   }
   return passTwo(mid.lines, mid.labels);

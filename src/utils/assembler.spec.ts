@@ -14,6 +14,7 @@ describe('AVR assembler', () => {
       bytes: bytes('0b0d'),
       errors: [],
       lines: [{ byteOffset: 0, bytes: '0d0b', line: 1, text: 'ADD r16, r11' }],
+      labels: {},
     });
   });
 
@@ -36,6 +37,7 @@ describe('AVR assembler', () => {
       bytes: new Uint8Array(0),
       errors: [],
       lines: [],
+      labels: {},
     });
   });
 
@@ -44,6 +46,7 @@ describe('AVR assembler', () => {
       bytes: new Uint8Array(0),
       errors: ['Line 0: Rd out of range: 16<>31'],
       lines: [],
+      labels: {},
     });
   });
 

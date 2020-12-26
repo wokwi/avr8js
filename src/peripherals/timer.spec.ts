@@ -246,6 +246,7 @@ describe('timer', () => {
     cpu.tick();
     cpu.cycles = 2;
     cpu.tick();
+    expect(cpu.readData(TCNT0)).toEqual(0);
     expect(cpu.data[TIFR0] & (OCF0A | OCF0B)).toEqual(OCF0A | OCF0B);
     expect(cpu.pc).toEqual(0);
     expect(cpu.cycles).toEqual(2);
@@ -417,7 +418,7 @@ describe('timer', () => {
     const { program, instructionCount } = asmProgram(`
       LDI r16, 0x1    ; TCCR0B = 1 << CS00;
       OUT 0x25, r16
-      LDI r16, 0x30   ; TCNT <- 0x30
+      LDI r16, 0x30   ; TCNT0 <- 0x30
       OUT 0x26, r16
       NOP
       IN r17, 0x26    ; r17 <- TCNT
@@ -493,6 +494,152 @@ describe('timer', () => {
     const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.readData(R17)).toEqual(2);
+  });
+
+  describe('Fast PWM mode', () => {
+    it('should set OC0A on Compare Match, clear on Bottom (issue #78)', () => {
+      const { program, labels } = asmProgram(`
+        LDI r16, 0xfc   ; TCNT0 = 0xfc;
+        OUT 0x26, r16
+        LDI r16, 0xfe   ; OCR0A = 0xfe;
+        OUT 0x27, r16  
+        ; WGM: Fast PWM, enable OC0A mode 3 (set on Compare Match, clear on Bottom)
+        LDI r16, 0xc3   ; TCCR0A = (1 << COM0A1) | (1 << COM0A0) | (1 << WGM01) | (1 << WGM00);
+        OUT 0x24, r16
+        LDI r16, 0x1    ; TCCR0B = 1 << CS00;
+        OUT 0x25, r16
+
+        NOP             ; TCNT is now 0xfd
+      beforeMatch: 
+        NOP             ; TCNT is now 0xfe (Compare Match)
+      afterMatch:
+        NOP             ; TCNT is now 0xff
+      beforeBottom:     
+        NOP             ; TCNT is now 0x00 (BOTTOM)
+      afterBottom:
+        NOP
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+
+      runner.runToAddress(labels.beforeMatch);
+      expect(cpu.readData(TCNT0)).toEqual(0xfd);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b); // OC0A: Enable
+      gpioCallback.mockClear();
+
+      runner.runToAddress(labels.afterMatch);
+      expect(cpu.readData(TCNT0)).toEqual(0xfe);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b); // OC0A: Set
+      gpioCallback.mockClear();
+
+      runner.runToAddress(labels.beforeBottom);
+      expect(cpu.readData(TCNT0)).toEqual(0xff);
+      expect(gpioCallback).toHaveBeenCalledTimes(0);
+      gpioCallback.mockClear();
+
+      runner.runToAddress(labels.afterBottom);
+      expect(cpu.readData(TCNT0)).toEqual(0x0);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Clear, 0x2b); // OC0A: Clear
+    });
+
+    it('should toggle OC0A on Compare Match when COM0An = 1 (issue #78)', () => {
+      const { program, labels } = asmProgram(`
+        LDI r16, 0xfc   ; TCNT0 = 0xfc;
+        OUT 0x26, r16
+        LDI r16, 0xfe   ; OCR0A = 0xfe;
+        OUT 0x27, r16  
+        ; WGM: Fast PWM, enable OC0A mode 1 (Toggle)
+        LDI r16, 0x43   ; TCCR0A = (1 << COM0A0) | (1 << WGM01) | (1 << WGM00);
+        OUT 0x24, r16
+        LDI r16, 0x09   ; TCCR0B = (1 << WGM02) | (1 << CS00);
+        OUT 0x25, r16
+
+        NOP             ; TCNT is now 0xfd
+      beforeMatch: 
+        NOP             ; TCNT is now 0xfe (Compare Match, TOP)
+      afterMatch:
+        NOP             ; TCNT is now 0
+      afterOverflow:
+        NOP
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+
+      runner.runToAddress(labels.beforeMatch);
+      expect(cpu.readData(TCNT0)).toEqual(0xfd);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b); // OC0A: Enable
+      gpioCallback.mockClear();
+
+      runner.runToAddress(labels.afterMatch);
+      expect(cpu.readData(TCNT0)).toEqual(0xfe);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Toggle, 0x2b); // OC0A: Toggle
+      gpioCallback.mockClear();
+
+      runner.runToAddress(labels.afterOverflow);
+      expect(cpu.readData(TCNT0)).toEqual(0);
+      expect(gpioCallback).toHaveBeenCalledTimes(0);
+    });
+
+    it('should leave OC0A disconnected when COM0An = 1 and WGM02 = 0 (issue #78)', () => {
+      const { program, labels } = asmProgram(`
+        LDI r16, 0xfc   ; TCNT0 = 0xfc;
+        OUT 0x26, r16
+        LDI r16, 0xfe   ; OCR0A = 0xfe;
+        OUT 0x27, r16  
+        ; WGM: Fast PWM mode 7, enable OC0A mode 1 (Toggle)
+        LDI r16, 0x43   ; TCCR0A = (1 << COM0A0) | (1 << WGM01) | (1 << WGM00);
+        OUT 0x24, r16
+        LDI r16, 0x09   ; TCCR0B = (1 << WGM02) | (1 << CS00);
+        OUT 0x25, r16
+        
+      beforeClearWGM02:
+        LDI r16, 0x01   ; TCCR0B = (1 << CS00);
+        OUT 0x25, r16
+
+      afterClearWGM02:
+        NOP
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+
+      // First, run with the bit set and assert that the Pin Override was enabled (OC0A connected)
+      runner.runToAddress(labels.beforeClearWGM02);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+      gpioCallback.mockClear();
+
+      // Now clear WGM02 and observe that Pin Override was disabled (OC0A disconnected)
+      runner.runToAddress(labels.afterClearWGM02);
+      expect(gpioCallback).toHaveBeenCalledTimes(1);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.None, 0x2b);
+      gpioCallback.mockClear();
+    });
   });
 
   describe('Phase-correct PWM mode', () => {
@@ -573,6 +720,71 @@ describe('timer', () => {
       runner.runInstructions(1);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
       expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b);
+    });
+
+    it('should toggle OC0A when TCNT0=OCR0A and COM0An=1 (issue #78)', () => {
+      const { program, labels } = asmProgram(`
+        LDI r16, 0xfe   ; OCR0A = 0xfe;   // <- TOP value
+        OUT 0x27, r16  
+        ; Set waveform generation mode (WGM) to PWM, Phase Correct (mode 5)
+        LDI r16, 0x41   ; TCCR0A = (1 << COM0A0) | (1 << WGM00);
+        OUT 0x24, r16  
+        LDI r16, 0x09   ; TCCR0B = (1 << WGM02) | (1 << CS00);
+        OUT 0x25, r16  
+        LDI r16, 0xfd   ; TCNT0 = 0xfd;
+        OUT 0x26, r16  
+
+      beforeMatch:
+        NOP             ; TCNT0 will be 0xfe
+      afterMatch:
+        NOP
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+
+      runner.runToAddress(labels.beforeMatch);
+      expect(cpu.readData(TCNT0)).toEqual(0xfd);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+      gpioCallback.mockClear();
+
+      runner.runToAddress(labels.afterMatch);
+      expect(cpu.readData(TCNT0)).toEqual(0xfe);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Toggle, 0x2b);
+      gpioCallback.mockClear();
+    });
+
+    it('should leave OC0A disconnected TCNT0=OCR0A and COM0An=1 in WGM mode 1 (issue #78)', () => {
+      const { program, instructionCount } = asmProgram(`
+        LDI r16, 0xfe   ; OCR0A = 0xfe;   // <- TOP value
+        OUT 0x27, r16  
+        ; Set waveform generation mode (WGM) to PWM, Phase Correct (mode 1)
+        LDI r16, 0x41   ; TCCR0A = (1 << COM0A0) | (1 << WGM00);
+        OUT 0x24, r16  
+        LDI r16, 0x01   ; TCCR0B = (1 << CS00);
+        OUT 0x25, r16  
+        LDI r16, 0xfd   ; TCNT0 = 0xfd;
+        OUT 0x26, r16  
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      // Listen to Port D's internal callback
+      const gpioCallback = jest.fn();
+      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      // Assert that the pin callback wasn't called (thus it's disconnected)
+      expect(gpioCallback).not.toHaveBeenCalled();
     });
 
     it('should not miss Compare Match when executing multi-cycle instruction (issue #79)', () => {
@@ -793,7 +1005,7 @@ describe('timer', () => {
       expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Toggle, 0x25);
     });
 
-    it('should only update OCR0A when TCNT0=BOTTOM in PWM Phase/Frequency Correct mode (issue #76)', () => {
+    it('should only update OCR1A when TCNT1=BOTTOM in PWM Phase/Frequency Correct mode (issue #76)', () => {
       const { program, instructionCount } = asmProgram(`
         LDI r16, 0x0    ; OCR1AH = 0x0;
         STS 0x89, r16  
