@@ -104,7 +104,7 @@ export class AVRTWI {
     enableMask: TWCR_TWIE,
   };
 
-  constructor(private cpu: CPU, private config: TWIConfig, private freqMHz: number) {
+  constructor(private cpu: CPU, private config: TWIConfig, private freqHz: number) {
     this.updateStatus(STATUS_TWI_IDLE);
     this.cpu.writeHooks[config.TWCR] = (value) => {
       this.cpu.data[config.TWCR] = value;
@@ -149,7 +149,7 @@ export class AVRTWI {
   }
 
   get sclFrequency() {
-    return this.freqMHz / (16 + 2 * this.cpu.data[this.config.TWBR] * this.prescaler);
+    return this.freqHz / (16 + 2 * this.cpu.data[this.config.TWBR] * this.prescaler);
   }
 
   completeStart() {

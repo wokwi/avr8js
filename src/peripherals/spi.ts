@@ -50,7 +50,7 @@ export class AVRSPI {
     enableMask: SPCR_SPIE,
   };
 
-  constructor(private cpu: CPU, private config: SPIConfig, private freqMHz: number) {
+  constructor(private cpu: CPU, private config: SPIConfig, private freqHz: number) {
     const { SPCR, SPSR, SPDR } = config;
     cpu.writeHooks[SPDR] = (value: u8) => {
       if (!(cpu.data[SPCR] & SPCR_SPE)) {
@@ -130,6 +130,6 @@ export class AVRSPI {
    * In slave mode, the frequency can be as high as F(osc) / 4.
    */
   get spiFrequency() {
-    return this.freqMHz / this.clockDivider;
+    return this.freqHz / this.clockDivider;
   }
 }

@@ -87,7 +87,7 @@ export class AVRUSART {
     enableMask: UCSRB_TXCIE,
   };
 
-  constructor(private cpu: CPU, private config: USARTConfig, private freqMHz: number) {
+  constructor(private cpu: CPU, private config: USARTConfig, private freqHz: number) {
     this.reset();
     this.cpu.writeHooks[config.UCSRA] = (value) => {
       cpu.data[config.UCSRA] = value;
@@ -142,7 +142,7 @@ export class AVRUSART {
   }
 
   get baudRate() {
-    return Math.floor(this.freqMHz / (this.multiplier * (1 + this.UBRR)));
+    return Math.floor(this.freqHz / (this.multiplier * (1 + this.UBRR)));
   }
 
   get bitsPerChar() {
