@@ -49,3 +49,5 @@ export {
 export * from './peripherals/twi';
 export { spiConfig, SPIConfig, SPITransferCallback, AVRSPI } from './peripherals/spi';
 export { AVRClock, AVRClockConfig, clockConfig } from './peripherals/clock';
+export { ATmega328p } from './chips/ATmega328p';
+export { createAVR, CreateAVROptions } from './create-avr';

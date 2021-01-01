@@ -1,11 +1,12 @@
 import '@wokwi/elements';
 import { LEDElement } from '@wokwi/elements';
-import { PinState } from 'avr8js';
+import { ATmega328p, avrInstruction, createAVR, PinState } from 'avr8js';
 import { buildHex } from './compile';
 import { CPUPerformance } from './cpu-performance';
-import { AVRRunner } from './execute';
 import { formatTime } from './format-time';
 import './index.css';
+import { loadHex } from './intelhex';
+import { MicroTaskScheduler } from './task-scheduler';
 import { EditorHistoryUtil } from './utils/editor-history.util';
 
 let editor: any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -44,8 +45,8 @@ window.require(['vs/editor/editor.main'], () => {
 const led13 = document.querySelector<LEDElement>('wokwi-led[color=green]');
 const led12 = document.querySelector<LEDElement>('wokwi-led[color=red]');
 
-// Set up toolbar
-let runner: AVRRunner;
+// Set up the task runner
+const taskScheduler = new MicroTaskScheduler();
 
 /* eslint-disable @typescript-eslint/no-use-before-define */
 const runButton = document.querySelector('#run-button');
@@ -59,23 +60,36 @@ const compilerOutputText = document.querySelector('#compiler-output-text');
 const serialOutputText = document.querySelector('#serial-output-text');
 
 function executeProgram(hex: string) {
-  runner = new AVRRunner(hex);
-  const MHZ = 16000000;
+  const { cpu, gpio, usart, clock } = createAVR(ATmega328p, {});
+  loadHex(hex, cpu.progBytes);
 
   // Hook to PORTB register
-  runner.portB.addListener(() => {
-    led12.value = runner.portB.pinState(4) === PinState.High;
-    led13.value = runner.portB.pinState(5) === PinState.High;
+  gpio.B.addListener(() => {
+    led12.value = gpio.B.pinState(4) === PinState.High;
+    led13.value = gpio.B.pinState(5) === PinState.High;
   });
-  runner.usart.onByteTransmit = (value) => {
+  usart[0].onByteTransmit = (value) => {
     serialOutputText.textContent += String.fromCharCode(value);
   };
-  const cpuPerf = new CPUPerformance(runner.cpu, MHZ);
-  runner.execute((cpu) => {
-    const time = formatTime(cpu.cycles / MHZ);
+
+  const cpuPerf = new CPUPerformance(cpu, clock.frequency);
+  const workUnitCycles = 500000;
+  const runSimulation = () => {
+    const cyclesToRun = cpu.cycles + workUnitCycles;
+    while (cpu.cycles < cyclesToRun) {
+      avrInstruction(cpu);
+      cpu.tick();
+    }
+
+    const time = formatTime(clock.timeMillis / 1000);
     const speed = (cpuPerf.update() * 100).toFixed(0);
     statusLabel.textContent = `Simulation time: ${time} (${speed}%)`;
-  });
+
+    taskScheduler.postTask(runSimulation);
+  };
+
+  taskScheduler.start();
+  runSimulation();
 }
 
 async function compileAndRun() {
@@ -117,10 +131,7 @@ function stopCode() {
   stopButton.setAttribute('disabled', '1');
   runButton.removeAttribute('disabled');
   revertButton.removeAttribute('disabled');
-  if (runner) {
-    runner.stop();
-    runner = null;
-  }
+  taskScheduler.stop();
 }
 
 function setBlinkSnippet() {
