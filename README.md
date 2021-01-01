@@ -30,6 +30,7 @@ A step-by-step video tutorial showing how to build a simple Arduino simulator us
 * [Simon Game](https://stackblitz.com/edit/avr8js-simon-game?file=index.ts) - with pushbuttons and sound
 * [XMAS LEDs](https://stackblitz.com/edit/avr8js-xmas-dafna?file=index.ts)
 * [Assembly Code](https://stackblitz.com/edit/avr8js-asm?file=index.ts)
+* [EEPROM persistence](https://stackblitz.com/edit/avr8js-eeprom-localstorage?file=eeprom-localstorage-backend.ts)
 
 ## Which chips can be simulated?
 
