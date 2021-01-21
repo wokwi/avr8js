@@ -3,84 +3,160 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, 2020, Uri Shaked
+ * Copyright (C) 2019, 2020, 2021, Uri Shaked
  */
 import { CPU } from '../cpu/cpu';
 import { u8 } from '../types';
+
+export interface AVRExternalInterrupt {
+  EICRA: u8;
+  EICRB: u8;
+  EIMSK: u8;
+  EIFR: u8;
+  index: u8; // 0..7
+  interrupt: u8;
+}
+
+export interface AVRPinChangeInterrupt {
+  PCIE: u8; // bit index in PCICR/PCIFR
+  PCICR: u8;
+  PCIFR: u8;
+  PCMSK: u8;
+  pinChangeInterrupt: u8;
+}
 
 export interface AVRPortConfig {
   // Register addresses
   PIN: u8;
   DDR: u8;
   PORT: u8;
+
+  // Interrupt settings
+  pinChange?: AVRPinChangeInterrupt;
+  externalInterrupts: (AVRExternalInterrupt | null)[];
 }
 
-export type GPIOListener = (value: u8, oldValue: u8) => void;
-
-export const portAConfig: AVRPortConfig = {
-  PIN: 0x20,
-  DDR: 0x21,
-  PORT: 0x22,
+export const INT0: AVRExternalInterrupt = {
+  EICRA: 0x69,
+  EICRB: 0,
+  EIMSK: 0x3d,
+  EIFR: 0x3c,
+  index: 0,
+  interrupt: 2,
 };
+
+export const INT1: AVRExternalInterrupt = {
+  EICRA: 0x69,
+  EICRB: 0,
+  EIMSK: 0x3d,
+  EIFR: 0x3c,
+  index: 1,
+  interrupt: 4,
+};
+
+export const PCINT0 = {
+  PCIE: 0,
+  PCICR: 0x68,
+  PCIFR: 0x3b,
+  PCMSK: 0x6b,
+  pinChangeInterrupt: 6,
+};
+
+export const PCINT1 = {
+  PCIE: 1,
+  PCICR: 0x68,
+  PCIFR: 0x3b,
+  PCMSK: 0x6c,
+  pinChangeInterrupt: 8,
+};
+
+export const PCINT2 = {
+  PCIE: 2,
+  PCICR: 0x68,
+  PCIFR: 0x3b,
+  PCMSK: 0x6d,
+  pinChangeInterrupt: 10,
+};
+
+export type GPIOListener = (value: u8, oldValue: u8) => void;
 
 export const portBConfig: AVRPortConfig = {
   PIN: 0x23,
   DDR: 0x24,
   PORT: 0x25,
+
+  // Interrupt settings
+  pinChange: PCINT0,
+  externalInterrupts: [],
 };
 
 export const portCConfig: AVRPortConfig = {
   PIN: 0x26,
   DDR: 0x27,
   PORT: 0x28,
+
+  // Interrupt settings
+  pinChange: PCINT1,
+  externalInterrupts: [],
 };
 
 export const portDConfig: AVRPortConfig = {
   PIN: 0x29,
   DDR: 0x2a,
   PORT: 0x2b,
+
+  // Interrupt settings
+  pinChange: PCINT2,
+  externalInterrupts: [null, null, INT0, INT1],
 };
 
 export const portEConfig: AVRPortConfig = {
   PIN: 0x2c,
   DDR: 0x2d,
   PORT: 0x2e,
+  externalInterrupts: [],
 };
 
 export const portFConfig: AVRPortConfig = {
   PIN: 0x2f,
   DDR: 0x30,
   PORT: 0x31,
+  externalInterrupts: [],
 };
 
 export const portGConfig: AVRPortConfig = {
   PIN: 0x32,
   DDR: 0x33,
   PORT: 0x34,
+  externalInterrupts: [],
 };
 
 export const portHConfig: AVRPortConfig = {
   PIN: 0x100,
   DDR: 0x101,
   PORT: 0x102,
+  externalInterrupts: [],
 };
 
 export const portJConfig: AVRPortConfig = {
   PIN: 0x103,
   DDR: 0x104,
   PORT: 0x105,
+  externalInterrupts: [],
 };
 
 export const portKConfig: AVRPortConfig = {
   PIN: 0x106,
   DDR: 0x107,
   PORT: 0x108,
+  externalInterrupts: [],
 };
 
 export const portLConfig: AVRPortConfig = {
   PIN: 0x109,
   DDR: 0x10a,
   PORT: 0x10b,
+  externalInterrupts: [],
 };
 
 export enum PinState {
@@ -103,9 +179,10 @@ export class AVRIOPort {
   private listeners: GPIOListener[] = [];
   private pinValue: u8 = 0;
   private overrideMask: u8 = 0xff;
-  private overrideValue: u8;
+  private overrideValue: u8 = 0;
   private lastValue: u8 = 0;
   private lastDdr: u8 = 0;
+  private lastPin: u8 = 0;
 
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
     cpu.writeHooks[portConfig.DDR] = (value: u8) => {
@@ -128,14 +205,14 @@ export class AVRIOPort {
       const ddrMask = cpu.data[portConfig.DDR];
       const portValue = oldPortValue ^ value;
       cpu.data[portConfig.PORT] = portValue;
-      cpu.data[portConfig.PIN] = (cpu.data[portConfig.PIN] & ~ddrMask) | (portValue & ddrMask);
+      this.updatePinRegister(portValue, ddrMask);
       this.writeGpio(portValue, ddrMask);
       return true;
     };
     // The following hook is used by the timer compare output to override GPIO pins:
     cpu.gpioTimerHooks[portConfig.PORT] = (pin: u8, mode: PinOverrideMode) => {
       const pinMask = 1 << pin;
-      if (mode == PinOverrideMode.None) {
+      if (mode === PinOverrideMode.None) {
         this.overrideMask |= pinMask;
       } else {
         this.overrideMask &= ~pinMask;
@@ -200,7 +277,56 @@ export class AVRIOPort {
   }
 
   private updatePinRegister(port: u8, ddr: u8) {
-    this.cpu.data[this.portConfig.PIN] = (this.pinValue & ~ddr) | (port & ddr);
+    const newPin = (this.pinValue & ~ddr) | (port & ddr);
+    this.cpu.data[this.portConfig.PIN] = newPin;
+    if (this.lastPin !== newPin) {
+      for (let index = 0; index < 8; index++) {
+        if ((newPin & (1 << index)) !== (this.lastPin & (1 << index))) {
+          this.toggleInterrupt(index, !!(newPin & (1 << index)));
+        }
+      }
+      this.lastPin = newPin;
+    }
+  }
+
+  private toggleInterrupt(pin: u8, risingEdge: boolean) {
+    const { externalInterrupts, pinChange } = this.portConfig;
+    const external = externalInterrupts[pin];
+    if (external) {
+      const { index, EICRA, EICRB, EIFR, EIMSK, interrupt } = external;
+      if (this.cpu.data[EIMSK] & (1 << index)) {
+        const configRegister = index >= 4 ? EICRB : EICRA;
+        const configShift = (index % 4) * 2;
+        const configuration = (this.cpu.data[configRegister] >> configShift) & 0x3;
+        let generateInterrupt = false;
+        switch (configuration) {
+          case 0: // TODO  The low level of INTn generates an interrupt request;
+            break;
+          case 1: // Any edge:
+            generateInterrupt = true;
+            break;
+          case 2: // Falling edge
+            generateInterrupt = !risingEdge;
+            break;
+          case 3: // Rising edge
+            generateInterrupt = risingEdge;
+            break;
+        }
+        if (generateInterrupt) {
+          this.cpu.queueInterrupt({
+            address: interrupt,
+            flagRegister: EIFR,
+            flagMask: 1 << index,
+            enableRegister: EIMSK,
+            enableMask: 1 << index,
+          });
+        }
+      }
+    }
+
+    if (pinChange) {
+      // TODO implement pin change interrupts
+    }
   }
 
   private writeGpio(value: u8, ddr: u8) {
