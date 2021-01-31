@@ -4,6 +4,8 @@ JavaScript implementation of the AVR 8-bit architecture
 
 [![Build Status](https://travis-ci.org/wokwi/avr8js.png?branch=master)](https://travis-ci.org/wokwi/avr8js)
 [![NPM Version](https://img.shields.io/npm/v/avr8js)](https://www.npmjs.com/package/avr8js)
+![License: MIT](https://img.shields.io/npm/l/avr8js)
+![Types: TypeScript](https://img.shields.io/npm/types/avr8js)
 [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/wokwi/avr8js)
 
 ## Running the demo project
@@ -62,4 +64,4 @@ For more information, please check the [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
-Copyright (C) 2019, 2020 Uri Shaked. The code is released under the terms of the MIT license.
+Copyright (C) 2019, 2020, 2021 Uri Shaked. The code is released under the terms of the MIT license.
