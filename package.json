@@ -7,6 +7,19 @@
   "author": "Uri Shaked <uri@urishaked.com>",
   "repository": "https://github.com/wokwi/avr8js",
   "license": "MIT",
+  "description": "Arduino (8-bit AVR) simulator, written in JavaScript and runs in the browser / Node.js",
+  "keywords": [
+    "Arduino",
+    "Arduino Uno",
+    "AVR",
+    "8 bit",
+    "MCU",
+    "simulation",
+    "simulator",
+    "ATmega",
+    "ATmega328p",
+    "microcontroller"
+  ],
   "scripts": {
     "build": "rimraf dist && tsc --sourceMap false && tsc -m commonjs --outDir dist/cjs --sourceMap false",
     "build:demo": "parcel build demo/src/index.html -d demo/dist",
