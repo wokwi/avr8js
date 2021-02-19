@@ -53,6 +53,7 @@ export interface AVRInterruptConfig {
   flagRegister: u16;
   flagMask: u8;
   constant?: boolean;
+  inverseFlag?: boolean;
 }
 
 export type AVRClockEventCallback = () => void;
@@ -131,7 +132,7 @@ export class CPU implements ICPU {
 
   setInterruptFlag(interrupt: AVRInterruptConfig) {
     const { flagRegister, flagMask, enableRegister, enableMask } = interrupt;
-    if (interrupt.constant) {
+    if (interrupt.inverseFlag) {
       this.data[flagRegister] &= ~flagMask;
     } else {
       this.data[flagRegister] |= flagMask;

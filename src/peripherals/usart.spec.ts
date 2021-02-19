@@ -18,8 +18,10 @@ const UDR0 = 0xc6;
 // Register bit names
 const U2X0 = 2;
 const TXEN = 8;
+const RXEN = 16;
 const UDRIE = 0x20;
 const TXCIE = 0x40;
+const RXC = 0x80;
 const TXC = 0x40;
 const UDRE = 0x20;
 const USBS = 0x08;
@@ -235,7 +237,20 @@ describe('USART', () => {
     });
   });
 
-  describe('integration', () => {
+  describe('writeByte', () => {
+    it('should return false if called when RX is busy', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(UCSR0B, RXEN);
+      cpu.writeData(UBRR0L, 103); // baud: 9600
+      expect(usart.writeByte(10)).toEqual(true);
+      expect(usart.writeByte(10)).toEqual(false);
+      cpu.tick();
+      expect(usart.writeByte(10)).toEqual(false);
+    });
+  });
+
+  describe('Integration tests', () => {
     it('should set the TXC bit after ~1.04mS when baud rate set to 9600', () => {
       const cpu = new CPU(new Uint16Array(1024));
       new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
@@ -248,6 +263,28 @@ describe('USART', () => {
       cpu.cycles += 800; // 0.05ms
       cpu.tick();
       expect(cpu.data[UCSR0A] & TXC).toEqual(TXC);
+    });
+
+    it('should be ready to recieve the next byte after ~1.04ms when baudrate set to 9600', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      const rxCompleteCallback = jest.fn();
+      usart.onRxComplete = rxCompleteCallback;
+      cpu.writeData(UCSR0B, RXEN);
+      cpu.writeData(UBRR0L, 103); // baud: 9600
+      expect(usart.writeByte(0x42)).toBe(true);
+      cpu.cycles += 16000; // 1ms
+      cpu.tick();
+      expect(cpu.data[UCSR0A] & RXC).toEqual(0); // byte not received yet
+      expect(usart.rxBusy).toBe(true);
+      expect(rxCompleteCallback).not.toHaveBeenCalled();
+      cpu.cycles += 800; // 0.05ms
+      cpu.tick();
+      expect(cpu.data[UCSR0A] & RXC).toEqual(RXC);
+      expect(usart.rxBusy).toBe(false);
+      expect(rxCompleteCallback).toHaveBeenCalled();
+      expect(cpu.readData(UDR0)).toEqual(0x42);
+      expect(cpu.readData(UDR0)).toEqual(0);
     });
   });
 });

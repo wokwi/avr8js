@@ -65,13 +65,31 @@ const UCSRC_UCSZ0 = 0x2; // Character Size 0
 const UCSRC_UCPOL = 0x1; // Clock Polarity
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
+const rxMasks = {
+  5: 0x1f,
+  6: 0x3f,
+  7: 0x7f,
+  8: 0xff,
+  9: 0xff,
+};
 export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
   public onLineTransmit: USARTLineTransmitCallback | null = null;
+  public onRxComplete: (() => void) | null = null;
 
+  private rxBusyValue = false;
+  private rxByte = 0;
   private lineBuffer = '';
 
   // Interrupts
+  private RXC: AVRInterruptConfig = {
+    address: this.config.rxCompleteInterrupt,
+    flagRegister: this.config.UCSRA,
+    flagMask: UCSRA_RXC,
+    enableRegister: this.config.UCSRB,
+    enableMask: UCSRB_RXCIE,
+    constant: true,
+  };
   private UDRE: AVRInterruptConfig = {
     address: this.config.dataRegisterEmptyInterrupt,
     flagRegister: this.config.UCSRA,
@@ -90,18 +108,28 @@ export class AVRUSART {
   constructor(private cpu: CPU, private config: USARTConfig, private freqHz: number) {
     this.reset();
     this.cpu.writeHooks[config.UCSRA] = (value) => {
-      cpu.data[config.UCSRA] = value;
-      cpu.clearInterruptByFlag(this.UDRE, value);
+      cpu.data[config.UCSRA] = value & (UCSRA_MPCM | UCSRA_U2X);
       cpu.clearInterruptByFlag(this.TXC, value);
       return true;
     };
     this.cpu.writeHooks[config.UCSRB] = (value, oldValue) => {
+      cpu.updateInterruptEnable(this.RXC, value);
       cpu.updateInterruptEnable(this.UDRE, value);
       cpu.updateInterruptEnable(this.TXC, value);
+      if (value & UCSRB_RXEN && oldValue & UCSRB_RXEN) {
+        cpu.clearInterrupt(this.RXC);
+      }
       if (value & UCSRB_TXEN && !(oldValue & UCSRB_TXEN)) {
         // Enabling the transmission - mark UDR as empty
         cpu.setInterruptFlag(this.UDRE);
       }
+    };
+    this.cpu.readHooks[config.UDR] = () => {
+      const mask = rxMasks[this.bitsPerChar] ?? 0xff;
+      const result = this.rxByte & mask;
+      this.rxByte = 0;
+      this.cpu.clearInterrupt(this.RXC);
+      return result;
     };
     this.cpu.writeHooks[config.UDR] = (value) => {
       if (this.onByteTransmit) {
@@ -116,12 +144,10 @@ export class AVRUSART {
           this.lineBuffer += ch;
         }
       }
-      const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
-      const cyclesToComplete = (this.UBRR * this.multiplier + 1) * symbolsPerChar;
       this.cpu.addClockEvent(() => {
         cpu.setInterruptFlag(this.UDRE);
         cpu.setInterruptFlag(this.TXC);
-      }, cyclesToComplete);
+      }, this.cyclesPerChar);
       this.cpu.clearInterrupt(this.TXC);
       this.cpu.clearInterrupt(this.UDRE);
     };
@@ -131,6 +157,33 @@ export class AVRUSART {
     this.cpu.data[this.config.UCSRA] = UCSRA_UDRE;
     this.cpu.data[this.config.UCSRB] = 0;
     this.cpu.data[this.config.UCSRC] = UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
+    this.rxBusyValue = false;
+    this.rxByte = 0;
+    this.lineBuffer = '';
+  }
+
+  get rxBusy() {
+    return this.rxBusyValue;
+  }
+
+  writeByte(value: number) {
+    const { cpu, config } = this;
+    if (this.rxBusyValue || !(cpu.data[config.UCSRB] & UCSRB_RXEN)) {
+      return false;
+    }
+    this.rxBusyValue = true;
+    cpu.addClockEvent(() => {
+      this.rxByte = value;
+      this.rxBusyValue = false;
+      cpu.setInterruptFlag(this.RXC);
+      this.onRxComplete?.();
+    }, this.cyclesPerChar);
+    return true;
+  }
+
+  private get cyclesPerChar() {
+    const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
+    return (this.UBRR * this.multiplier + 1) * symbolsPerChar;
   }
 
   private get UBRR() {

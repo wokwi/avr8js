@@ -78,6 +78,7 @@ export class AVREEPROM {
     enableRegister: this.config.EECR,
     enableMask: EERIE,
     constant: true,
+    inverseFlag: true,
   };
 
   constructor(
