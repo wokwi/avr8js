@@ -36,6 +36,8 @@ A step-by-step video tutorial showing how to build a simple Arduino simulator us
 
 [![AVR8JS Walkthrough Video](https://i.imgur.com/3meSd1m.png)](https://youtu.be/fArqj-USmjA)
 
+And a related [blog post](https://blog.wokwi.com/avr8js-simulate-arduino-in-javascript/).
+
 ### Unofficial examples
 
 These examples show working examples of using `avr8js` in an application. Many of them also demonstrate how to use the `wokwi-elements` and include working examples of functional simulations of the components, and how to hook them up to `avr8js`.
