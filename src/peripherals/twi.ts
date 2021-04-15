@@ -119,7 +119,7 @@ export class AVRTWI {
             this.eventHandler.start(status !== STATUS_TWI_IDLE);
           } else if (value & TWCR_TWSTO) {
             this.eventHandler.stop();
-          } else if (status === STATUS_START) {
+          } else if (status === STATUS_START || status === STATUS_REPEATED_START) {
             this.eventHandler.connectToSlave(twdrValue >> 1, twdrValue & 0x1 ? false : true);
           } else if (status === STATUS_SLAW_ACK || status === STATUS_DATA_SENT_ACK) {
             this.eventHandler.writeByte(twdrValue);

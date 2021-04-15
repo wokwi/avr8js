@@ -68,6 +68,31 @@ describe('TWI', () => {
       expect(twi.eventHandler.start).toHaveBeenCalledWith(false);
     });
 
+    it('should connect successfully in case of repeated start (issue #91)', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
+
+      // Start condition
+      cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
+      cpu.cycles++;
+      cpu.tick();
+
+      // Repeated start
+      jest.spyOn(twi.eventHandler, 'start');
+      cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
+      cpu.cycles++;
+      cpu.tick();
+      expect(twi.eventHandler.start).toHaveBeenCalledWith(true);
+
+      // Now try to connect...
+      jest.spyOn(twi.eventHandler, 'connectToSlave');
+      cpu.writeData(TWDR, 0x80); // Address 0x40, write mode
+      cpu.writeData(TWCR, TWINT | TWEN);
+      cpu.cycles++;
+      cpu.tick();
+      expect(twi.eventHandler.connectToSlave).toHaveBeenCalledWith(0x40, true);
+    });
+
     it('should successfully transmit a byte to a slave', () => {
       // based on the example in page 225 of the datasheet:
       // https://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
