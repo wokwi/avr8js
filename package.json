@@ -23,7 +23,7 @@
   "scripts": {
     "build": "rimraf dist && tsc --sourceMap false && tsc -m commonjs --outDir dist/cjs --sourceMap false",
     "build:demo": "parcel build demo/src/index.html -d demo/dist",
-    "prepare": "npm run build",
+    "prepare": "husky install && npm run build",
     "start": "parcel demo/src/index.html -d demo/build",
     "lint": "eslint src/**/*.ts demo/**/*.ts",
     "test": "npm run lint && jest",
@@ -47,7 +47,7 @@
     "eslint-plugin-jest": "^23.18.0",
     "eslint-plugin-json": "^2.1.1",
     "eslint-plugin-prettier": "^3.1.4",
-    "husky": "^3.0.9",
+    "husky": "^6.0.0",
     "jest": "^26.1.0",
     "lint-staged": "^9.5.0",
     "parcel-bundler": "^1.12.4",
@@ -56,11 +56,6 @@
     "ts-jest": "^26.1.2",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.6"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
