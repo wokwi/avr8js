@@ -548,13 +548,13 @@ export class AVRTimer {
   private timerUpdated(value: number, prevValue: number) {
     const { ocrA, ocrB } = this;
     const overflow = prevValue > value;
-    if ((prevValue < ocrA || overflow) && value >= ocrA) {
+    if (((prevValue < ocrA || overflow) && value >= ocrA) || (prevValue < ocrA && overflow)) {
       this.cpu.setInterruptFlag(this.OCFA);
       if (this.compA) {
         this.updateCompPin(this.compA, 'A');
       }
     }
-    if ((prevValue < ocrB || overflow) && value >= ocrB) {
+    if (((prevValue < ocrB || overflow) && value >= ocrB) || (prevValue < ocrB && overflow)) {
       this.cpu.setInterruptFlag(this.OCFB);
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');

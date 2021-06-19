@@ -37,6 +37,7 @@ const ICR1 = 0x86;
 const ICR1H = 0x87;
 const OCR1A = 0x88;
 const OCR1AH = 0x89;
+const OCR1B = 0x8a;
 
 // Timer 2 Registers
 const TCCR2B = 0xb1;
@@ -51,8 +52,11 @@ const TOIE0 = 1;
 const OCF0A = 2;
 const OCF0B = 4;
 const OCF1A = 2;
+const OCF1B = 4;
 const WGM00 = 1;
+const WGM10 = 1;
 const WGM01 = 2;
+const WGM11 = 2;
 const WGM12 = 8;
 const WGM13 = 16;
 const CS00 = 1;
@@ -256,6 +260,24 @@ describe('timer', () => {
     expect(cpu.data[TIFR0] & (OCF0A | OCF0B)).toEqual(OCF0A | OCF0B);
     expect(cpu.pc).toEqual(0);
     expect(cpu.cycles).toEqual(2);
+  });
+
+  it('should set the OCF1A flag when OCR1A == 120 and the timer overflowed past 120 in WGM mode 15 (issue #94)', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer1Config);
+    cpu.writeData(TCNT1, 118);
+    cpu.writeData(OCR1A, 120);
+    cpu.writeData(OCR1B, 4); // To avoid getting the OCF1B flag set
+    cpu.writeData(TCCR1A, WGM10 | WGM11); // WGM: Fast PWM
+    cpu.writeData(TCCR1B, WGM12 | WGM13 | CS10); // Set prescaler to 1
+    cpu.cycles = 1;
+    cpu.tick();
+    cpu.cycles = 5;
+    cpu.tick();
+    expect(cpu.readData(TCNT1)).toEqual(1);
+    expect(cpu.data[TIFR1] & (OCF1A | OCF1B)).toEqual(OCF1A);
+    expect(cpu.pc).toEqual(0);
+    expect(cpu.cycles).toEqual(5);
   });
 
   it('should set OCF0A flag when timer equals OCRA', () => {
