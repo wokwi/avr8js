@@ -61,6 +61,7 @@ export type AVRClockEventCallback = () => void;
 interface AVRClockEventEntry {
   cycles: number;
   callback: AVRClockEventCallback;
+  next: AVRClockEventEntry | null;
 }
 
 export class CPU implements ICPU {
@@ -71,7 +72,8 @@ export class CPU implements ICPU {
   readonly readHooks: CPUMemoryReadHooks = [];
   readonly writeHooks: CPUMemoryHooks = [];
   private readonly pendingInterrupts: AVRInterruptConfig[] = [];
-  private readonly clockEvents: AVRClockEventEntry[] = [];
+  private nextClockEvent: AVRClockEventEntry | null = null;
+  private readonly clockEventPool: AVRClockEventEntry[] = []; // helps avoid garbage collection
   readonly pc22Bits = this.progBytes.length > 0x20000;
 
   // This lets the Timer Compare output override GPIO pins:
@@ -80,7 +82,6 @@ export class CPU implements ICPU {
   pc: u32 = 0;
   cycles: u32 = 0;
   nextInterrupt: i16 = -1;
-  private nextClockEvent: u32 = 0;
 
   constructor(public progMem: Uint16Array, private sramBytes = 8192) {
     this.reset();
@@ -175,22 +176,25 @@ export class CPU implements ICPU {
   }
 
   addClockEvent(callback: AVRClockEventCallback, cycles: number) {
-    const entry = { cycles: this.cycles + Math.max(1, cycles), callback };
-    // Add the new entry while keeping the array sorted
-    const { clockEvents } = this;
-    if (!clockEvents.length || clockEvents[clockEvents.length - 1].cycles <= entry.cycles) {
-      clockEvents.push(entry);
-    } else if (clockEvents[0].cycles >= entry.cycles) {
-      clockEvents.unshift(entry);
-    } else {
-      for (let i = 1; i < clockEvents.length; i++) {
-        if (clockEvents[i].cycles >= entry.cycles) {
-          clockEvents.splice(i, 0, entry);
-          break;
-        }
-      }
+    const { clockEventPool } = this;
+    cycles = this.cycles + Math.max(1, cycles);
+    const maybeEntry = clockEventPool.pop();
+    const entry: AVRClockEventEntry = maybeEntry ?? { cycles, callback, next: null };
+    entry.cycles = cycles;
+    entry.callback = callback;
+    let { nextClockEvent: clockEvent } = this;
+    let lastItem = null;
+    while (clockEvent && clockEvent.cycles < cycles) {
+      lastItem = clockEvent;
+      clockEvent = clockEvent.next;
     }
-    this.nextClockEvent = this.clockEvents[0].cycles;
+    if (lastItem) {
+      lastItem.next = entry;
+      entry.next = clockEvent;
+    } else {
+      this.nextClockEvent = entry;
+      entry.next = clockEvent;
+    }
     return callback;
   }
 
@@ -203,20 +207,38 @@ export class CPU implements ICPU {
   }
 
   clearClockEvent(callback: AVRClockEventCallback) {
-    const index = this.clockEvents.findIndex((item) => item.callback === callback);
-    if (index >= 0) {
-      this.clockEvents.splice(index, 1);
-      this.nextClockEvent = this.clockEvents[0]?.cycles ?? 0;
-      return true;
+    let { nextClockEvent: clockEvent } = this;
+    if (!clockEvent) {
+      return false;
+    }
+    const { clockEventPool } = this;
+    let lastItem = null;
+    while (clockEvent) {
+      if (clockEvent.callback === callback) {
+        if (lastItem) {
+          lastItem.next = clockEvent.next;
+        } else {
+          this.nextClockEvent = clockEvent.next;
+        }
+        if (clockEventPool.length < 10) {
+          clockEventPool.push(clockEvent);
+        }
+        return true;
+      }
+      lastItem = clockEvent;
+      clockEvent = clockEvent.next;
     }
     return false;
   }
 
   tick() {
-    const { nextClockEvent, clockEvents } = this;
-    if (nextClockEvent && nextClockEvent <= this.cycles) {
-      clockEvents.shift()?.callback();
-      this.nextClockEvent = clockEvents[0]?.cycles ?? 0;
+    const { nextClockEvent } = this;
+    if (nextClockEvent && nextClockEvent.cycles <= this.cycles) {
+      nextClockEvent.callback();
+      this.nextClockEvent = nextClockEvent.next;
+      if (this.clockEventPool.length < 10) {
+        this.clockEventPool.push(nextClockEvent);
+      }
     }
 
     const { nextInterrupt } = this;
