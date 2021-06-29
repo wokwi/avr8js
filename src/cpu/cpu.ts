@@ -5,6 +5,7 @@
  * Copyright (C) 2019, Uri Shaked
  */
 
+import { AVRIOPort } from '../peripherals/gpio';
 import { u32, u16, u8, i16 } from '../types';
 import { avrInterrupt } from './interrupt';
 
@@ -78,6 +79,7 @@ export class CPU implements ICPU {
 
   // This lets the Timer Compare output override GPIO pins:
   readonly gpioTimerHooks: CPUMemoryHooks = [];
+  readonly gpioPorts = new Set<AVRIOPort>();
 
   pc: u32 = 0;
   cycles: u32 = 0;

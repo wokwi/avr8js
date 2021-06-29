@@ -175,6 +175,13 @@ export enum PinOverrideMode {
   Toggle,
 }
 
+enum InterruptMode {
+  LowLevel,
+  Change,
+  FallingEdge,
+  RisingEdge,
+}
+
 export class AVRIOPort {
   private listeners: GPIOListener[] = [];
   private pinValue: u8 = 0;
@@ -185,6 +192,7 @@ export class AVRIOPort {
   private lastPin: u8 = 0;
 
   constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
+    cpu.gpioPorts.add(this);
     cpu.writeHooks[portConfig.DDR] = (value: u8) => {
       const portValue = cpu.data[portConfig.PORT];
       cpu.data[portConfig.DDR] = value;
@@ -234,6 +242,14 @@ export class AVRIOPort {
       }
       this.writeGpio(cpu.data[portConfig.PORT], cpu.data[portConfig.DDR]);
     };
+
+    const { externalInterrupts } = portConfig;
+    const EICRA = externalInterrupts.find((item) => item && item.EICRA)?.EICRA ?? 0;
+    this.attachInterruptHook(EICRA);
+    const EICRB = externalInterrupts.find((item) => item && item.EICRB)?.EICRB ?? 0;
+    this.attachInterruptHook(EICRB);
+    const EIMSK = externalInterrupts.find((item) => item && item.EIMSK)?.EIMSK ?? 0;
+    this.attachInterruptHook(EIMSK);
   }
 
   addListener(listener: GPIOListener) {
@@ -299,33 +315,84 @@ export class AVRIOPort {
         const configShift = (index % 4) * 2;
         const configuration = (this.cpu.data[configRegister] >> configShift) & 0x3;
         let generateInterrupt = false;
+        let constantInterrupt = false;
         switch (configuration) {
-          case 0: // TODO  The low level of INTn generates an interrupt request;
+          case InterruptMode.LowLevel:
+            generateInterrupt = !risingEdge;
+            constantInterrupt = true;
             break;
-          case 1: // Any edge:
+          case InterruptMode.Change:
             generateInterrupt = true;
             break;
-          case 2: // Falling edge
+          case InterruptMode.FallingEdge:
             generateInterrupt = !risingEdge;
             break;
-          case 3: // Rising edge
+          case InterruptMode.RisingEdge:
             generateInterrupt = risingEdge;
             break;
         }
+        const interruptConfig = {
+          address: interrupt,
+          flagRegister: EIFR,
+          flagMask: 1 << index,
+          enableRegister: EIMSK,
+          enableMask: 1 << index,
+          constant: constantInterrupt,
+        };
         if (generateInterrupt) {
-          this.cpu.queueInterrupt({
-            address: interrupt,
-            flagRegister: EIFR,
-            flagMask: 1 << index,
-            enableRegister: EIMSK,
-            enableMask: 1 << index,
-          });
+          this.cpu.queueInterrupt(interruptConfig);
+        } else if (constantInterrupt) {
+          this.cpu.clearInterrupt(interruptConfig, true);
         }
       }
     }
 
     if (pinChange) {
       // TODO implement pin change interrupts
+    }
+  }
+
+  private attachInterruptHook(register: number) {
+    if (!register) {
+      return;
+    }
+
+    this.cpu.writeHooks[register] = (value: u8) => {
+      this.cpu.data[register] = value;
+      for (const gpio of this.cpu.gpioPorts) {
+        gpio.checkExternalInterrupts();
+      }
+
+      return true;
+    };
+  }
+
+  private checkExternalInterrupts() {
+    const { cpu } = this;
+    const { externalInterrupts } = this.portConfig;
+    for (let pin = 0; pin < 8; pin++) {
+      const external = externalInterrupts[pin];
+      if (!external) {
+        continue;
+      }
+      const pinValue = !!(this.lastPin & (1 << pin));
+      const { index, EICRA, EICRB, EIMSK, EIFR, interrupt } = external;
+      if (!(cpu.data[EIMSK] & (1 << index)) || pinValue) {
+        continue;
+      }
+      const configRegister = index >= 4 ? EICRB : EICRA;
+      const configShift = (index % 4) * 2;
+      const configuration = (cpu.data[configRegister] >> configShift) & 0x3;
+      if (configuration === InterruptMode.LowLevel) {
+        cpu.queueInterrupt({
+          address: interrupt,
+          flagRegister: EIFR,
+          flagMask: 1 << index,
+          enableRegister: EIMSK,
+          enableMask: 1 << index,
+          constant: true,
+        });
+      }
     }
   }
 
