@@ -1,5 +1,5 @@
 import { CPU } from '../cpu/cpu';
-import { AVRIOPort, portBConfig, PinState } from './gpio';
+import { AVRIOPort, portBConfig, PinState, portDConfig } from './gpio';
 
 // CPU registers
 const SREG = 95;
@@ -8,11 +8,17 @@ const SREG = 95;
 const PINB = 0x23;
 const DDRB = 0x24;
 const PORTB = 0x25;
+const EIFR = 0x3c;
+const EIMSK = 0x3d;
 const PCICR = 0x68;
+const EICRA = 0x69;
 const PCIFR = 0x3b;
 const PCMSK0 = 0x6b;
 
 // Register bit names
+const INT0 = 0;
+const ISC00 = 0;
+const ISC01 = 1;
 const PCIE0 = 0;
 const PCINT3 = 3;
 
@@ -21,8 +27,10 @@ const PB0 = 0;
 const PB1 = 1;
 const PB3 = 3;
 const PB4 = 4;
+const PD2 = 2;
 
 // Interrupt vector addresses
+const PC_INT_INT0 = 2;
 const PC_INT_PCINT0 = 6;
 
 describe('GPIO', () => {
@@ -160,6 +168,92 @@ describe('GPIO', () => {
       expect(cpu.data[PINB]).toEqual(0x0);
       cpu.writeData(DDRB, 0x0);
       expect(cpu.data[PINB]).toEqual(0x10);
+    });
+  });
+
+  describe('External interrupt', () => {
+    it('should generate INT0 interrupt on rising edge', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portDConfig);
+      cpu.writeData(EIMSK, 1 << INT0);
+      cpu.writeData(EICRA, (1 << ISC01) | (1 << ISC00));
+
+      expect(cpu.data[EIFR]).toEqual(0);
+      port.setPin(PD2, true);
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+
+      cpu.data[SREG] = 0x80; // SREG: I------- (enable interrupts)
+      cpu.tick();
+      expect(cpu.pc).toEqual(PC_INT_INT0);
+      expect(cpu.cycles).toEqual(2);
+      expect(cpu.data[EIFR]).toEqual(0);
+
+      port.setPin(PD2, false);
+      expect(cpu.data[EIFR]).toEqual(0);
+    });
+
+    it('should generate INT0 interrupt on falling edge', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portDConfig);
+      cpu.writeData(EIMSK, 1 << INT0);
+      cpu.writeData(EICRA, 1 << ISC01);
+
+      expect(cpu.data[EIFR]).toEqual(0);
+      port.setPin(PD2, true);
+      expect(cpu.data[EIFR]).toEqual(0);
+      port.setPin(PD2, false);
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+
+      cpu.data[SREG] = 0x80; // SREG: I------- (enable interrupts)
+      cpu.tick();
+      expect(cpu.pc).toEqual(PC_INT_INT0);
+      expect(cpu.cycles).toEqual(2);
+      expect(cpu.data[EIFR]).toEqual(0);
+    });
+
+    it('should generate INT0 interrupt on level change', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portDConfig);
+      cpu.writeData(EIMSK, 1 << INT0);
+      cpu.writeData(EICRA, 1 << ISC00);
+
+      expect(cpu.data[EIFR]).toEqual(0);
+      port.setPin(PD2, true);
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+      cpu.writeData(EIFR, 1 << INT0);
+      expect(cpu.data[EIFR]).toEqual(0);
+      port.setPin(PD2, false);
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+    });
+
+    it('should a sticky INT0 interrupt while the pin level is low', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portDConfig);
+      cpu.writeData(EIMSK, 1 << INT0);
+      cpu.writeData(EICRA, 0);
+      expect(cpu.data[EIFR]).toEqual(0);
+
+      port.setPin(PD2, true);
+      expect(cpu.data[EIFR]).toEqual(0);
+
+      port.setPin(PD2, false);
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+
+      // This is a sticky interrupt, verify we can't clear the flag:
+      cpu.writeData(EIFR, 1 << INT0);
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+
+      cpu.data[SREG] = 0x80; // SREG: I------- (enable interrupts)
+      cpu.tick();
+      expect(cpu.pc).toEqual(PC_INT_INT0);
+      expect(cpu.cycles).toEqual(2);
+
+      // Flag shouldn't be cleared, as the interrupt is sticky
+      expect(cpu.data[EIFR]).toEqual(1 << INT0);
+
+      // But it will be cleared as soon as the pin goes high.
+      port.setPin(PD2, true);
+      expect(cpu.data[EIFR]).toEqual(0);
     });
   });
 

@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2019, 2020, 2021 Uri Shaked
  */
-import { CPU } from '../cpu/cpu';
+import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 
 export interface AVRExternalInterrupt {
@@ -198,6 +198,7 @@ enum InterruptMode {
 }
 
 export class AVRIOPort {
+  private readonly externalInts: (AVRInterruptConfig | null)[];
   private listeners: GPIOListener[] = [];
   private pinValue: u8 = 0;
   private overrideMask: u8 = 0xff;
@@ -259,12 +260,25 @@ export class AVRIOPort {
     };
 
     const { externalInterrupts } = portConfig;
+    this.externalInts = externalInterrupts.map((externalConfig) =>
+      externalConfig
+        ? {
+            address: externalConfig.interrupt,
+            flagRegister: externalConfig.EIFR,
+            flagMask: 1 << externalConfig.index,
+            enableRegister: externalConfig.EIMSK,
+            enableMask: 1 << externalConfig.index,
+          }
+        : null
+    );
     const EICRA = externalInterrupts.find((item) => item && item.EICRA)?.EICRA ?? 0;
     this.attachInterruptHook(EICRA);
     const EICRB = externalInterrupts.find((item) => item && item.EICRB)?.EICRB ?? 0;
     this.attachInterruptHook(EICRB);
     const EIMSK = externalInterrupts.find((item) => item && item.EIMSK)?.EIMSK ?? 0;
-    this.attachInterruptHook(EIMSK);
+    this.attachInterruptHook(EIMSK, 'mask');
+    const EIFR = externalInterrupts.find((item) => item && item.EIFR)?.EIFR ?? 0;
+    this.attachInterruptHook(EIFR, 'flag');
   }
 
   addListener(listener: GPIOListener) {
@@ -323,19 +337,20 @@ export class AVRIOPort {
   private toggleInterrupt(pin: u8, risingEdge: boolean) {
     const { cpu, portConfig } = this;
     const { externalInterrupts, pinChange } = portConfig;
-    const external = externalInterrupts[pin];
-    if (external) {
-      const { index, EICRA, EICRB, EIFR, EIMSK, interrupt } = external;
+    const externalConfig = externalInterrupts[pin];
+    const external = this.externalInts[pin];
+    if (external && externalConfig) {
+      const { index, EICRA, EICRB, EIMSK } = externalConfig;
       if (cpu.data[EIMSK] & (1 << index)) {
         const configRegister = index >= 4 ? EICRB : EICRA;
         const configShift = (index % 4) * 2;
         const configuration = (cpu.data[configRegister] >> configShift) & 0x3;
         let generateInterrupt = false;
-        let constantInterrupt = false;
+        external.constant = false;
         switch (configuration) {
           case InterruptMode.LowLevel:
             generateInterrupt = !risingEdge;
-            constantInterrupt = true;
+            external.constant = true;
             break;
           case InterruptMode.Change:
             generateInterrupt = true;
@@ -347,18 +362,10 @@ export class AVRIOPort {
             generateInterrupt = risingEdge;
             break;
         }
-        const interruptConfig = {
-          address: interrupt,
-          flagRegister: EIFR,
-          flagMask: 1 << index,
-          enableRegister: EIMSK,
-          enableMask: 1 << index,
-          constant: constantInterrupt,
-        };
         if (generateInterrupt) {
-          cpu.queueInterrupt(interruptConfig);
-        } else if (constantInterrupt) {
-          cpu.clearInterrupt(interruptConfig, true);
+          cpu.setInterruptFlag(external);
+        } else if (external.constant) {
+          cpu.clearInterrupt(external, true);
         }
       }
     }
@@ -377,14 +384,27 @@ export class AVRIOPort {
     }
   }
 
-  private attachInterruptHook(register: number) {
+  private attachInterruptHook(register: number, registerType: 'flag' | 'mask' | 'other' = 'other') {
     if (!register) {
       return;
     }
 
-    this.cpu.writeHooks[register] = (value: u8) => {
-      this.cpu.data[register] = value;
-      for (const gpio of this.cpu.gpioPorts) {
+    const { cpu } = this;
+
+    cpu.writeHooks[register] = (value: u8) => {
+      if (registerType !== 'flag') {
+        cpu.data[register] = value;
+      }
+      for (const gpio of cpu.gpioPorts) {
+        for (const external of gpio.externalInts) {
+          if (external && registerType === 'mask') {
+            cpu.updateInterruptEnable(external, value);
+          }
+          if (external && !external.constant && registerType === 'flag') {
+            cpu.clearInterruptByFlag(external, value);
+          }
+        }
+
         gpio.checkExternalInterrupts();
       }
 
