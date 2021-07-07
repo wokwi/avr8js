@@ -292,5 +292,18 @@ describe('GPIO', () => {
       expect(cpu.cycles).toEqual(2);
       expect(cpu.data[PCIFR]).toEqual(0);
     });
+
+    it('should clear the interrupt flag when writing to PCIFR', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const port = new AVRIOPort(cpu, portBConfig);
+      cpu.writeData(PCICR, 1 << PCIE0);
+      cpu.writeData(PCMSK0, 1 << PCINT3);
+
+      port.setPin(PB3, true);
+      expect(cpu.data[PCIFR]).toEqual(1 << PCIE0);
+
+      cpu.writeData(PCIFR, 1 << PCIE0);
+      expect(cpu.data[PCIFR]).toEqual(0);
+    });
   });
 });

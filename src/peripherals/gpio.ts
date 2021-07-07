@@ -199,6 +199,7 @@ enum InterruptMode {
 
 export class AVRIOPort {
   private readonly externalInts: (AVRInterruptConfig | null)[];
+  private readonly PCINT: AVRInterruptConfig | null;
   private listeners: GPIOListener[] = [];
   private pinValue: u8 = 0;
   private overrideMask: u8 = 0xff;
@@ -259,6 +260,7 @@ export class AVRIOPort {
       this.writeGpio(cpu.data[portConfig.PORT], cpu.data[portConfig.DDR]);
     };
 
+    // External interrupts
     const { externalInterrupts } = portConfig;
     this.externalInts = externalInterrupts.map((externalConfig) =>
       externalConfig
@@ -279,6 +281,40 @@ export class AVRIOPort {
     this.attachInterruptHook(EIMSK, 'mask');
     const EIFR = externalInterrupts.find((item) => item && item.EIFR)?.EIFR ?? 0;
     this.attachInterruptHook(EIFR, 'flag');
+
+    // Pin change interrupts
+    const { pinChange } = portConfig;
+    this.PCINT = pinChange
+      ? {
+          address: pinChange.pinChangeInterrupt,
+          flagRegister: pinChange.PCIFR,
+          flagMask: 1 << pinChange.PCIE,
+          enableRegister: pinChange.PCICR,
+          enableMask: 1 << pinChange.PCIE,
+        }
+      : null;
+    if (pinChange) {
+      const { PCIFR, PCMSK } = pinChange;
+      cpu.writeHooks[PCIFR] = (value) => {
+        for (const gpio of this.cpu.gpioPorts) {
+          const { PCINT } = gpio;
+          if (PCINT) {
+            cpu.clearInterruptByFlag(PCINT, value);
+          }
+        }
+        return true;
+      };
+      cpu.writeHooks[PCMSK] = (value) => {
+        cpu.data[PCMSK] = value;
+        for (const gpio of this.cpu.gpioPorts) {
+          const { PCINT } = gpio;
+          if (PCINT) {
+            cpu.updateInterruptEnable(PCINT, value);
+          }
+        }
+        return true;
+      };
+    }
   }
 
   addListener(listener: GPIOListener) {
@@ -335,10 +371,10 @@ export class AVRIOPort {
   }
 
   private toggleInterrupt(pin: u8, risingEdge: boolean) {
-    const { cpu, portConfig } = this;
+    const { cpu, portConfig, externalInts, PCINT } = this;
     const { externalInterrupts, pinChange } = portConfig;
     const externalConfig = externalInterrupts[pin];
-    const external = this.externalInts[pin];
+    const external = externalInts[pin];
     if (external && externalConfig) {
       const { index, EICRA, EICRB, EIMSK } = externalConfig;
       if (cpu.data[EIMSK] & (1 << index)) {
@@ -370,16 +406,10 @@ export class AVRIOPort {
       }
     }
 
-    if (pinChange && pinChange.mask & (1 << pin)) {
-      const { PCIE, PCMSK, PCIFR, PCICR, pinChangeInterrupt } = pinChange;
+    if (pinChange && PCINT && pinChange.mask & (1 << pin)) {
+      const { PCMSK } = pinChange;
       if (cpu.data[PCMSK] & (1 << (pin + pinChange.offset))) {
-        cpu.setInterruptFlag({
-          address: pinChangeInterrupt,
-          flagRegister: PCIFR,
-          flagMask: 1 << PCIE,
-          enableRegister: PCICR,
-          enableMask: 1 << PCIE,
-        });
+        cpu.setInterruptFlag(PCINT);
       }
     }
   }
