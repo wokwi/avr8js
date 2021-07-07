@@ -3,7 +3,7 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, 2020, 2021, Uri Shaked
+ * Copyright (C) 2019, 2020, 2021 Uri Shaked
  */
 import { CPU } from '../cpu/cpu';
 import { u8 } from '../types';
@@ -23,6 +23,8 @@ export interface AVRPinChangeInterrupt {
   PCIFR: u8;
   PCMSK: u8;
   pinChangeInterrupt: u8;
+  mask: u8;
+  offset: u8;
 }
 
 export interface AVRPortConfig {
@@ -60,6 +62,8 @@ export const PCINT0 = {
   PCIFR: 0x3b,
   PCMSK: 0x6b,
   pinChangeInterrupt: 6,
+  mask: 0xff,
+  offset: 0,
 };
 
 export const PCINT1 = {
@@ -68,6 +72,8 @@ export const PCINT1 = {
   PCIFR: 0x3b,
   PCMSK: 0x6c,
   pinChangeInterrupt: 8,
+  mask: 0xff,
+  offset: 0,
 };
 
 export const PCINT2 = {
@@ -76,6 +82,8 @@ export const PCINT2 = {
   PCIFR: 0x3b,
   PCMSK: 0x6d,
   pinChangeInterrupt: 10,
+  mask: 0xff,
+  offset: 0,
 };
 
 export type GPIOListener = (value: u8, oldValue: u8) => void;
@@ -313,14 +321,15 @@ export class AVRIOPort {
   }
 
   private toggleInterrupt(pin: u8, risingEdge: boolean) {
-    const { externalInterrupts, pinChange } = this.portConfig;
+    const { cpu, portConfig } = this;
+    const { externalInterrupts, pinChange } = portConfig;
     const external = externalInterrupts[pin];
     if (external) {
       const { index, EICRA, EICRB, EIFR, EIMSK, interrupt } = external;
-      if (this.cpu.data[EIMSK] & (1 << index)) {
+      if (cpu.data[EIMSK] & (1 << index)) {
         const configRegister = index >= 4 ? EICRB : EICRA;
         const configShift = (index % 4) * 2;
-        const configuration = (this.cpu.data[configRegister] >> configShift) & 0x3;
+        const configuration = (cpu.data[configRegister] >> configShift) & 0x3;
         let generateInterrupt = false;
         let constantInterrupt = false;
         switch (configuration) {
@@ -347,15 +356,24 @@ export class AVRIOPort {
           constant: constantInterrupt,
         };
         if (generateInterrupt) {
-          this.cpu.queueInterrupt(interruptConfig);
+          cpu.queueInterrupt(interruptConfig);
         } else if (constantInterrupt) {
-          this.cpu.clearInterrupt(interruptConfig, true);
+          cpu.clearInterrupt(interruptConfig, true);
         }
       }
     }
 
-    if (pinChange) {
-      // TODO implement pin change interrupts
+    if (pinChange && pinChange.mask & (1 << pin)) {
+      const { PCIE, PCMSK, PCIFR, PCICR, pinChangeInterrupt } = pinChange;
+      if (cpu.data[PCMSK] & (1 << (pin + pinChange.offset))) {
+        cpu.setInterruptFlag({
+          address: pinChangeInterrupt,
+          flagRegister: PCIFR,
+          flagMask: 1 << PCIE,
+          enableRegister: PCICR,
+          enableMask: 1 << PCIE,
+        });
+      }
     }
   }
 
