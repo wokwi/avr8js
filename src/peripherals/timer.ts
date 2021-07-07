@@ -320,10 +320,10 @@ export class AVRTimer {
         this.ocrB = this.nextOcrB;
       }
     };
-    this.cpu.writeHooks[config.ICR] = (value: u8) => {
-      this.icr = (this.highByteTemp << 8) | value;
-    };
     if (this.config.bits === 16) {
+      this.cpu.writeHooks[config.ICR] = (value: u8) => {
+        this.icr = (this.highByteTemp << 8) | value;
+      };
       const updateTempRegister = (value: u8) => {
         this.highByteTemp = value;
       };
