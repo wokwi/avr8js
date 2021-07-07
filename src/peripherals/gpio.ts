@@ -80,6 +80,13 @@ export const PCINT2 = {
 
 export type GPIOListener = (value: u8, oldValue: u8) => void;
 
+export const portAConfig: AVRPortConfig = {
+  PIN: 0x20,
+  DDR: 0x21,
+  PORT: 0x22,
+  externalInterrupts: [],
+};
+
 export const portBConfig: AVRPortConfig = {
   PIN: 0x23,
   DDR: 0x24,
