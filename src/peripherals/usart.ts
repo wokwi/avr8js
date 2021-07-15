@@ -210,7 +210,7 @@ export class AVRUSART {
 
   private get cyclesPerChar() {
     const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
-    return (this.UBRR * this.multiplier + 1) * symbolsPerChar;
+    return (this.UBRR + 1) * this.multiplier * symbolsPerChar;
   }
 
   private get UBRR() {
