@@ -3,7 +3,7 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, 2020, Uri Shaked
+ * Copyright (C) 2019, 2020, 2021 Uri Shaked
  */
 
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
@@ -36,6 +36,7 @@ export const usart0Config: USARTConfig = {
 
 export type USARTTransmitCallback = (value: u8) => void;
 export type USARTLineTransmitCallback = (value: string) => void;
+export type USARTConfigurationChangeCallback = () => void;
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // Register bits:
@@ -47,6 +48,7 @@ const UCSRA_DOR = 0x8; // Data OverRun
 const UCSRA_UPE = 0x4; // USART Parity Error
 const UCSRA_U2X = 0x2; // Double the USART Transmission Speed
 const UCSRA_MPCM = 0x1; // Multi-processor Communication Mode
+const UCSRA_CFG_MASK = UCSRA_U2X;
 const UCSRB_RXCIE = 0x80; // RX Complete Interrupt Enable
 const UCSRB_TXCIE = 0x40; // TX Complete Interrupt Enable
 const UCSRB_UDRIE = 0x20; // USART Data Register Empty Interrupt Enable
@@ -55,6 +57,7 @@ const UCSRB_TXEN = 0x8; // Transmitter Enable
 const UCSRB_UCSZ2 = 0x4; // Character Size 2
 const UCSRB_RXB8 = 0x2; // Receive Data Bit 8
 const UCSRB_TXB8 = 0x1; // Transmit Data Bit 8
+const UCSRB_CFG_MASK = UCSRB_UCSZ2 | UCSRB_RXEN | UCSRB_TXEN;
 const UCSRC_UMSEL1 = 0x80; // USART Mode Select 1
 const UCSRC_UMSEL0 = 0x40; // USART Mode Select 0
 const UCSRC_UPM1 = 0x20; // Parity Mode 1
@@ -76,6 +79,7 @@ export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
   public onLineTransmit: USARTLineTransmitCallback | null = null;
   public onRxComplete: (() => void) | null = null;
+  public onConfigurationChange: USARTConfigurationChangeCallback | null = null;
 
   private rxBusyValue = false;
   private rxByte = 0;
@@ -107,9 +111,12 @@ export class AVRUSART {
 
   constructor(private cpu: CPU, private config: USARTConfig, private freqHz: number) {
     this.reset();
-    this.cpu.writeHooks[config.UCSRA] = (value) => {
+    this.cpu.writeHooks[config.UCSRA] = (value, oldValue) => {
       cpu.data[config.UCSRA] = value & (UCSRA_MPCM | UCSRA_U2X);
       cpu.clearInterruptByFlag(this.TXC, value);
+      if ((value & UCSRA_CFG_MASK) !== (oldValue & UCSRA_CFG_MASK)) {
+        this.onConfigurationChange?.();
+      }
       return true;
     };
     this.cpu.writeHooks[config.UCSRB] = (value, oldValue) => {
@@ -123,6 +130,16 @@ export class AVRUSART {
         // Enabling the transmission - mark UDR as empty
         cpu.setInterruptFlag(this.UDRE);
       }
+      cpu.data[config.UCSRB] = value;
+      if ((value & UCSRB_CFG_MASK) !== (oldValue & UCSRB_CFG_MASK)) {
+        this.onConfigurationChange?.();
+      }
+      return true;
+    };
+    this.cpu.writeHooks[config.UCSRC] = (value) => {
+      cpu.data[config.UCSRC] = value;
+      this.onConfigurationChange?.();
+      return true;
     };
     this.cpu.readHooks[config.UDR] = () => {
       const mask = rxMasks[this.bitsPerChar] ?? 0xff;
@@ -150,6 +167,16 @@ export class AVRUSART {
       }, this.cyclesPerChar);
       this.cpu.clearInterrupt(this.TXC);
       this.cpu.clearInterrupt(this.UDRE);
+    };
+    this.cpu.writeHooks[config.UBRRH] = (value) => {
+      this.cpu.data[config.UBRRH] = value;
+      this.onConfigurationChange?.();
+      return true;
+    };
+    this.cpu.writeHooks[config.UBRRL] = (value) => {
+      this.cpu.data[config.UBRRL] = value;
+      this.onConfigurationChange?.();
+      return true;
     };
   }
 
@@ -187,11 +214,20 @@ export class AVRUSART {
   }
 
   private get UBRR() {
-    return (this.cpu.data[this.config.UBRRH] << 8) | this.cpu.data[this.config.UBRRL];
+    const { UBRRH, UBRRL } = this.config;
+    return (this.cpu.data[UBRRH] << 8) | this.cpu.data[UBRRL];
   }
 
   private get multiplier() {
     return this.cpu.data[this.config.UCSRA] & UCSRA_U2X ? 8 : 16;
+  }
+
+  get rxEnable() {
+    return !!(this.cpu.data[this.config.UCSRB] & UCSRB_RXEN);
+  }
+
+  get txEnable() {
+    return !!(this.cpu.data[this.config.UCSRB] & UCSRB_TXEN);
   }
 
   get baudRate() {

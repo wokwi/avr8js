@@ -53,6 +53,24 @@ describe('USART', () => {
     expect(usart.baudRate).toEqual(2400);
   });
 
+  it('should call onConfigurationChange when the baudRate changes', () => {
+    const cpu = new CPU(new Uint16Array(1024));
+    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+    const onConfigurationChange = jest.fn();
+    usart.onConfigurationChange = onConfigurationChange;
+
+    cpu.writeData(UBRR0H, 0);
+    expect(onConfigurationChange).toHaveBeenCalled();
+
+    onConfigurationChange.mockClear();
+    cpu.writeData(UBRR0L, 5);
+    expect(onConfigurationChange).toHaveBeenCalled();
+
+    onConfigurationChange.mockClear();
+    cpu.writeData(UCSR0A, U2X0);
+    expect(onConfigurationChange).toHaveBeenCalled();
+  });
+
   describe('bitsPerChar', () => {
     it('should return 5-bits per byte when UCSZ = 0', () => {
       const cpu = new CPU(new Uint16Array(1024));
@@ -88,6 +106,24 @@ describe('USART', () => {
       cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
       cpu.writeData(UCSR0B, UCSZ2);
       expect(usart.bitsPerChar).toEqual(9);
+    });
+
+    it('should call onConfigurationChange when bitsPerChar change', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      const onConfigurationChange = jest.fn();
+      usart.onConfigurationChange = onConfigurationChange;
+
+      cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
+      expect(onConfigurationChange).toHaveBeenCalled();
+
+      onConfigurationChange.mockClear();
+      cpu.writeData(UCSR0B, UCSZ2);
+      expect(onConfigurationChange).toHaveBeenCalled();
+
+      onConfigurationChange.mockClear();
+      cpu.writeData(UCSR0B, UCSZ2);
+      expect(onConfigurationChange).not.toHaveBeenCalled();
     });
   });
 
@@ -143,6 +179,26 @@ describe('USART', () => {
     cpu.writeData(UCSR0B, TXEN);
     cpu.writeData(UDR0, 0x61);
     expect(usart.onByteTransmit).toHaveBeenCalledWith(0x61);
+  });
+
+  describe('txEnable/rxEnable', () => {
+    it('txEnable should equal true when the transitter is enabled', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      usart.onByteTransmit = jest.fn();
+      expect(usart.txEnable).toEqual(false);
+      cpu.writeData(UCSR0B, TXEN);
+      expect(usart.txEnable).toEqual(true);
+    });
+
+    it('rxEnable should equal true when the transitter is enabled', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
+      usart.onByteTransmit = jest.fn();
+      expect(usart.rxEnable).toEqual(false);
+      cpu.writeData(UCSR0B, RXEN);
+      expect(usart.rxEnable).toEqual(true);
+    });
   });
 
   describe('tick()', () => {
