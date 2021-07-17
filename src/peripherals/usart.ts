@@ -193,19 +193,23 @@ export class AVRUSART {
     return this.rxBusyValue;
   }
 
-  writeByte(value: number) {
-    const { cpu, config } = this;
-    if (this.rxBusyValue || !(cpu.data[config.UCSRB] & UCSRB_RXEN)) {
+  writeByte(value: number, immediate = false) {
+    const { cpu } = this;
+    if (this.rxBusyValue || !this.rxEnable) {
       return false;
     }
-    this.rxBusyValue = true;
-    cpu.addClockEvent(() => {
+    if (immediate) {
       this.rxByte = value;
-      this.rxBusyValue = false;
       cpu.setInterruptFlag(this.RXC);
       this.onRxComplete?.();
-    }, this.cyclesPerChar);
-    return true;
+    } else {
+      this.rxBusyValue = true;
+      cpu.addClockEvent(() => {
+        this.rxBusyValue = false;
+        this.writeByte(value, true);
+      }, this.cyclesPerChar);
+      return true;
+    }
   }
 
   private get cyclesPerChar() {
