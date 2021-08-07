@@ -234,14 +234,18 @@ export class CPU implements ICPU {
   }
 
   tick() {
-    const { nextClockEvent } = this;
-    if (nextClockEvent && nextClockEvent.cycles <= this.cycles) {
-      nextClockEvent.callback();
+    const { cycles } = this;
+    let { nextClockEvent } = this;
+    while (nextClockEvent && nextClockEvent.cycles <= cycles) {
+      this.cycles = nextClockEvent.cycles;
       this.nextClockEvent = nextClockEvent.next;
+      nextClockEvent.callback();
       if (this.clockEventPool.length < 10) {
         this.clockEventPool.push(nextClockEvent);
       }
+      nextClockEvent = this.nextClockEvent;
     }
+    this.cycles = cycles;
 
     const { nextInterrupt } = this;
     if (this.interruptsEnabled && nextInterrupt >= 0) {
