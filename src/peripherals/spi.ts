@@ -10,10 +10,10 @@ export interface SPIConfig {
 }
 
 // Register bits:
-const SPCR_SPIE = 0x80; //  SPI Interrupt Enable
+const SPCR_SPIE = 0x80; // SPI Interrupt Enable
 const SPCR_SPE = 0x40; // SPI Enable
 const SPCR_DORD = 0x20; // Data Order
-const SPCR_MSTR = 0x10; //  Master/Slave Select
+const SPCR_MSTR = 0x10; // Master/Slave Select
 const SPCR_CPOL = 0x8; // Clock Polarity
 const SPCR_CPHA = 0x4; // Clock Phase
 const SPCR_SPR1 = 0x2; // SPI Clock Rate Select 1
