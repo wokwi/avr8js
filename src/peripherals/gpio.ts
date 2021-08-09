@@ -239,6 +239,7 @@ export class AVRIOPort {
       const pinMask = 1 << pin;
       if (mode === PinOverrideMode.None) {
         this.overrideMask |= pinMask;
+        this.overrideValue &= ~pinMask;
       } else {
         this.overrideMask &= ~pinMask;
         switch (mode) {
