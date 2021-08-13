@@ -1,5 +1,5 @@
 import { CPU } from '../cpu/cpu';
-import { AVRIOPort, portBConfig, PinState, portDConfig } from './gpio';
+import { AVRIOPort, portBConfig, PinState, portDConfig, PinOverrideMode } from './gpio';
 
 // CPU registers
 const SREG = 95;
@@ -74,6 +74,18 @@ describe('GPIO', () => {
     cpu.writeData(PINB, 0x01);
     expect(listener).toHaveBeenCalledWith(0x54, 0x55);
     expect(cpu.data[PINB]).toEqual(0x4); // PINB should return port value
+  });
+
+  it('should update the PIN register on output compare (OCR) match (issue #102)', () => {
+    const cpu = new CPU(new Uint16Array(1024));
+    const port = new AVRIOPort(cpu, portBConfig);
+    cpu.writeData(DDRB, 1 << 1);
+    cpu.gpioTimerHooks[PORTB](1, PinOverrideMode.Set, PORTB);
+    expect(port.pinState(1)).toBe(PinState.High);
+    expect(cpu.data[PINB]).toBe(1 << 1);
+    cpu.gpioTimerHooks[PORTB](1, PinOverrideMode.Clear, PORTB);
+    expect(port.pinState(1)).toBe(PinState.Low);
+    expect(cpu.data[PINB]).toBe(0);
   });
 
   describe('removeListener', () => {

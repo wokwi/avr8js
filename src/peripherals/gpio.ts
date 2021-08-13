@@ -213,15 +213,15 @@ export class AVRIOPort {
     cpu.writeHooks[portConfig.DDR] = (value: u8) => {
       const portValue = cpu.data[portConfig.PORT];
       cpu.data[portConfig.DDR] = value;
-      this.updatePinRegister(portValue, value);
       this.writeGpio(portValue, value);
+      this.updatePinRegister(value);
       return true;
     };
     cpu.writeHooks[portConfig.PORT] = (value: u8) => {
       const ddrMask = cpu.data[portConfig.DDR];
       cpu.data[portConfig.PORT] = value;
-      this.updatePinRegister(value, ddrMask);
       this.writeGpio(value, ddrMask);
+      this.updatePinRegister(ddrMask);
       return true;
     };
     cpu.writeHooks[portConfig.PIN] = (value: u8) => {
@@ -230,8 +230,8 @@ export class AVRIOPort {
       const ddrMask = cpu.data[portConfig.DDR];
       const portValue = oldPortValue ^ value;
       cpu.data[portConfig.PORT] = portValue;
-      this.updatePinRegister(portValue, ddrMask);
       this.writeGpio(portValue, ddrMask);
+      this.updatePinRegister(ddrMask);
       return true;
     };
     // The following hook is used by the timer compare output to override GPIO pins:
@@ -258,7 +258,9 @@ export class AVRIOPort {
             break;
         }
       }
-      this.writeGpio(cpu.data[portConfig.PORT], cpu.data[portConfig.DDR]);
+      const ddrMask = cpu.data[portConfig.DDR];
+      this.writeGpio(cpu.data[portConfig.PORT], ddrMask);
+      this.updatePinRegister(ddrMask);
     };
 
     // External interrupts
@@ -355,11 +357,11 @@ export class AVRIOPort {
     if (value) {
       this.pinValue |= bitMask;
     }
-    this.updatePinRegister(this.cpu.data[this.portConfig.PORT], this.cpu.data[this.portConfig.DDR]);
+    this.updatePinRegister(this.cpu.data[this.portConfig.DDR]);
   }
 
-  private updatePinRegister(port: u8, ddr: u8) {
-    const newPin = (this.pinValue & ~ddr) | (port & ddr);
+  private updatePinRegister(ddr: u8) {
+    const newPin = (this.pinValue & ~ddr) | (this.lastValue & ddr);
     this.cpu.data[this.portConfig.PIN] = newPin;
     if (this.lastPin !== newPin) {
       for (let index = 0; index < 8; index++) {
