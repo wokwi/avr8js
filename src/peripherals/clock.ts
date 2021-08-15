@@ -20,25 +20,11 @@ export const clockConfig: AVRClockConfig = {
 };
 
 const prescalers = [
-  1,
-  2,
-  4,
-  8,
-  16,
-  32,
-  64,
-  128,
-  256,
+  1, 2, 4, 8, 16, 32, 64, 128, 256,
 
   // The following values are "reserved" according to the datasheet, so we measured
   // with a scope to figure them out (on ATmega328p)
-  2,
-  4,
-  8,
-  16,
-  32,
-  64,
-  128,
+  2, 4, 8, 16, 32, 64, 128,
 ];
 
 export class AVRClock {

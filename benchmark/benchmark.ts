@@ -102,7 +102,7 @@ export function createBenchmark(benchmarkName: string): Benchmark {
     return profile;
   } as Benchmark;
 
-  benchmark.report = function(fn?: (report: string) => void) {
+  benchmark.report = function (fn?: (report: string) => void) {
     const fastest = profiles.reduce((previous: Profile, current: Profile) => {
       return previous.bestTime < current.bestTime ? previous : current;
     });

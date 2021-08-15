@@ -28,10 +28,7 @@ function isTwoWordInstruction(opcode: number) {
 const patternToFn: Array<[string, string]> = [];
 for (const line of input.split('\n')) {
   if (line.startsWith('    /* ') && line.includes(', ')) {
-    currentInstruction = line
-      .trim()
-      .split(',')[0]
-      .split(' ')[1];
+    currentInstruction = line.trim().split(',')[0].split(' ')[1];
     fnBody = '';
     pattern = line.split(',')[1].split('*')[0];
     console.log(currentInstruction);
@@ -75,9 +72,9 @@ export function executeInstruction(idx: number, cpu: ICPU, opcode: number) {
 const formattedOutput = prettier.format(output, {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...(prettierOptions as any),
-  parser: 'babel'
+  parser: 'babel',
 });
 
 fs.writeFileSync('benchmark/instruction-fn.ts', formattedOutput, {
-  encoding: 'utf-8'
+  encoding: 'utf-8',
 });
