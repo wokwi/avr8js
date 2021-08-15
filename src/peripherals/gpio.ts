@@ -87,6 +87,7 @@ export const PCINT2 = {
 };
 
 export type GPIOListener = (value: u8, oldValue: u8) => void;
+export type ExternalClockListener = (pinValue: boolean) => void;
 
 export const portAConfig: AVRPortConfig = {
   PIN: 0x20,
@@ -198,6 +199,8 @@ enum InterruptMode {
 }
 
 export class AVRIOPort {
+  readonly externalClockListeners: (ExternalClockListener | null)[] = [];
+
   private readonly externalInts: (AVRInterruptConfig | null)[];
   private readonly PCINT: AVRInterruptConfig | null;
   private listeners: GPIOListener[] = [];
@@ -208,8 +211,10 @@ export class AVRIOPort {
   private lastDdr: u8 = 0;
   private lastPin: u8 = 0;
 
-  constructor(private cpu: CPU, private portConfig: AVRPortConfig) {
+  constructor(private cpu: CPU, readonly portConfig: Readonly<AVRPortConfig>) {
     cpu.gpioPorts.add(this);
+    cpu.gpioByPort[portConfig.PORT] = this;
+
     cpu.writeHooks[portConfig.DDR] = (value: u8) => {
       const portValue = cpu.data[portConfig.PORT];
       cpu.data[portConfig.DDR] = value;
@@ -233,34 +238,6 @@ export class AVRIOPort {
       this.writeGpio(portValue, ddrMask);
       this.updatePinRegister(ddrMask);
       return true;
-    };
-    // The following hook is used by the timer compare output to override GPIO pins:
-    cpu.gpioTimerHooks[portConfig.PORT] = (pin: u8, mode: PinOverrideMode) => {
-      const pinMask = 1 << pin;
-      if (mode === PinOverrideMode.None) {
-        this.overrideMask |= pinMask;
-        this.overrideValue &= ~pinMask;
-      } else {
-        this.overrideMask &= ~pinMask;
-        switch (mode) {
-          case PinOverrideMode.Enable:
-            this.overrideValue &= ~pinMask;
-            this.overrideValue |= cpu.data[portConfig.PORT] & pinMask;
-            break;
-          case PinOverrideMode.Set:
-            this.overrideValue |= pinMask;
-            break;
-          case PinOverrideMode.Clear:
-            this.overrideValue &= ~pinMask;
-            break;
-          case PinOverrideMode.Toggle:
-            this.overrideValue ^= pinMask;
-            break;
-        }
-      }
-      const ddrMask = cpu.data[portConfig.DDR];
-      this.writeGpio(cpu.data[portConfig.PORT], ddrMask);
-      this.updatePinRegister(ddrMask);
     };
 
     // External interrupts
@@ -360,13 +337,48 @@ export class AVRIOPort {
     this.updatePinRegister(this.cpu.data[this.portConfig.DDR]);
   }
 
+  /**
+   * Internal method - do not call this directly!
+   * Used by the timer compare output units to override GPIO pins.
+   */
+  timerOverridePin(pin: u8, mode: PinOverrideMode) {
+    const { cpu, portConfig } = this;
+    const pinMask = 1 << pin;
+    if (mode === PinOverrideMode.None) {
+      this.overrideMask |= pinMask;
+      this.overrideValue &= ~pinMask;
+    } else {
+      this.overrideMask &= ~pinMask;
+      switch (mode) {
+        case PinOverrideMode.Enable:
+          this.overrideValue &= ~pinMask;
+          this.overrideValue |= cpu.data[portConfig.PORT] & pinMask;
+          break;
+        case PinOverrideMode.Set:
+          this.overrideValue |= pinMask;
+          break;
+        case PinOverrideMode.Clear:
+          this.overrideValue &= ~pinMask;
+          break;
+        case PinOverrideMode.Toggle:
+          this.overrideValue ^= pinMask;
+          break;
+      }
+    }
+    const ddrMask = cpu.data[portConfig.DDR];
+    this.writeGpio(cpu.data[portConfig.PORT], ddrMask);
+    this.updatePinRegister(ddrMask);
+  }
+
   private updatePinRegister(ddr: u8) {
     const newPin = (this.pinValue & ~ddr) | (this.lastValue & ddr);
     this.cpu.data[this.portConfig.PIN] = newPin;
     if (this.lastPin !== newPin) {
       for (let index = 0; index < 8; index++) {
         if ((newPin & (1 << index)) !== (this.lastPin & (1 << index))) {
-          this.toggleInterrupt(index, !!(newPin & (1 << index)));
+          const value = !!(newPin & (1 << index));
+          this.toggleInterrupt(index, value);
+          this.externalClockListeners[index]?.(value);
         }
       }
       this.lastPin = newPin;

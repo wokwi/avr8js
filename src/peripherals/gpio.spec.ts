@@ -80,10 +80,10 @@ describe('GPIO', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const port = new AVRIOPort(cpu, portBConfig);
     cpu.writeData(DDRB, 1 << 1);
-    cpu.gpioTimerHooks[PORTB](1, PinOverrideMode.Set, PORTB);
+    port.timerOverridePin(1, PinOverrideMode.Set);
     expect(port.pinState(1)).toBe(PinState.High);
     expect(cpu.data[PINB]).toBe(1 << 1);
-    cpu.gpioTimerHooks[PORTB](1, PinOverrideMode.Clear, PORTB);
+    port.timerOverridePin(1, PinOverrideMode.Clear);
     expect(port.pinState(1)).toBe(PinState.Low);
     expect(cpu.data[PINB]).toBe(0);
   });

@@ -77,9 +77,8 @@ export class CPU implements ICPU {
   private readonly clockEventPool: AVRClockEventEntry[] = []; // helps avoid garbage collection
   readonly pc22Bits = this.progBytes.length > 0x20000;
 
-  // This lets the Timer Compare output override GPIO pins:
-  readonly gpioTimerHooks: CPUMemoryHooks = [];
   readonly gpioPorts = new Set<AVRIOPort>();
+  readonly gpioByPort: AVRIOPort[] = [];
 
   pc: u32 = 0;
   cycles: u32 = 0;

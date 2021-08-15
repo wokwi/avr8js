@@ -3,11 +3,11 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, 2020, Uri Shaked
+ * Copyright (C) 2019, 2020, 2021 Uri Shaked
  */
 
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
-import { PinOverrideMode, portBConfig, portDConfig } from './gpio';
+import { AVRIOPort, PinOverrideMode, portBConfig, portDConfig } from './gpio';
 
 const timer01Dividers = {
   0: 0,
@@ -16,9 +16,14 @@ const timer01Dividers = {
   3: 64,
   4: 256,
   5: 1024,
-  6: 0, // TODO: External clock source on T0 pin. Clock on falling edge.
-  7: 0, // TODO: External clock source on T0 pin. Clock on rising edge.
+  6: 0, // External clock - see ExternalClockMode
+  7: 0, // Ditto
 };
+
+enum ExternalClockMode {
+  FallingEdge = 6,
+  RisingEdge = 7,
+}
 
 type u8 = number;
 type u16 = number;
@@ -70,6 +75,10 @@ export interface AVRTimerConfig {
   compPinA: u8;
   compPortB: u16;
   compPinB: u8;
+
+  // External clock pin (optional, 0 = unused)
+  externalClockPort: u16;
+  externalClockPin: u8;
 }
 
 /** These are differnet for some devices (e.g. ATtiny85) */
@@ -105,6 +114,8 @@ export const timer0Config: AVRTimerConfig = {
   compPinA: 6,
   compPortB: portDConfig.PORT,
   compPinB: 5,
+  externalClockPort: portDConfig.PORT,
+  externalClockPin: 4,
   ...defaultTimerBits,
 };
 
@@ -128,6 +139,8 @@ export const timer1Config: AVRTimerConfig = {
   compPinA: 1,
   compPortB: portBConfig.PORT,
   compPinB: 2,
+  externalClockPort: portDConfig.PORT,
+  externalClockPin: 5,
   ...defaultTimerBits,
 };
 
@@ -160,6 +173,8 @@ export const timer2Config: AVRTimerConfig = {
   compPinA: 3,
   compPortB: portDConfig.PORT,
   compPinB: 3,
+  externalClockPort: 0, // Not available
+  externalClockPin: 0,
   ...defaultTimerBits,
 };
 
@@ -262,6 +277,8 @@ export class AVRTimer {
   private updateDivider = false;
   private countingUp = true;
   private divider = 0;
+  private externalClockPort?: AVRIOPort;
+  private externalClockRisingEdge = false;
 
   // This is the temporary register used to access 16-bit registers (section 16.3 of the datasheet)
   private highByteTemp: u8 = 0;
@@ -440,12 +457,12 @@ export class AVRTimer {
     }
   }
 
-  count = (reschedule = true) => {
+  count = (reschedule = true, external = false) => {
     const { divider, lastCycle, cpu } = this;
     const { cycles } = cpu;
     const delta = cycles - lastCycle;
-    if (divider && delta >= divider) {
-      const counterDelta = Math.floor(delta / divider);
+    if ((divider && delta >= divider) || external) {
+      const counterDelta = external ? 1 : Math.floor(delta / divider);
       this.lastCycle += counterDelta * divider;
       const val = this.tcnt;
       const { timerMode, TOP } = this;
@@ -491,17 +508,38 @@ export class AVRTimer {
       this.tcntUpdated = false;
     }
     if (this.updateDivider) {
-      const newDivider = this.config.dividers[this.CS];
+      const { CS } = this;
+      const { externalClockPin } = this.config;
+      const newDivider = this.config.dividers[CS];
       this.lastCycle = newDivider ? this.cpu.cycles : 0;
       this.updateDivider = false;
       this.divider = newDivider;
+      if (this.config.externalClockPort && !this.externalClockPort) {
+        this.externalClockPort = this.cpu.gpioByPort[this.config.externalClockPort];
+      }
+      if (this.externalClockPort) {
+        this.externalClockPort.externalClockListeners[externalClockPin] = null;
+      }
       if (newDivider) {
         cpu.addClockEvent(this.count, this.lastCycle + newDivider - cpu.cycles);
+      } else if (
+        this.externalClockPort &&
+        (CS === ExternalClockMode.FallingEdge || CS === ExternalClockMode.RisingEdge)
+      ) {
+        this.externalClockPort.externalClockListeners[externalClockPin] =
+          this.externalClockCallback;
+        this.externalClockRisingEdge = CS === ExternalClockMode.RisingEdge;
       }
       return;
     }
     if (reschedule && divider) {
       cpu.addClockEvent(this.count, this.lastCycle + divider - cpu.cycles);
+    }
+  };
+
+  private externalClockCallback = (value: boolean) => {
+    if (value === this.externalClockRisingEdge) {
+      this.count(false, true);
     }
   };
 
@@ -601,17 +639,13 @@ export class AVRTimer {
 
   private updateCompA(value: PinOverrideMode) {
     const { compPortA, compPinA } = this.config;
-    const hook = this.cpu.gpioTimerHooks[compPortA];
-    if (hook) {
-      hook(compPinA, value, compPortA);
-    }
+    const port = this.cpu.gpioByPort[compPortA];
+    port?.timerOverridePin(compPinA, value);
   }
 
   private updateCompB(value: PinOverrideMode) {
     const { compPortB, compPinB } = this.config;
-    const hook = this.cpu.gpioTimerHooks[compPortB];
-    if (hook) {
-      hook(compPinB, value, compPortB);
-    }
+    const port = this.cpu.gpioByPort[compPortB];
+    port?.timerOverridePin(compPinB, value);
   }
 }

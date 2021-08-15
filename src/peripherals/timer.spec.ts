@@ -1,6 +1,6 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { PinOverrideMode } from './gpio';
+import { AVRIOPort, PinOverrideMode, portBConfig, portDConfig } from './gpio';
 import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
 
 // CPU registers
@@ -12,10 +12,6 @@ const R20 = 20;
 const R21 = 21;
 const R22 = 22;
 const SREG = 95;
-
-// Port Registers
-const PORTB = 0x25;
-const PORTD = 0x2b;
 
 // Timer 0 Registers
 const TIFR0 = 0x35;
@@ -61,9 +57,12 @@ const WGM12 = 8;
 const WGM13 = 16;
 const CS00 = 1;
 const CS01 = 2;
+const CS02 = 4;
 const CS10 = 1;
 const CS21 = 2;
 const CS22 = 4;
+
+const T0 = 4; // PD4 on ATmega328p
 
 // opcodes
 const nopOpCode = '0000';
@@ -558,21 +557,21 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
       runner.runToAddress(labels.beforeMatch);
       expect(cpu.readData(TCNT0)).toEqual(0xfd);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b); // OC0A: Enable
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable); // OC0A: Enable
       gpioCallback.mockClear();
 
       runner.runToAddress(labels.afterMatch);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b); // OC0A: Set
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set); // OC0A: Set
       gpioCallback.mockClear();
 
       runner.runToAddress(labels.beforeBottom);
@@ -583,7 +582,7 @@ describe('timer', () => {
       runner.runToAddress(labels.afterBottom);
       expect(cpu.readData(TCNT0)).toEqual(0x0);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Clear, 0x2b); // OC0A: Clear
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Clear); // OC0A: Clear
     });
 
     it('should toggle OC0A on Compare Match when COM0An = 1 (issue #78)', () => {
@@ -611,21 +610,21 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
       runner.runToAddress(labels.beforeMatch);
       expect(cpu.readData(TCNT0)).toEqual(0xfd);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b); // OC0A: Enable
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable); // OC0A: Enable
       gpioCallback.mockClear();
 
       runner.runToAddress(labels.afterMatch);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Toggle, 0x2b); // OC0A: Toggle
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Toggle); // OC0A: Toggle
       gpioCallback.mockClear();
 
       runner.runToAddress(labels.afterOverflow);
@@ -657,21 +656,21 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
       // First, run with the bit set and assert that the Pin Override was enabled (OC0A connected)
       runner.runToAddress(labels.beforeClearWGM02);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable);
       gpioCallback.mockClear();
 
       // Now clear WGM02 and observe that Pin Override was disabled (OC0A disconnected)
       runner.runToAddress(labels.afterClearWGM02);
       expect(gpioCallback).toHaveBeenCalledTimes(1);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.None, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.None);
       gpioCallback.mockClear();
     });
   });
@@ -731,20 +730,20 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount - nopCount);
 
       expect(cpu.readData(TCNT0)).toEqual(0xfd);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable);
       gpioCallback.mockClear();
 
       runner.runInstructions(1);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Clear, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Clear);
       gpioCallback.mockClear();
 
       runner.runInstructions(1);
@@ -753,7 +752,7 @@ describe('timer', () => {
 
       runner.runInstructions(1);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set);
     });
 
     it('should toggle OC0A when TCNT0=OCR0A and COM0An=1 (issue #78)', () => {
@@ -778,19 +777,19 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
       runner.runToAddress(labels.beforeMatch);
       expect(cpu.readData(TCNT0)).toEqual(0xfd);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable);
       gpioCallback.mockClear();
 
       runner.runToAddress(labels.afterMatch);
       expect(cpu.readData(TCNT0)).toEqual(0xfe);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Toggle, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Toggle);
       gpioCallback.mockClear();
     });
 
@@ -811,8 +810,8 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -839,17 +838,17 @@ describe('timer', () => {
       new AVRTimer(cpu, timer0Config);
 
       // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
+      const portD = new AVRIOPort(cpu, portDConfig);
+      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
 
       expect(cpu.readData(TCNT0)).toEqual(0x11);
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Enable);
 
       // Verify that Compare Match has occured and set the OC0A pin (PD6 on ATmega328p)
-      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set, 0x2b);
+      expect(gpioCallback).toHaveBeenCalledWith(6, PinOverrideMode.Set);
     });
 
     it('should only update OCR0A when TCNT0=TOP in PWM Phase Correct mode (issue #76)', () => {
@@ -880,10 +879,6 @@ describe('timer', () => {
 
       const cpu = new CPU(program);
       new AVRTimer(cpu, timer0Config);
-
-      // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -1023,20 +1018,20 @@ describe('timer', () => {
       new AVRTimer(cpu, timer1Config);
 
       // Listen to Port B's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTB] = gpioCallback;
+      const portB = new AVRIOPort(cpu, portBConfig);
+      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount - nopCount);
 
       expect(cpu.readData(TCNT1)).toEqual(0x49);
-      expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Enable, 0x25);
+      expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Enable);
       gpioCallback.mockClear();
 
       runner.runInstructions(1);
       expect(cpu.readData(TCNT1)).toEqual(0x4a);
-      expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Toggle, 0x25);
+      expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Toggle);
     });
 
     it('should only update OCR1A when TCNT1=BOTTOM in PWM Phase/Frequency Correct mode (issue #76)', () => {
@@ -1073,10 +1068,6 @@ describe('timer', () => {
       const cpu = new CPU(program);
       new AVRTimer(cpu, timer1Config);
 
-      // Listen to Port D's internal callback
-      const gpioCallback = jest.fn();
-      cpu.gpioTimerHooks[PORTD] = gpioCallback;
-
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
 
@@ -1084,6 +1075,46 @@ describe('timer', () => {
       expect(cpu.readData(R18)).toEqual(0x2);
       expect(cpu.readData(R19)).toEqual(0x6);
       expect(cpu.readData(R20)).toEqual(0x7);
+    });
+  });
+
+  describe('External clock', () => {
+    it('should count on the falling edge of T0 when CS=110', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      const port = new AVRIOPort(cpu, portDConfig);
+      new AVRTimer(cpu, timer0Config);
+      cpu.writeData(TCCR0B, CS02 | CS01); // Count on falling edge
+      cpu.cycles = 1;
+      cpu.tick();
+
+      port.setPin(T0, true); // Rising edge
+      cpu.cycles = 2;
+      cpu.tick();
+      expect(cpu.readData(TCNT0)).toEqual(0);
+
+      port.setPin(T0, false); // Falling edge
+      cpu.cycles = 3;
+      cpu.tick();
+      expect(cpu.readData(TCNT0)).toEqual(1);
+    });
+
+    it('should count on the rising edge of T0 when CS=111', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      const port = new AVRIOPort(cpu, portDConfig);
+      new AVRTimer(cpu, timer0Config);
+      cpu.writeData(TCCR0B, CS02 | CS01 | CS00); // Count on rising edge
+      cpu.cycles = 1;
+      cpu.tick();
+
+      port.setPin(T0, true); // Rising edge
+      cpu.cycles = 2;
+      cpu.tick();
+      expect(cpu.readData(TCNT0)).toEqual(1);
+
+      port.setPin(T0, false); // Falling edge
+      cpu.cycles = 3;
+      cpu.tick();
+      expect(cpu.readData(TCNT0)).toEqual(1);
     });
   });
 });
