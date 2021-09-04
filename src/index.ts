@@ -8,6 +8,16 @@ export { CPU, ICPU, CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
 export {
+  ADCConfig,
+  adcConfig,
+  ADCMuxConfiguration,
+  ADCMuxInput,
+  ADCMuxInputType,
+  ADCReference,
+  atmega328Channels,
+  AVRADC,
+} from './peripherals/adc';
+export {
   AVRTimer,
   AVRTimerConfig,
   timer0Config,
