@@ -149,7 +149,8 @@ export function avrInstruction(cpu: ICPU) {
     const A = opcode & 0xf8;
     const b = opcode & 7;
     const R = cpu.readData((A >> 3) + 32);
-    cpu.writeData((A >> 3) + 32, R & ~(1 << b));
+    const mask = 1 << b;
+    cpu.writeData((A >> 3) + 32, R & ~mask, mask);
   } else if ((opcode & 0xfe0f) === 0x9400) {
     /* COM, 1001 010d dddd 0000 */
     const d = (opcode & 0x1f0) >> 4;
@@ -603,7 +604,8 @@ export function avrInstruction(cpu: ICPU) {
   } else if ((opcode & 0xff00) === 0x9a00) {
     /* SBI, 1001 1010 AAAA Abbb */
     const target = ((opcode & 0xf8) >> 3) + 32;
-    cpu.writeData(target, cpu.readData(target) | (1 << (opcode & 7)));
+    const mask = 1 << (opcode & 7);
+    cpu.writeData(target, cpu.readData(target) | mask, mask);
     cpu.cycles++;
   } else if ((opcode & 0xff00) === 0x9900) {
     /* SBIC, 1001 1001 AAAA Abbb */

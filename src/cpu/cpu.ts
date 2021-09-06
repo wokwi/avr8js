@@ -34,10 +34,10 @@ export interface ICPU {
   cycles: number;
 
   readData(addr: u16): u8;
-  writeData(addr: u16, value: u8): void;
+  writeData(addr: u16, value: u8, mask?: u8): void;
 }
 
-export type CPUMemoryHook = (value: u8, oldValue: u8, addr: u16) => boolean | void;
+export type CPUMemoryHook = (value: u8, oldValue: u8, addr: u16, mask: u8) => boolean | void;
 export interface CPUMemoryHooks {
   [key: number]: CPUMemoryHook;
 }
@@ -102,10 +102,10 @@ export class CPU implements ICPU {
     return this.data[addr];
   }
 
-  writeData(addr: number, value: number) {
+  writeData(addr: number, value: number, mask = 0xff) {
     const hook = this.writeHooks[addr];
     if (hook) {
-      if (hook(value, this.data[addr], addr)) {
+      if (hook(value, this.data[addr], addr, mask)) {
         return;
       }
     }

@@ -229,11 +229,11 @@ export class AVRIOPort {
       this.updatePinRegister(ddrMask);
       return true;
     };
-    cpu.writeHooks[portConfig.PIN] = (value: u8) => {
+    cpu.writeHooks[portConfig.PIN] = (value: u8, oldValue, addr, mask) => {
       // Writing to 1 PIN toggles PORT bits
       const oldPortValue = cpu.data[portConfig.PORT];
       const ddrMask = cpu.data[portConfig.DDR];
-      const portValue = oldPortValue ^ value;
+      const portValue = oldPortValue ^ (value & mask);
       cpu.data[portConfig.PORT] = portValue;
       this.writeGpio(portValue, ddrMask);
       this.updatePinRegister(ddrMask);

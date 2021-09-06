@@ -1,4 +1,5 @@
 import { CPU } from '../cpu/cpu';
+import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRIOPort, portBConfig, PinState, portDConfig, PinOverrideMode } from './gpio';
 
 // CPU registers
@@ -8,6 +9,9 @@ const SREG = 95;
 const PINB = 0x23;
 const DDRB = 0x24;
 const PORTB = 0x25;
+const PIND = 0x29;
+const DDRD = 0x2a;
+const PORTD = 0x2b;
 const EIFR = 0x3c;
 const EIMSK = 0x3d;
 const PCICR = 0x68;
@@ -74,6 +78,42 @@ describe('GPIO', () => {
     cpu.writeData(PINB, 0x01);
     expect(listener).toHaveBeenCalledWith(0x54, 0x55);
     expect(cpu.data[PINB]).toEqual(0x4); // PINB should return port value
+  });
+
+  it('should only affect one pin when writing to PIN using SBI (issue #103)', () => {
+    const { program } = asmProgram(`
+    ; register addresses
+    _REPLACE DDRD, ${DDRD - 0x20}
+    _REPLACE PIND, ${PIND - 0x20}
+    _REPLACE PORTD, ${PORTD - 0x20}
+
+    ; Setup
+    ldi r24, 0x48
+    out DDRD, r24
+    out PORTD, r24
+
+    ; Now toggle pin 6 with SBI
+    sbi PIND, 6
+
+    break
+  `);
+    const cpu = new CPU(program);
+    const portD = new AVRIOPort(cpu, portDConfig);
+    const runner = new TestProgramRunner(cpu);
+
+    const listener = jest.fn();
+    portD.addListener(listener);
+
+    // Setup: pins 6, 3 are output, set to HIGH
+    runner.runInstructions(3);
+    expect(listener).toHaveBeenCalledWith(0x48, 0x0);
+    expect(cpu.data[PORTD]).toEqual(0x48);
+    listener.mockReset();
+
+    // Now we toggle pin 6
+    runner.runInstructions(1);
+    expect(listener).toHaveBeenCalledWith(0x08, 0x48);
+    expect(cpu.data[PORTD]).toEqual(0x8);
   });
 
   it('should update the PIN register on output compare (OCR) match (issue #102)', () => {
