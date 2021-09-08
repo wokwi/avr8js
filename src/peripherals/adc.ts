@@ -170,7 +170,12 @@ export class AVRADC {
       }
       cpu.data[config.ADCSRA] = value;
       cpu.updateInterruptEnable(this.ADC, value);
-      if (!this.converting && value & ADEN && value & ADSC) {
+      if (!this.converting && value & ADSC) {
+        if (!(value & ADEN)) {
+          // Special case: reading while the ADC is not enabled should return 0
+          this.cpu.addClockEvent(() => this.completeADCRead(0), this.sampleCycles);
+          return true;
+        }
         let channel = this.cpu.data[this.config.ADMUX] & MUX_MASK;
         if (cpu.data[config.ADCSRB] & MUX5) {
           channel |= 0x20;
