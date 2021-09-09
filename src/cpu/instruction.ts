@@ -783,7 +783,7 @@ export function avrInstruction(cpu: ICPU) {
     cpu.data[d] = ((15 & i) << 4) | ((240 & i) >>> 4);
   } else if (opcode === 0x95a8) {
     /* WDR, 1001 0101 1010 1000 */
-    /* not implemented */
+    cpu.onWatchdogReset();
   } else if ((opcode & 0xfe0f) === 0x9204) {
     /* XCH, 1001 001r rrrr 0100 */
     const r = (opcode & 0x1f0) >> 4;

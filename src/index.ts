@@ -49,3 +49,4 @@ export {
 export * from './peripherals/twi';
 export { spiConfig, SPIConfig, SPITransferCallback, AVRSPI } from './peripherals/spi';
 export { AVRClock, AVRClockConfig, clockConfig } from './peripherals/clock';
+export { AVRWatchdog, watchdogConfig, WatchdogConfig } from './peripherals/watchdog';

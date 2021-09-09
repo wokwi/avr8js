@@ -35,6 +35,7 @@ export interface ICPU {
 
   readData(addr: u16): u8;
   writeData(addr: u16, value: u8, mask?: u8): void;
+  onWatchdogReset(): void;
 }
 
 export type CPUMemoryHook = (value: u8, oldValue: u8, addr: u16, mask: u8) => boolean | void;
@@ -80,6 +81,14 @@ export class CPU implements ICPU {
   readonly gpioPorts = new Set<AVRIOPort>();
   readonly gpioByPort: AVRIOPort[] = [];
 
+  /**
+   * This function is called by the WDR instruction. The Watchdog peripheral attaches
+   * to it to listen for WDR (watchdog reset).
+   */
+  onWatchdogReset = () => {
+    /* empty by default */
+  };
+
   pc: u32 = 0;
   cycles: u32 = 0;
   nextInterrupt: i16 = -1;
@@ -91,8 +100,10 @@ export class CPU implements ICPU {
   reset() {
     this.data.fill(0);
     this.SP = this.data.length - 1;
+    this.pc = 0;
     this.pendingInterrupts.splice(0, this.pendingInterrupts.length);
     this.nextInterrupt = -1;
+    this.nextClockEvent = null;
   }
 
   readData(addr: number) {
