@@ -11,33 +11,6 @@ import { avrInterrupt } from './interrupt';
 
 const registerSpace = 0x100;
 
-// eslint-disable-next-line @typescript-eslint/interface-name-prefix
-export interface ICPU {
-  readonly data: Uint8Array;
-  readonly dataView: DataView;
-  readonly progMem: Uint16Array;
-  readonly progBytes: Uint8Array;
-
-  /**
-   * Whether the program counter (PC) can address 22 bits (the default is 16)
-   */
-  readonly pc22Bits: boolean;
-
-  /**
-   * Program counter
-   */
-  pc: u32;
-
-  /**
-   * Clock cycle counter
-   */
-  cycles: number;
-
-  readData(addr: u16): u8;
-  writeData(addr: u16, value: u8, mask?: u8): void;
-  onWatchdogReset(): void;
-}
-
 export type CPUMemoryHook = (value: u8, oldValue: u8, addr: u16, mask: u8) => boolean | void;
 export interface CPUMemoryHooks {
   [key: number]: CPUMemoryHook;
@@ -66,7 +39,7 @@ interface AVRClockEventEntry {
   next: AVRClockEventEntry | null;
 }
 
-export class CPU implements ICPU {
+export class CPU {
   readonly data: Uint8Array = new Uint8Array(this.sramBytes + registerSpace);
   readonly data16 = new Uint16Array(this.data.buffer);
   readonly dataView = new DataView(this.data.buffer);
@@ -76,6 +49,10 @@ export class CPU implements ICPU {
   private readonly pendingInterrupts: AVRInterruptConfig[] = [];
   private nextClockEvent: AVRClockEventEntry | null = null;
   private readonly clockEventPool: AVRClockEventEntry[] = []; // helps avoid garbage collection
+
+  /**
+   * Whether the program counter (PC) can address 22 bits (the default is 16)
+   */
   readonly pc22Bits = this.progBytes.length > 0x20000;
 
   readonly gpioPorts = new Set<AVRIOPort>();
@@ -89,8 +66,16 @@ export class CPU implements ICPU {
     /* empty by default */
   };
 
+  /**
+   * Program counter
+   */
   pc: u32 = 0;
-  cycles: u32 = 0;
+
+  /**
+   * Clock cycle counter
+   */
+  cycles = 0;
+
   nextInterrupt: i16 = -1;
 
   constructor(public progMem: Uint16Array, private sramBytes = 8192) {

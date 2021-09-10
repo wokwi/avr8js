@@ -6,9 +6,9 @@
  * Copyright (C) 2019, Uri Shaked
  */
 
-import { ICPU } from './cpu';
+import { CPU } from './cpu';
 
-export function avrInterrupt(cpu: ICPU, addr: number) {
+export function avrInterrupt(cpu: CPU, addr: number) {
   const sp = cpu.dataView.getUint16(93, true);
   cpu.data[sp] = cpu.pc & 0xff;
   cpu.data[sp - 1] = (cpu.pc >> 8) & 0xff;

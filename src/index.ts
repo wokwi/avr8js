@@ -4,7 +4,7 @@
  * Copyright (C) 2019, 2020, Uri Shaked
  */
 
-export { CPU, ICPU, CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
+export { CPU, CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
 export {

@@ -1,4 +1,4 @@
-import { CPU, ICPU } from '../src/cpu/cpu';
+import { CPU } from '../src/cpu/cpu';
 import { avrInstruction } from '../src/cpu/instruction';
 import { createBenchmark } from './benchmark';
 import { permutations } from './permutations';
@@ -21,7 +21,7 @@ function avrInstructionUintArray(cpu: CPU) {
 }
 
 /* Approach 2: use instMap */
-const instructionMap: { [key: number]: (cpu: ICPU, opcode: number) => void } = {};
+const instructionMap: { [key: number]: (cpu: CPU, opcode: number) => void } = {};
 for (const { pattern, fn } of instructions) {
   for (const opcode of permutations(pattern.replace(/ /g, '').substr(0, 16))) {
     if (!instructionMap[opcode]) {

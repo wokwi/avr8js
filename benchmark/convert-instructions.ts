@@ -8,7 +8,7 @@ let fnBody = '';
 let currentInstruction = '';
 let pattern = '';
 let output = `
-import { ICPU } from '../src/cpu/cpu';
+import { CPU } from '../src/cpu/cpu';
 
 function isTwoWordInstruction(opcode: number) {
   return (
@@ -36,7 +36,7 @@ for (const line of input.split('\n')) {
     patternToFn.push([pattern.trim(), fnName]);
   } else if (line.startsWith('  }')) {
     output += `
-      export function ${fnName}(cpu: ICPU, opcode: number) {
+      export function ${fnName}(cpu: CPU, opcode: number) {
         /*${pattern}*/
         ${fnBody}
         cpu.cycles++;
@@ -62,7 +62,7 @@ for (const [fnPattern, fn] of patternToFn) {
 output += ']';
 
 output += `\n
-export function executeInstruction(idx: number, cpu: ICPU, opcode: number) {
+export function executeInstruction(idx: number, cpu: CPU, opcode: number) {
   switch (idx) {
     ${executeInstructionCases}
     default: instNOP(cpu, opcode);

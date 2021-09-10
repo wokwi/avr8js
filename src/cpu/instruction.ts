@@ -10,7 +10,7 @@
  * Copyright (C) 2019, 2020 Uri Shaked
  */
 
-import { ICPU } from './cpu';
+import { CPU } from './cpu';
 import { u16 } from '../types';
 
 function isTwoWordInstruction(opcode: u16) {
@@ -26,7 +26,7 @@ function isTwoWordInstruction(opcode: u16) {
   );
 }
 
-export function avrInstruction(cpu: ICPU) {
+export function avrInstruction(cpu: CPU) {
   const opcode = cpu.progMem[cpu.pc];
 
   if ((opcode & 0xfc00) === 0x1c00) {
