@@ -47,12 +47,14 @@ export interface AVRTimerConfig {
   captureInterrupt: u8;
   compAInterrupt: u8;
   compBInterrupt: u8;
+  compCInterrupt: u8; // Optional, 0 = unused
   ovfInterrupt: u8;
 
   // Register addresses
   TIFR: u8;
   OCRA: u8;
   OCRB: u8;
+  OCRC: u8; // Optional, 0 = unused
   ICR: u8;
   TCNT: u8;
   TCCRA: u8;
@@ -64,17 +66,21 @@ export interface AVRTimerConfig {
   TOV: u8;
   OCFA: u8;
   OCFB: u8;
+  OCFC: u8; // Optional, if compCInterrupt != 0
 
   // TIMSK bits
   TOIE: u8;
   OCIEA: u8;
   OCIEB: u8;
+  OCIEC: u8; // Optional, if compCInterrupt != 0
 
   // Output compare pins
   compPortA: u16;
   compPinA: u8;
   compPortB: u16;
   compPinB: u8;
+  compPortC: u16; // Optional, 0 = unused
+  compPinC: u16;
 
   // External clock pin (optional, 0 = unused)
   externalClockPort: u16;
@@ -87,11 +93,13 @@ const defaultTimerBits = {
   TOV: 1,
   OCFA: 2,
   OCFB: 4,
+  OCFC: 0, // Unused
 
   // TIMSK bits
   TOIE: 1,
   OCIEA: 2,
   OCIEB: 4,
+  OCIEC: 0, // Unused
 };
 
 export const timer0Config: AVRTimerConfig = {
@@ -99,10 +107,12 @@ export const timer0Config: AVRTimerConfig = {
   captureInterrupt: 0, // not available
   compAInterrupt: 0x1c,
   compBInterrupt: 0x1e,
+  compCInterrupt: 0,
   ovfInterrupt: 0x20,
   TIFR: 0x35,
   OCRA: 0x47,
   OCRB: 0x48,
+  OCRC: 0, // not available
   ICR: 0, // not available
   TCNT: 0x46,
   TCCRA: 0x44,
@@ -114,6 +124,8 @@ export const timer0Config: AVRTimerConfig = {
   compPinA: 6,
   compPortB: portDConfig.PORT,
   compPinB: 5,
+  compPortC: 0, // Not available
+  compPinC: 0,
   externalClockPort: portDConfig.PORT,
   externalClockPin: 4,
   ...defaultTimerBits,
@@ -124,10 +136,12 @@ export const timer1Config: AVRTimerConfig = {
   captureInterrupt: 0x14,
   compAInterrupt: 0x16,
   compBInterrupt: 0x18,
+  compCInterrupt: 0,
   ovfInterrupt: 0x1a,
   TIFR: 0x36,
   OCRA: 0x88,
   OCRB: 0x8a,
+  OCRC: 0, // not available
   ICR: 0x86,
   TCNT: 0x84,
   TCCRA: 0x80,
@@ -139,6 +153,8 @@ export const timer1Config: AVRTimerConfig = {
   compPinA: 1,
   compPortB: portBConfig.PORT,
   compPinB: 2,
+  compPortC: 0, // Not available
+  compPinC: 0,
   externalClockPort: portDConfig.PORT,
   externalClockPin: 5,
   ...defaultTimerBits,
@@ -149,10 +165,12 @@ export const timer2Config: AVRTimerConfig = {
   captureInterrupt: 0, // not available
   compAInterrupt: 0x0e,
   compBInterrupt: 0x10,
+  compCInterrupt: 0,
   ovfInterrupt: 0x12,
   TIFR: 0x37,
   OCRA: 0xb3,
   OCRB: 0xb4,
+  OCRC: 0, // not available
   ICR: 0, // not available
   TCNT: 0xb2,
   TCCRA: 0xb0,
@@ -173,6 +191,8 @@ export const timer2Config: AVRTimerConfig = {
   compPinA: 3,
   compPortB: portDConfig.PORT,
   compPinB: 3,
+  compPortC: 0, // Not available
+  compPinC: 0,
   externalClockPort: 0, // Not available
   externalClockPin: 0,
   ...defaultTimerBits,
@@ -264,6 +284,9 @@ export class AVRTimer {
   private nextOcrA: u16 = 0;
   private ocrB: u16 = 0;
   private nextOcrB: u16 = 0;
+  private hasOCRC = this.config.OCRC > 0;
+  private ocrC: u16 = 0;
+  private nextOcrC: u16 = 0;
   private ocrUpdateMode = OCRUpdateMode.Immediate;
   private tovUpdateMode = TOVUpdateMode.Max;
   private icr: u16 = 0; // only for 16-bit timers
@@ -273,6 +296,7 @@ export class AVRTimer {
   private tcntNext: u16 = 0;
   private compA: CompBitsValue;
   private compB: CompBitsValue;
+  private compC: CompBitsValue;
   private tcntUpdated = false;
   private updateDivider = false;
   private countingUp = true;
@@ -304,6 +328,13 @@ export class AVRTimer {
     flagMask: this.config.OCFB,
     enableRegister: this.config.TIMSK,
     enableMask: this.config.OCIEB,
+  };
+  private OCFC: AVRInterruptConfig = {
+    address: this.config.compCInterrupt,
+    flagRegister: this.config.TIFR,
+    flagMask: this.config.OCFC,
+    enableRegister: this.config.TIMSK,
+    enableMask: this.config.OCIEC,
   };
 
   constructor(private cpu: CPU, private config: AVRTimerConfig) {
@@ -337,6 +368,14 @@ export class AVRTimer {
         this.ocrB = this.nextOcrB;
       }
     };
+    if (this.hasOCRC) {
+      this.cpu.writeHooks[config.OCRC] = (value: u8) => {
+        this.nextOcrC = (this.highByteTemp << 8) | value;
+        if (this.ocrUpdateMode === OCRUpdateMode.Immediate) {
+          this.ocrC = this.nextOcrC;
+        }
+      };
+    }
     if (this.config.bits === 16) {
       this.cpu.writeHooks[config.ICR] = (value: u8) => {
         this.icr = (this.highByteTemp << 8) | value;
@@ -347,6 +386,9 @@ export class AVRTimer {
       this.cpu.writeHooks[config.TCNT + 1] = updateTempRegister;
       this.cpu.writeHooks[config.OCRA + 1] = updateTempRegister;
       this.cpu.writeHooks[config.OCRB + 1] = updateTempRegister;
+      if (this.hasOCRC) {
+        this.cpu.writeHooks[config.OCRC + 1] = updateTempRegister;
+      }
       this.cpu.writeHooks[config.ICR + 1] = updateTempRegister;
     }
     cpu.writeHooks[config.TCCRA] = (value) => {
@@ -383,6 +425,8 @@ export class AVRTimer {
     this.nextOcrA = 0;
     this.ocrB = 0;
     this.nextOcrB = 0;
+    this.ocrC = 0;
+    this.nextOcrC = 0;
     this.icr = 0;
     this.tcnt = 0;
     this.tcntNext = 0;
@@ -455,6 +499,17 @@ export class AVRTimer {
     if (!!prevCompB !== !!this.compB) {
       this.updateCompB(this.compB ? PinOverrideMode.Enable : PinOverrideMode.None);
     }
+
+    if (this.hasOCRC) {
+      const prevCompC = this.compC;
+      this.compC = ((TCCRA >> 2) & 0x3) as CompBitsValue;
+      if (this.compC === 1 && pwmMode) {
+        this.compC = 0; // Reserved, according to the datasheet
+      }
+      if (!!prevCompC !== !!this.compC) {
+        this.updateCompC(this.compC ? PinOverrideMode.Enable : PinOverrideMode.None);
+      }
+    }
   }
 
   count = (reschedule = true, external = false) => {
@@ -494,6 +549,7 @@ export class AVRTimer {
           // OCRUpdateMode.Top only occurs in Phase Correct modes, handled by phasePwmCount()
           this.ocrA = this.nextOcrA;
           this.ocrB = this.nextOcrB;
+          this.ocrC = this.nextOcrC;
         }
 
         // OCRUpdateMode.Bottom only occurs in Phase Correct modes, handled by phasePwmCount().
@@ -544,7 +600,7 @@ export class AVRTimer {
   };
 
   private phasePwmCount(value: u16, delta: u8) {
-    const { ocrA, ocrB, TOP, tcntUpdated } = this;
+    const { ocrA, ocrB, ocrC, hasOCRC, TOP, tcntUpdated } = this;
     while (delta > 0) {
       if (this.countingUp) {
         value++;
@@ -553,6 +609,7 @@ export class AVRTimer {
           if (this.ocrUpdateMode === OCRUpdateMode.Top) {
             this.ocrA = this.nextOcrA;
             this.ocrB = this.nextOcrB;
+            this.ocrC = this.nextOcrC;
           }
         }
       } else {
@@ -563,19 +620,28 @@ export class AVRTimer {
           if (this.ocrUpdateMode === OCRUpdateMode.Bottom) {
             this.ocrA = this.nextOcrA;
             this.ocrB = this.nextOcrB;
+            this.ocrC = this.nextOcrC;
           }
         }
       }
-      if (!tcntUpdated && value === ocrA) {
-        this.cpu.setInterruptFlag(this.OCFA);
-        if (this.compA) {
-          this.updateCompPin(this.compA, 'A');
+      if (!tcntUpdated) {
+        if (value === ocrA) {
+          this.cpu.setInterruptFlag(this.OCFA);
+          if (this.compA) {
+            this.updateCompPin(this.compA, 'A');
+          }
         }
-      }
-      if (!tcntUpdated && value === ocrB) {
-        this.cpu.setInterruptFlag(this.OCFB);
-        if (this.compB) {
-          this.updateCompPin(this.compB, 'B');
+        if (value === ocrB) {
+          this.cpu.setInterruptFlag(this.OCFB);
+          if (this.compB) {
+            this.updateCompPin(this.compB, 'B');
+          }
+        }
+        if (hasOCRC && value === ocrC) {
+          this.cpu.setInterruptFlag(this.OCFC);
+          if (this.compC) {
+            this.updateCompPin(this.compC, 'C');
+          }
         }
       }
       delta--;
@@ -584,7 +650,7 @@ export class AVRTimer {
   }
 
   private timerUpdated(value: number, prevValue: number) {
-    const { ocrA, ocrB } = this;
+    const { ocrA, ocrB, ocrC, hasOCRC } = this;
     const overflow = prevValue > value;
     if (((prevValue < ocrA || overflow) && value >= ocrA) || (prevValue < ocrA && overflow)) {
       this.cpu.setInterruptFlag(this.OCFA);
@@ -598,9 +664,18 @@ export class AVRTimer {
         this.updateCompPin(this.compB, 'B');
       }
     }
+    if (
+      hasOCRC &&
+      (((prevValue < ocrC || overflow) && value >= ocrC) || (prevValue < ocrC && overflow))
+    ) {
+      this.cpu.setInterruptFlag(this.OCFC);
+      if (this.compC) {
+        this.updateCompPin(this.compC, 'C');
+      }
+    }
   }
 
-  private updateCompPin(compValue: CompBitsValue, pinName: 'A' | 'B', bottom = false) {
+  private updateCompPin(compValue: CompBitsValue, pinName: 'A' | 'B' | 'C', bottom = false) {
     let newValue: PinOverrideMode = PinOverrideMode.None;
     const invertingMode = compValue === 3;
     const isSet = this.countingUp === invertingMode;
@@ -631,8 +706,10 @@ export class AVRTimer {
     if (newValue !== PinOverrideMode.None) {
       if (pinName === 'A') {
         this.updateCompA(newValue);
-      } else {
+      } else if (pinName === 'B') {
         this.updateCompB(newValue);
+      } else {
+        this.updateCompC(newValue);
       }
     }
   }
@@ -647,5 +724,11 @@ export class AVRTimer {
     const { compPortB, compPinB } = this.config;
     const port = this.cpu.gpioByPort[compPortB];
     port?.timerOverridePin(compPinB, value);
+  }
+
+  private updateCompC(value: PinOverrideMode) {
+    const { compPortC, compPinC } = this.config;
+    const port = this.cpu.gpioByPort[compPortC];
+    port?.timerOverridePin(compPinC, value);
   }
 }

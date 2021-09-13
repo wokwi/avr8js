@@ -925,6 +925,31 @@ describe('timer', () => {
       expect(cpu.cycles).toEqual(2);
     });
 
+    it('should set OCF1C flag when timer equals OCRC', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      const OCR1C = 0x8c;
+      const OCR1CH = 0x8d;
+      const OCF1C = 1 << 3;
+      new AVRTimer(cpu, {
+        ...timer1Config,
+        OCRC: OCR1C,
+        OCFC: OCF1C,
+      });
+      cpu.writeData(TCNT1H, 0);
+      cpu.writeData(TCNT1, 0x10);
+      cpu.writeData(OCR1C, 0x11);
+      cpu.writeData(OCR1CH, 0x11);
+      cpu.writeData(TCCR1A, 0x0); // WGM: (Normal)
+      cpu.writeData(TCCR1B, CS00); // Set prescaler to 1
+      cpu.cycles = 1;
+      cpu.tick();
+      cpu.cycles = 2;
+      cpu.tick();
+      expect(cpu.data[TIFR1]).toEqual(OCF1C);
+      expect(cpu.pc).toEqual(0);
+      expect(cpu.cycles).toEqual(2);
+    });
+
     it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       new AVRTimer(cpu, timer1Config);
@@ -1032,6 +1057,55 @@ describe('timer', () => {
       runner.runInstructions(1);
       expect(cpu.readData(TCNT1)).toEqual(0x4a);
       expect(gpioCallback).toHaveBeenCalledWith(2, PinOverrideMode.Toggle);
+    });
+
+    it('should toggle OC1C on Compare Match', () => {
+      const OCR1C = 0x8c;
+      const OCR1CH = 0x8d;
+      const OCF1C = 1 << 3;
+      const { program, lines, instructionCount } = asmProgram(`
+        ; Set waveform generation mode (WGM) to Normal, top 0xFFFF
+        LDI r16, 0x04   ; TCCR1A = (1 << COM1C0);
+        STS ${TCCR1A}, r16  
+        LDI r16, 0x1    ; TCCR1B = (1 << CS00);
+        STS ${TCCR1B}, r16  
+        LDI r16, 0x0    ; OCR1CH = 0x0;
+        STS ${OCR1CH}, r16  
+        LDI r16, 0x4a   ; OCR1C = 0x4a;
+        STS ${OCR1C}, r16  
+        LDI r16, 0x0    ; TCNT1H = 0x0;
+        STS ${TCNT1H}, r16  
+        LDI r16, 0x49   ; TCNT1 = 0x49;
+        STS ${TCNT1}, r16  
+
+        NOP   ; TCNT1 will be 0x49
+        NOP   ; TCNT1 will be 0x4a
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, {
+        ...timer1Config,
+        OCRC: OCR1C,
+        OCFC: OCF1C,
+        compPortC: portBConfig.PORT,
+        compPinC: 3,
+      });
+
+      // Listen to Port B's internal callback
+      const portB = new AVRIOPort(cpu, portBConfig);
+      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+
+      const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount - nopCount);
+
+      expect(cpu.readData(TCNT1)).toEqual(0x49);
+      expect(gpioCallback).toHaveBeenCalledWith(3, PinOverrideMode.Enable);
+      gpioCallback.mockClear();
+
+      runner.runInstructions(1);
+      expect(cpu.readData(TCNT1)).toEqual(0x4a);
+      expect(gpioCallback).toHaveBeenCalledWith(3, PinOverrideMode.Toggle);
     });
 
     it('should only update OCR1A when TCNT1=BOTTOM in PWM Phase/Frequency Correct mode (issue #76)', () => {
