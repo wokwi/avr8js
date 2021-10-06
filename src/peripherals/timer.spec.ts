@@ -27,6 +27,7 @@ const TIMSK1 = 0x6f;
 const TIFR1 = 0x36;
 const TCCR1A = 0x80;
 const TCCR1B = 0x81;
+const TCCR1C = 0x82;
 const TCNT1 = 0x84;
 const TCNT1H = 0x85;
 const ICR1 = 0x86;
@@ -34,6 +35,8 @@ const ICR1H = 0x87;
 const OCR1A = 0x88;
 const OCR1AH = 0x89;
 const OCR1B = 0x8a;
+const OCR1C = 0x8c;
+const OCR1CH = 0x8d;
 
 // Timer 2 Registers
 const TCCR2B = 0xb1;
@@ -47,8 +50,9 @@ const OCIE0B = 4;
 const TOIE0 = 1;
 const OCF0A = 2;
 const OCF0B = 4;
-const OCF1A = 2;
-const OCF1B = 4;
+const OCF1A = 1 << 1;
+const OCF1B = 1 << 2;
+const OCF1C = 1 << 3;
 const WGM00 = 1;
 const WGM10 = 1;
 const WGM01 = 2;
@@ -61,6 +65,10 @@ const CS02 = 4;
 const CS10 = 1;
 const CS21 = 2;
 const CS22 = 4;
+const COM0B1 = 1 << 5;
+const COM1C0 = 1 << 2;
+const FOC0B = 1 << 6;
+const FOC1C = 1 << 5;
 
 const T0 = 4; // PD4 on ATmega328p
 
@@ -527,6 +535,20 @@ describe('timer', () => {
     const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.readData(R17)).toEqual(2);
+  });
+
+  it('should clear OC0B pin when writing 1 to FOC0B', () => {
+    const cpu = new CPU(new Uint16Array(0x1000));
+    new AVRTimer(cpu, timer0Config);
+    cpu.writeData(TCCR0A, COM0B1);
+
+    // Listen to Port B's internal callback
+    const portD = new AVRIOPort(cpu, portDConfig);
+    const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+
+    cpu.writeData(TCCR0B, FOC0B);
+
+    expect(gpioCallback).toHaveBeenCalledWith(5, PinOverrideMode.Clear);
   });
 
   describe('Fast PWM mode', () => {
@@ -1060,9 +1082,6 @@ describe('timer', () => {
     });
 
     it('should toggle OC1C on Compare Match', () => {
-      const OCR1C = 0x8c;
-      const OCR1CH = 0x8d;
-      const OCF1C = 1 << 3;
       const { program, lines, instructionCount } = asmProgram(`
         ; Set waveform generation mode (WGM) to Normal, top 0xFFFF
         LDI r16, 0x04   ; TCCR1A = (1 << COM1C0);
@@ -1106,6 +1125,46 @@ describe('timer', () => {
       runner.runInstructions(1);
       expect(cpu.readData(TCNT1)).toEqual(0x4a);
       expect(gpioCallback).toHaveBeenCalledWith(3, PinOverrideMode.Toggle);
+    });
+
+    it('should toggle OC1C on when writing 1 to FOC1C', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      new AVRTimer(cpu, {
+        ...timer1Config,
+        OCRC: OCR1C,
+        OCFC: OCF1C,
+        compPortC: portBConfig.PORT,
+        compPinC: 3,
+      });
+      cpu.writeData(TCCR1A, COM1C0);
+
+      // Listen to Port B's internal callback
+      const portB = new AVRIOPort(cpu, portBConfig);
+      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+
+      cpu.writeData(TCCR1C, FOC1C);
+
+      expect(gpioCallback).toHaveBeenCalledWith(3, PinOverrideMode.Toggle);
+    });
+
+    it('should not toggle OC1C on when writing 1 to FOC1C in PWM mode', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      new AVRTimer(cpu, {
+        ...timer1Config,
+        OCRC: OCR1C,
+        OCFC: OCF1C,
+        compPortC: portBConfig.PORT,
+        compPinC: 3,
+      });
+      cpu.writeData(TCCR1A, COM1C0 | WGM11);
+
+      // Listen to Port B's internal callback
+      const portB = new AVRIOPort(cpu, portBConfig);
+      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+
+      cpu.writeData(TCCR1C, FOC1C);
+
+      expect(gpioCallback).not.toHaveBeenCalled();
     });
 
     it('should only update OCR1A when TCNT1=BOTTOM in PWM Phase/Frequency Correct mode (issue #76)', () => {

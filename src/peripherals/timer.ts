@@ -277,6 +277,11 @@ function compToOverride(comp: CompBitsValue) {
   }
 }
 
+// Force Output Compare (FOC) bits
+const FOCA = 1 << 7;
+const FOCB = 1 << 6;
+const FOCC = 1 << 5;
+
 export class AVRTimer {
   private readonly MAX = this.config.bits === 16 ? 0xffff : 0xff;
   private lastCycle = 0;
@@ -397,6 +402,10 @@ export class AVRTimer {
       return true;
     };
     cpu.writeHooks[config.TCCRB] = (value) => {
+      if (!config.TCCRC) {
+        this.checkForceCompare(value);
+        value &= ~(FOCA | FOCB);
+      }
       this.cpu.data[config.TCCRB] = value;
       this.updateDivider = true;
       this.cpu.clearClockEvent(this.count);
@@ -404,6 +413,11 @@ export class AVRTimer {
       this.updateWGMConfig();
       return true;
     };
+    if (config.TCCRC) {
+      cpu.writeHooks[config.TCCRC] = (value) => {
+        this.checkForceCompare(value);
+      };
+    }
     cpu.writeHooks[config.TIFR] = (value) => {
       this.cpu.data[config.TIFR] = value;
       this.cpu.clearInterruptByFlag(this.OVF, value);
@@ -672,6 +686,26 @@ export class AVRTimer {
       if (this.compC) {
         this.updateCompPin(this.compC, 'C');
       }
+    }
+  }
+
+  private checkForceCompare(value: number) {
+    if (
+      this.timerMode == TimerMode.FastPWM ||
+      this.timerMode == TimerMode.PWMPhaseCorrect ||
+      this.timerMode == TimerMode.PWMPhaseFrequencyCorrect
+    ) {
+      // The FOCnA/FOCnB/FOCnC bits are only active when the WGMn3:0 bits specifies a non-PWM mode
+      return;
+    }
+    if (value & FOCA) {
+      this.updateCompPin(this.compA, 'A');
+    }
+    if (value & FOCB) {
+      this.updateCompPin(this.compB, 'B');
+    }
+    if (this.config.compPortC && value & FOCC) {
+      this.updateCompPin(this.compC, 'C');
     }
   }
 
