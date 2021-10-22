@@ -203,6 +203,28 @@ describe('SPI', () => {
     expect(cpu.pc).toEqual(0x22); // SPI Ready interrupt
   });
 
+  it('should fire a pending SPI interrupt when SPIE flag is set', () => {
+    const cpu = new CPU(new Uint16Array(1024));
+    new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
+
+    cpu.writeData(SPCR, SPE | MSTR);
+    cpu.writeData(SPDR, 0x50);
+    cpu.data[SREG] = 0x80; // SREG: I-------
+
+    // Wait for transfer to complete (8 bits * 8 cycles per bit = 64).
+    cpu.cycles += 64;
+    cpu.tick();
+
+    expect(cpu.data[SPSR] & SPIF).toEqual(SPIF);
+    expect(cpu.pc).toEqual(0); // Interrupt not taken (yet)
+
+    // Enable the interrupt (SPIE)
+    cpu.writeData(SPCR, SPE | MSTR | SPIE);
+    cpu.tick();
+    expect(cpu.pc).toEqual(0x22); // SPI Ready interrupt
+    expect(cpu.data[SPSR] & SPIF).toEqual(0);
+  });
+
   it('should should only update SPDR when tranfer finishes (double buffering)', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);

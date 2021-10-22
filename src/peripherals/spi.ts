@@ -78,6 +78,9 @@ export class AVRSPI {
       }, cyclesToComplete);
       return true;
     };
+    cpu.writeHooks[SPCR] = (value: u8) => {
+      this.cpu.updateInterruptEnable(this.SPI, value);
+    };
     cpu.writeHooks[SPSR] = (value: u8) => {
       this.cpu.data[SPSR] = value;
       this.cpu.clearInterruptByFlag(this.SPI, value);
