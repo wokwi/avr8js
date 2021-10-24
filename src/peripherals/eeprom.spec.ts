@@ -99,7 +99,30 @@ describe('EEPROM', () => {
       cpu.writeData(EEDR, 0x55);
       cpu.writeData(EEARL, 15);
       cpu.writeData(EEARH, 0);
-      cpu.writeData(EECR, EEMPE | EERIE);
+      cpu.writeData(EECR, EEMPE);
+      cpu.data[SREG] = 0x80; // SREG: I-------
+      cpu.writeData(EECR, EEPE | EERIE);
+      cpu.cycles += 1000;
+      cpu.tick();
+      // At this point, write shouldn't be complete yet
+      expect(cpu.data[EECR] & EEPE).toEqual(EEPE);
+      expect(cpu.pc).toEqual(0);
+      cpu.cycles += 10000000;
+      // And now, 10 million cycles later, it should.
+      cpu.tick();
+      expect(eepromBackend.memory[15]).toEqual(0x55);
+      expect(cpu.data[EECR] & EEPE).toEqual(0);
+      expect(cpu.pc).toEqual(0x2c); // EEPROM Ready interrupt
+    });
+
+    it('should clear the fire an interrupt when there is a pending interrupt and the interrupt flag is enabled (issue #110)', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      const eepromBackend = new EEPROMMemoryBackend(1024);
+      new AVREEPROM(cpu, eepromBackend);
+      cpu.writeData(EEDR, 0x55);
+      cpu.writeData(EEARL, 15);
+      cpu.writeData(EEARH, 0);
+      cpu.writeData(EECR, EEMPE);
       cpu.data[SREG] = 0x80; // SREG: I-------
       cpu.writeData(EECR, EEPE);
       cpu.cycles += 1000;
@@ -112,6 +135,8 @@ describe('EEPROM', () => {
       cpu.tick();
       expect(eepromBackend.memory[15]).toEqual(0x55);
       expect(cpu.data[EECR] & EEPE).toEqual(0);
+      cpu.writeData(EECR, EERIE);
+      cpu.tick();
       expect(cpu.pc).toEqual(0x2c); // EEPROM Ready interrupt
     });
 

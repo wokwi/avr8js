@@ -58,6 +58,7 @@ const EEMPE = 1 << 2;
 const EERIE = 1 << 3;
 const EEPM0 = 1 << 4;
 const EEPM1 = 1 << 5;
+const EECR_WRITE_MASK = EEPE | EEMPE | EERIE | EEPM0 | EEPM1;
 
 export class AVREEPROM {
   /**
@@ -91,6 +92,9 @@ export class AVREEPROM {
 
       const addr = (this.cpu.data[EEARH] << 8) | this.cpu.data[EEARL];
 
+      this.cpu.data[EECR] = (this.cpu.data[EECR] & ~EECR_WRITE_MASK) | (eecr & EECR_WRITE_MASK);
+      this.cpu.updateInterruptEnable(this.EER, eecr);
+
       if (eecr & EERE) {
         this.cpu.clearInterrupt(this.EER);
       }
@@ -116,6 +120,7 @@ export class AVREEPROM {
       if (eecr & EEPE) {
         //  If EEMPE is zero, setting EEPE will have no effect.
         if (this.cpu.cycles >= this.writeEnabledCycles) {
+          this.cpu.data[EECR] &= ~EEPE;
           return true;
         }
         // Check for write-in-progress
@@ -147,10 +152,9 @@ export class AVREEPROM {
         // When EEPE has been set, the CPU is halted for two cycles before the
         // next instruction is executed.
         this.cpu.cycles += 2;
-        return true;
       }
 
-      return false;
+      return true;
     };
   }
 }

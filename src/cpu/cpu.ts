@@ -141,9 +141,10 @@ export class CPU {
   }
 
   updateInterruptEnable(interrupt: AVRInterruptConfig, registerValue: u8) {
-    const { enableMask, flagRegister, flagMask } = interrupt;
+    const { enableMask, flagRegister, flagMask, inverseFlag } = interrupt;
     if (registerValue & enableMask) {
-      if (this.data[flagRegister] & flagMask) {
+      const bitSet = this.data[flagRegister] & flagMask;
+      if (inverseFlag ? !bitSet : bitSet) {
         this.queueInterrupt(interrupt);
       }
     } else {
