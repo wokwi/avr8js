@@ -1209,6 +1209,42 @@ describe('timer', () => {
       expect(cpu.readData(R19)).toEqual(0x6);
       expect(cpu.readData(R20)).toEqual(0x7);
     });
+
+    it('should update OCR1A when setting TCNT to 0 (issue #111)', () => {
+      const { program, instructionCount } = asmProgram(`
+        CLR r1          ; r1 is our zero register
+        LDI r16, 0x0    ; OCR1AH = 0x0;
+        STS 0x89, r1    
+        LDI r16, 0x8    ; OCR1AL = 0x8;
+        STS 0x88, r16  
+        ; Set waveform generation mode (WGM) to PWM Phase/Frequency Correct mode (9)
+        LDI r16, 0x01   ; TCCR1A = (1 << WGM10);
+        STS 0x80, r16  
+        LDI r16, 0x11   ; TCCR1B = (1 << WGM13) | (1 << CS00);
+        STS 0x81, r16  
+        STS 0x85, r1    ; TCNT1H = 0x0;
+        STS 0x84, r1    ; TCNT1L = 0x0;
+        
+        LDI r16, 0x5   ; OCR1AL = 0x5; // TCNT1 should read 0x0
+        STS 0x88, r16  ; // TCNT1 should read 0x2 (going up)
+        STS 0x84, r1   ; TCNT1L = 0x0;
+        LDS r17, 0x84  ; // TCNT1 should read 0x1 (going up)
+        LDS r18, 0x84  ; // TCNT1 should read 0x3 (going up)
+        LDS r19, 0x84  ; // TCNT1 should read 0x5 (going down)
+        LDS r20, 0x84  ; // TCNT1 should read 0x3 (going down)
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer1Config);
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      expect(cpu.readData(R17)).toEqual(0x1);
+      expect(cpu.readData(R18)).toEqual(0x3);
+      expect(cpu.readData(R19)).toEqual(0x5);
+      expect(cpu.readData(R20)).toEqual(0x3);
+    });
   });
 
   describe('External clock', () => {

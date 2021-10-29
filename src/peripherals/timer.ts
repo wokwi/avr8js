@@ -576,6 +576,14 @@ export class AVRTimer {
     if (this.tcntUpdated) {
       this.tcnt = this.tcntNext;
       this.tcntUpdated = false;
+      if (
+        (this.tcnt === 0 && this.ocrUpdateMode === OCRUpdateMode.Bottom) ||
+        (this.tcnt === this.TOP && this.ocrUpdateMode === OCRUpdateMode.Top)
+      ) {
+        this.ocrA = this.nextOcrA;
+        this.ocrB = this.nextOcrB;
+        this.ocrC = this.nextOcrC;
+      }
     }
     if (this.updateDivider) {
       const { CS } = this;
