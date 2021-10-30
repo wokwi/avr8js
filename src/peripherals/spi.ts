@@ -31,15 +31,28 @@ export const spiConfig: SPIConfig = {
   SPDR: 0x4e,
 };
 
-export type SPITransferCallback = (value: u8) => u8;
+export type SPITransferCallback = (value: u8) => number;
+export type SPIByteTransferCallback = (value: u8) => void;
 
 const bitsPerByte = 8;
 
 export class AVRSPI {
-  public onTransfer: SPITransferCallback | null = null;
+  /** @deprecated Use onByte() instead */
+  public onTransfer: SPITransferCallback = () => 0;
+
+  /**
+   * SPI byte transfer callback. Invoked whenever the user code starts an SPI transaction.
+   * You can override this with your own SPI handler logic.
+   *
+   * The callback receives a argument: the byte sent over the SPI MOSI line.
+   * It should call `completeTransfer()` within `transferCycles` CPU cycles.
+   */
+  public onByte: SPIByteTransferCallback = (value) => {
+    const valueIn = this.onTransfer(value);
+    this.cpu.addClockEvent(() => this.completeTransfer(valueIn), this.transferCycles);
+  };
 
   private transmissionActive = false;
-  private receivedByte: u8 = 0;
 
   // Interrupts
   private SPI: AVRInterruptConfig = {
@@ -68,14 +81,8 @@ export class AVRSPI {
       cpu.data[SPSR] &= ~SPSR_WCOL;
       this.cpu.clearInterrupt(this.SPI);
 
-      this.receivedByte = this.onTransfer?.(value) ?? 0;
-      const cyclesToComplete = this.clockDivider * bitsPerByte;
       this.transmissionActive = true;
-      this.cpu.addClockEvent(() => {
-        this.cpu.data[SPDR] = this.receivedByte;
-        this.cpu.setInterruptFlag(this.SPI);
-        this.transmissionActive = false;
-      }, cyclesToComplete);
+      this.onByte(value);
       return true;
     };
     cpu.writeHooks[SPCR] = (value: u8) => {
@@ -89,7 +96,18 @@ export class AVRSPI {
 
   reset() {
     this.transmissionActive = false;
-    this.receivedByte = 0;
+  }
+
+  /**
+   * Completes an SPI transaction. Call this method only from the `onByte` callback.
+   *
+   * @param receivedByte Byte read from the SPI MISO line.
+   */
+  completeTransfer(receivedByte: number) {
+    const { SPDR } = this.config;
+    this.cpu.data[SPDR] = receivedByte;
+    this.cpu.setInterruptFlag(this.SPI);
+    this.transmissionActive = false;
   }
 
   get isMaster() {
@@ -126,6 +144,11 @@ export class AVRSPI {
     }
     // We should never get here:
     throw new Error('Invalid divider value!');
+  }
+
+  /** Number of cycles to complete a single byte SPI transaction */
+  get transferCycles() {
+    return this.clockDivider * bitsPerByte;
   }
 
   /**

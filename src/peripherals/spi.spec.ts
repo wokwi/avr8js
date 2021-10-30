@@ -96,26 +96,26 @@ describe('SPI', () => {
     expect(spi.isMaster).toBe(true);
   });
 
-  it('should call the `onTransfer` callback when initiating an SPI trasfer by writing to SPDR', () => {
+  it('should call the `onByteTransfer` callback when initiating an SPI trasfer by writing to SPDR', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
-    spi.onTransfer = jest.fn();
+    spi.onByte = jest.fn();
 
     cpu.writeData(SPCR, SPE | MSTR);
     cpu.writeData(SPDR, 0x8f);
 
-    expect(spi.onTransfer).toHaveBeenCalledWith(0x8f);
+    expect(spi.onByte).toHaveBeenCalledWith(0x8f);
   });
 
   it('should ignore SPDR writes when the SPE bit in SPCR is clear', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
-    spi.onTransfer = jest.fn();
+    spi.onByte = jest.fn();
 
     cpu.writeData(SPCR, MSTR);
     cpu.writeData(SPDR, 0x8f);
 
-    expect(spi.onTransfer).not.toHaveBeenCalled();
+    expect(spi.onByte).not.toHaveBeenCalled();
   });
 
   it('should transmit a byte successfully (integration)', () => {
@@ -155,9 +155,9 @@ describe('SPI', () => {
 
     let byteReceivedFromAsmCode: number | null = null;
 
-    spi.onTransfer = (value) => {
+    spi.onByte = (value) => {
       byteReceivedFromAsmCode = value;
-      return 0x5b; // we copy this byte to
+      cpu.addClockEvent(() => spi.completeTransfer(0x5b), spi.transferCycles);
     };
 
     const runner = new TestProgramRunner(cpu, () => 0);
@@ -228,7 +228,9 @@ describe('SPI', () => {
   it('should should only update SPDR when tranfer finishes (double buffering)', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
-    spi.onTransfer = jest.fn(() => 0x88);
+    spi.onByte = () => {
+      cpu.addClockEvent(() => spi.completeTransfer(0x88), spi.transferCycles);
+    };
 
     cpu.writeData(SPCR, SPE | MSTR);
     cpu.writeData(SPDR, 0x8f);
