@@ -94,6 +94,7 @@ export class NoopTWIEventHandler implements TWIEventHandler {
 
 export class AVRTWI {
   public eventHandler: TWIEventHandler = new NoopTWIEventHandler(this);
+  private busy = false;
 
   // Interrupts
   private TWI: AVRInterruptConfig = {
@@ -112,18 +113,23 @@ export class AVRTWI {
       this.cpu.clearInterruptByFlag(this.TWI, value);
       this.cpu.updateInterruptEnable(this.TWI, value);
       const { status } = this;
-      if (clearInt && value & TWCR_TWEN) {
+      if (clearInt && value & TWCR_TWEN && !this.busy) {
         const twdrValue = this.cpu.data[this.config.TWDR];
         this.cpu.addClockEvent(() => {
           if (value & TWCR_TWSTA) {
+            this.busy = true;
             this.eventHandler.start(status !== STATUS_TWI_IDLE);
           } else if (value & TWCR_TWSTO) {
+            this.busy = true;
             this.eventHandler.stop();
           } else if (status === STATUS_START || status === STATUS_REPEATED_START) {
+            this.busy = true;
             this.eventHandler.connectToSlave(twdrValue >> 1, twdrValue & 0x1 ? false : true);
           } else if (status === STATUS_SLAW_ACK || status === STATUS_DATA_SENT_ACK) {
+            this.busy = true;
             this.eventHandler.writeByte(twdrValue);
           } else if (status === STATUS_SLAR_ACK || status === STATUS_DATA_RECEIVED_ACK) {
+            this.busy = true;
             const ack = !!(value & TWCR_TWEA);
             this.eventHandler.readByte(ack);
           }
@@ -153,15 +159,18 @@ export class AVRTWI {
   }
 
   completeStart() {
+    this.busy = false;
     this.updateStatus(this.status === STATUS_TWI_IDLE ? STATUS_START : STATUS_REPEATED_START);
   }
 
   completeStop() {
+    this.busy = false;
     this.cpu.data[this.config.TWCR] &= ~TWCR_TWSTO;
     this.updateStatus(STATUS_TWI_IDLE);
   }
 
   completeConnect(ack: boolean) {
+    this.busy = false;
     if (this.cpu.data[this.config.TWDR] & 0x1) {
       this.updateStatus(ack ? STATUS_SLAR_ACK : STATUS_SLAR_NACK);
     } else {
@@ -170,10 +179,12 @@ export class AVRTWI {
   }
 
   completeWrite(ack: boolean) {
+    this.busy = false;
     this.updateStatus(ack ? STATUS_DATA_SENT_ACK : STATUS_DATA_SENT_NACK);
   }
 
   completeRead(value: u8) {
+    this.busy = false;
     const ack = !!(this.cpu.data[this.config.TWCR] & TWCR_TWEA);
     this.cpu.data[this.config.TWDR] = value;
     this.updateStatus(ack ? STATUS_DATA_RECEIVED_ACK : STATUS_DATA_RECEIVED_NACK);
