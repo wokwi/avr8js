@@ -1,6 +1,6 @@
 {
   "name": "avr8js",
-  "version": "0.18.7",
+  "version": "0.18.8",
   "main": "dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
