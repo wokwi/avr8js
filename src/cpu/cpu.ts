@@ -10,6 +10,7 @@ import { u32, u16, u8, i16 } from '../types';
 import { avrInterrupt } from './interrupt';
 
 const registerSpace = 0x100;
+const MAX_INTERRUPTS = 128; // Enough for ATMega2560
 
 export type CPUMemoryHook = (value: u8, oldValue: u8, addr: u16, mask: u8) => boolean | void;
 export interface CPUMemoryHooks {
@@ -46,7 +47,7 @@ export class CPU {
   readonly progBytes = new Uint8Array(this.progMem.buffer);
   readonly readHooks: CPUMemoryReadHooks = [];
   readonly writeHooks: CPUMemoryHooks = [];
-  private readonly pendingInterrupts: AVRInterruptConfig[] = [];
+  private readonly pendingInterrupts: (AVRInterruptConfig | null)[] = new Array(MAX_INTERRUPTS);
   private nextClockEvent: AVRClockEventEntry | null = null;
   private readonly clockEventPool: AVRClockEventEntry[] = []; // helps avoid garbage collection
 
@@ -77,6 +78,7 @@ export class CPU {
   cycles = 0;
 
   nextInterrupt: i16 = -1;
+  maxInterrupt: i16 = 0;
 
   constructor(public progMem: Uint16Array, private sramBytes = 8192) {
     this.reset();
@@ -86,7 +88,7 @@ export class CPU {
     this.data.fill(0);
     this.SP = this.data.length - 1;
     this.pc = 0;
-    this.pendingInterrupts.splice(0, this.pendingInterrupts.length);
+    this.pendingInterrupts.fill(null);
     this.nextInterrupt = -1;
     this.nextClockEvent = null;
   }
@@ -124,10 +126,6 @@ export class CPU {
     return this.SREG & 0x80 ? true : false;
   }
 
-  private updateNextInterrupt() {
-    this.nextInterrupt = this.pendingInterrupts.findIndex((item) => !!item);
-  }
-
   setInterruptFlag(interrupt: AVRInterruptConfig) {
     const { flagRegister, flagMask, enableRegister, enableMask } = interrupt;
     if (interrupt.inverseFlag) {
@@ -153,16 +151,34 @@ export class CPU {
   }
 
   queueInterrupt(interrupt: AVRInterruptConfig) {
-    this.pendingInterrupts[interrupt.address] = interrupt;
-    this.updateNextInterrupt();
+    const { address } = interrupt;
+    this.pendingInterrupts[address] = interrupt;
+    if (this.nextInterrupt === -1 || this.nextInterrupt > address) {
+      this.nextInterrupt = address;
+    }
+    if (address > this.maxInterrupt) {
+      this.maxInterrupt = address;
+    }
   }
 
   clearInterrupt({ address, flagRegister, flagMask }: AVRInterruptConfig, clearFlag = true) {
-    delete this.pendingInterrupts[address];
     if (clearFlag) {
       this.data[flagRegister] &= ~flagMask;
     }
-    this.updateNextInterrupt();
+    const { pendingInterrupts, maxInterrupt } = this;
+    if (!pendingInterrupts[address]) {
+      return;
+    }
+    pendingInterrupts[address] = null;
+    if (this.nextInterrupt === address) {
+      this.nextInterrupt = -1;
+      for (let i = address + 1; i <= maxInterrupt; i++) {
+        if (pendingInterrupts[i]) {
+          this.nextInterrupt = i;
+          break;
+        }
+      }
+    }
   }
 
   clearInterruptByFlag(interrupt: AVRInterruptConfig, registerValue: number) {
@@ -241,7 +257,8 @@ export class CPU {
 
     const { nextInterrupt } = this;
     if (this.interruptsEnabled && nextInterrupt >= 0) {
-      const interrupt = this.pendingInterrupts[nextInterrupt];
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const interrupt = this.pendingInterrupts[nextInterrupt]!;
       avrInterrupt(this, interrupt.address);
       if (!interrupt.constant) {
         this.clearInterrupt(interrupt);
