@@ -118,10 +118,12 @@ describe('Watchdog', () => {
     // Now we skip 8ms. Watchdog shouldn't fire, yet
     cpu.cycles += 16000 * 8;
     runner.runInstructions(1);
+    expect(cpu.pc).not.toEqual(0);
 
     // Now we skip an extra 8ms. We extended the timeout with WDR, so watchdog won't fire yet
     cpu.cycles += 16000 * 8;
     runner.runInstructions(1);
+    expect(cpu.pc).not.toEqual(0);
 
     // Finally, another 8ms bring us to 16ms since last WDR, and watchdog should fire
     cpu.cycles += 16000 * 8;
