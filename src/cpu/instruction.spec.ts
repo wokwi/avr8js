@@ -80,6 +80,41 @@ describe('avrInstruction', () => {
     expect(cpu.data[SREG]).toEqual(SREG_H | SREG_Z | SREG_C);
   });
 
+  it('should execute `ADD r0, r1` instruction when result overflows', () => {
+    loadProgram('ADD r0, r1');
+    cpu.data[r0] = 11;
+    cpu.data[r1] = 245;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[r0]).toEqual(0);
+    expect(cpu.data[SREG]).toEqual(SREG_H | SREG_Z | SREG_C);
+  });
+
+  it('should execute `ADD r0, r1` instruction when carry is on', () => {
+    loadProgram('ADD r0, r1');
+    cpu.data[r0] = 11;
+    cpu.data[r1] = 244;
+    cpu.data[SREG] = SREG_C;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[r0]).toEqual(255);
+    expect(cpu.data[SREG]).toEqual(SREG_S | SREG_N);
+  });
+
+  it('should execute `ADD r0, r1` instruction when carry is on and the result overflows', () => {
+    loadProgram('ADD r0, r1');
+    cpu.data[r0] = 11;
+    cpu.data[r1] = 245;
+    cpu.data[SREG] = SREG_C;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[r0]).toEqual(0);
+    expect(cpu.data[SREG]).toEqual(SREG_H | SREG_Z | SREG_C);
+  });
+
   it('should execute `BCLR 2` instruction', () => {
     loadProgram('BCLR 2');
     cpu.data[SREG] = 0xff;
@@ -991,6 +1026,17 @@ describe('avrInstruction', () => {
     expect(cpu.data[Z]).toEqual(0x50); // verify that Z was unchanged
   });
 
+  it('should execute `SUB r0, r1` instruction when result overflows', () => {
+    loadProgram('SUB r0, r1');
+    cpu.data[r0] = 0;
+    cpu.data[r1] = 10;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[r0]).toEqual(246);
+    expect(cpu.data[SREG]).toEqual(SREG_S | SREG_N | SREG_C);
+  });
+
   it('should execute `SWAP r1` instruction', () => {
     loadProgram('SWAP r1');
     cpu.data[r1] = 0xa5;
@@ -998,6 +1044,14 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[r1]).toEqual(0x5a);
+  });
+
+  it('should execute `WDR` instruction and call `cpu.onWatchdogReset`', () => {
+    loadProgram('WDR');
+    cpu.onWatchdogReset = jest.fn();
+    expect(cpu.onWatchdogReset).not.toHaveBeenCalled();
+    avrInstruction(cpu);
+    expect(cpu.onWatchdogReset).toHaveBeenCalled();
   });
 
   it('should execute `XCH Z, r21` instruction', () => {
