@@ -115,6 +115,10 @@ describe('avrInstruction', () => {
     expect(cpu.data[SREG]).toEqual(SREG_H | SREG_Z | SREG_C);
   });
 
+  /**
+   * ADIW, AND, ANDI, ASR
+   */
+
   it('should execute `BCLR 2` instruction', () => {
     loadProgram('BCLR 2');
     cpu.data[SREG] = 0xff;
@@ -176,14 +180,10 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(1);
   });
 
-  it('should execute `CBI 0x0c, 5`', () => {
-    loadProgram('CBI 0x0c, 5');
-    cpu.data[0x2c] = 0b11111111;
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(1);
-    expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[0x2c]).toEqual(0b11011111);
-  });
+  /**
+   * BRCC, BRCS, BREAK, BREQ, BRGE, BRHC, BRHS, BRID, BRIE, BRLO,
+   * BRLT, BRMI, BRNE, BRPL, BRSH, BRTC, BRTS, BRVC, BRVS, BSET, BST
+   */
 
   it('should execute `CALL` instruction', () => {
     loadProgram('CALL 0xb8');
@@ -207,6 +207,19 @@ describe('avrInstruction', () => {
     expect(cpu.data[150]).toEqual(2); // return addr
     expect(cpu.data[SP]).toEqual(147); // SP should be decremented by 3
   });
+
+  it('should execute `CBI 0x0c, 5`', () => {
+    loadProgram('CBI 0x0c, 5');
+    cpu.data[0x2c] = 0b11111111;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[0x2c]).toEqual(0b11011111);
+  });
+
+  /**
+   * CBR, CLC, CLH, CLI, CLN, CLR, CLS, CLT, CLV, CLZ, COM, CP
+   */
 
   it('should execute `CPC r27, r18` instruction', () => {
     loadProgram('CPC r27, r18');
@@ -264,6 +277,10 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(3);
     expect(cpu.cycles).toEqual(3);
   });
+
+  /**
+   * DEC, DES
+   */
 
   it('should execute `EICALL` instruction', () => {
     cpu = new CPU(new Uint16Array(0x20000));
@@ -335,6 +352,10 @@ describe('avrInstruction', () => {
     avrInstruction(cpu);
     expect(cpu.data[RAMPZ]).toEqual(0x0); // verify that RAMPZ was reset to zero
   });
+
+  /**
+   * EOR, FMUL, FMULS, FMULSU
+   */
 
   it('should execute `ICALL` instruction', () => {
     loadProgram('ICALL');
@@ -442,23 +463,6 @@ describe('avrInstruction', () => {
     expect(cpu.data[r0]).toEqual(0x66);
     expect(cpu.data[Z]).toEqual(0x80);
     expect(cpu.data[0x80]).toEqual(0x55);
-  });
-
-  it('should execute `LDI r28, 0xff` instruction', () => {
-    loadProgram('LDI r28, 0xff');
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(0x1);
-    expect(cpu.cycles).toEqual(1);
-    expect(cpu.data[Y]).toEqual(0xff);
-  });
-
-  it('should execute `LDS r5, 0x150` instruction', () => {
-    loadProgram('LDS r5, 0x150');
-    cpu.data[0x150] = 0x7a;
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(0x2);
-    expect(cpu.cycles).toEqual(2);
-    expect(cpu.data[r5]).toEqual(0x7a);
   });
 
   it('should execute `LD r1, X` instruction', () => {
@@ -582,6 +586,27 @@ describe('avrInstruction', () => {
     expect(cpu.data[Z]).toEqual(0x80); // verify that Z was unchanged
   });
 
+  it('should execute `LDI r28, 0xff` instruction', () => {
+    loadProgram('LDI r28, 0xff');
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[Y]).toEqual(0xff);
+  });
+
+  it('should execute `LDS r5, 0x150` instruction', () => {
+    loadProgram('LDS r5, 0x150');
+    cpu.data[0x150] = 0x7a;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(0x2);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[r5]).toEqual(0x7a);
+  });
+
+  /**
+   * LDS (16-bit)
+   */
+
   it('should execute `LPM` instruction', () => {
     loadProgram('LPM');
     cpu.progMem[0x40] = 0xa0;
@@ -614,6 +639,10 @@ describe('avrInstruction', () => {
     expect(cpu.data[r1]).toEqual(0xa0);
     expect(cpu.data[Z]).toEqual(0x81); // verify that Z was incremented
   });
+
+  /**
+   * LSL
+   */
 
   it('should execute `LSR r7` instruction', () => {
     loadProgram('LSR r7');
@@ -716,6 +745,10 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
   });
+
+  /**
+   * OR, ORI
+   */
 
   it('should execute `OUT 0x3f, r1` instruction', () => {
     loadProgram('OUT 0x3f, r1');
@@ -843,6 +876,10 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(2);
   });
 
+  /**
+   * ROL
+   */
+
   it('should execute `ROR r0` instruction', () => {
     loadProgram('ROR r0');
     cpu.data[r0] = 0x11;
@@ -851,6 +888,18 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[r0]).toEqual(0x08); // r0 should be right-shifted
     expect(cpu.data[SREG]).toEqual(SREG_S | SREG_V | SREG_C);
+  });
+
+  it('should execute `SBC r0, r1` instruction when carry is on and result overflows', () => {
+    loadProgram('SBC r0, r1');
+    cpu.data[r0] = 0;
+    cpu.data[r1] = 10;
+    cpu.data[95] = SREG_C;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(1);
+    expect(cpu.cycles).toEqual(1);
+    expect(cpu.data[r0]).toEqual(245);
+    expect(cpu.data[SREG]).toEqual(SREG_H | SREG_S | SREG_N | SREG_C);
   });
 
   it('should execute `SBCI r23, 3`', () => {
@@ -871,6 +920,10 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(2);
     expect(cpu.data[0x2c]).toEqual(0b00101111);
   });
+
+  /**
+   * SBIC
+   */
 
   it('should execute `SBIS 0x0c, 5` when bit is clear', () => {
     loadProgram('SBIS 0x0c, 5');
@@ -896,14 +949,10 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(3);
   });
 
-  it('should execute `STS 0x151, r31` instruction', () => {
-    loadProgram('STS 0x151, r31');
-    cpu.data[r31] = 0x80;
-    avrInstruction(cpu);
-    expect(cpu.pc).toEqual(2);
-    expect(cpu.cycles).toEqual(2);
-    expect(cpu.data[0x151]).toEqual(0x80);
-  });
+  /**
+   * SBIW, SBR, SBRC, SBRS, SEC, SEH, SEI, SEN, SER, SES, SET, SEV, SEZ,
+   * SLEEP, SPM, SPM #2
+   */
 
   it('should execute `ST X, r1` instruction', () => {
     loadProgram('ST X, r1');
@@ -1026,6 +1075,19 @@ describe('avrInstruction', () => {
     expect(cpu.data[Z]).toEqual(0x50); // verify that Z was unchanged
   });
 
+  it('should execute `STS 0x151, r31` instruction', () => {
+    loadProgram('STS 0x151, r31');
+    cpu.data[r31] = 0x80;
+    avrInstruction(cpu);
+    expect(cpu.pc).toEqual(2);
+    expect(cpu.cycles).toEqual(2);
+    expect(cpu.data[0x151]).toEqual(0x80);
+  });
+
+  /**
+   * STS (16-bit)
+   */
+
   it('should execute `SUB r0, r1` instruction when result overflows', () => {
     loadProgram('SUB r0, r1');
     cpu.data[r0] = 0;
@@ -1037,6 +1099,10 @@ describe('avrInstruction', () => {
     expect(cpu.data[SREG]).toEqual(SREG_S | SREG_N | SREG_C);
   });
 
+  /**
+   * SUBI
+   */
+
   it('should execute `SWAP r1` instruction', () => {
     loadProgram('SWAP r1');
     cpu.data[r1] = 0xa5;
@@ -1045,6 +1111,10 @@ describe('avrInstruction', () => {
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[r1]).toEqual(0x5a);
   });
+
+  /**
+   * TST
+   */
 
   it('should execute `WDR` instruction and call `cpu.onWatchdogReset`', () => {
     loadProgram('WDR');
