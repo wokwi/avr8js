@@ -1245,6 +1245,17 @@ describe('timer', () => {
       expect(cpu.readData(R19)).toEqual(0x5);
       expect(cpu.readData(R20)).toEqual(0x3);
     });
+
+    it('should mask the unused bits of OCR1A when using fixed top values', () => {
+      const cpu = new CPU(new Uint16Array(0x1000));
+      new AVRTimer(cpu, timer1Config);
+      cpu.writeData(TCCR1A, WGM10 | WGM11); // WGM: FastPWM, top 0x3ff
+      cpu.writeData(TCCR1B, WGM12);
+      cpu.writeData(OCR1AH, 0xff);
+      cpu.writeData(OCR1A, 0xff);
+      expect(cpu.readData(OCR1A)).toEqual(0xff);
+      expect(cpu.readData(OCR1AH)).toEqual(0x03);
+    });
   });
 
   describe('External clock', () => {

@@ -388,11 +388,16 @@ export class AVRTimer {
       const updateTempRegister = (value: u8) => {
         this.highByteTemp = value;
       };
+      const updateOCRHighRegister = (value: u8, old: u8, addr: u16) => {
+        this.highByteTemp = value & (this.ocrMask >> 8);
+        cpu.data[addr] = this.highByteTemp;
+        return true;
+      };
       this.cpu.writeHooks[config.TCNT + 1] = updateTempRegister;
-      this.cpu.writeHooks[config.OCRA + 1] = updateTempRegister;
-      this.cpu.writeHooks[config.OCRB + 1] = updateTempRegister;
+      this.cpu.writeHooks[config.OCRA + 1] = updateOCRHighRegister;
+      this.cpu.writeHooks[config.OCRB + 1] = updateOCRHighRegister;
       if (this.hasOCRC) {
-        this.cpu.writeHooks[config.OCRC + 1] = updateTempRegister;
+        this.cpu.writeHooks[config.OCRC + 1] = updateOCRHighRegister;
       }
       this.cpu.writeHooks[config.ICR + 1] = updateTempRegister;
     }
@@ -476,6 +481,16 @@ export class AVRTimer {
         return this.ocrA;
       case TopICR:
         return this.icr;
+      default:
+        return this.topValue;
+    }
+  }
+
+  get ocrMask() {
+    switch (this.topValue) {
+      case TopOCRA:
+      case TopICR:
+        return 0xffff;
       default:
         return this.topValue;
     }
