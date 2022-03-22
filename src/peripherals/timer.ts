@@ -496,6 +496,11 @@ export class AVRTimer {
     }
   }
 
+  /** Expose the raw value of TCNT, for use by the unit tests */
+  get debugTCNT() {
+    return this.tcnt;
+  }
+
   private updateWGMConfig() {
     const { config, WGM } = this;
     const wgmModes = config.bits === 16 ? wgmModes16Bit : wgmModes8Bit;
@@ -637,7 +642,15 @@ export class AVRTimer {
   };
 
   private phasePwmCount(value: u16, delta: u8) {
-    const { ocrA, ocrB, ocrC, hasOCRC, TOP, tcntUpdated } = this;
+    const { ocrA, ocrB, ocrC, hasOCRC, TOP, MAX, tcntUpdated } = this;
+    if (!value && !TOP) {
+      delta = 0;
+      if (this.ocrUpdateMode === OCRUpdateMode.Top) {
+        this.ocrA = this.nextOcrA;
+        this.ocrB = this.nextOcrB;
+        this.ocrC = this.nextOcrC;
+      }
+    }
     while (delta > 0) {
       if (this.countingUp) {
         value++;
@@ -683,7 +696,7 @@ export class AVRTimer {
       }
       delta--;
     }
-    return value;
+    return value & MAX;
   }
 
   private timerUpdated(value: number, prevValue: number) {

@@ -908,6 +908,58 @@ describe('timer', () => {
       expect(cpu.readData(R17)).toEqual(0x4);
       expect(cpu.readData(R18)).toEqual(0x1);
     });
+
+    it('should update OCR0A when TCNT0=TOP and TOP=0 in PWM Phase Correct mode (issue #119)', () => {
+      const { program, instructionCount } = asmProgram(`
+        ; Set waveform generation mode (WGM) to PWM, Phase Correct
+        LDI r16, 0x01   ; TCCR0A = (1 << WGM00);
+        OUT 0x24, r16
+        LDI r16, 0x09   ; TCCR0B = (1 << WGM02) | (1 << CS00);
+        OUT 0x25, r16
+        LDI r16, 0x0   ; TCNT0 = 0x0;
+        OUT 0x26, r16
+
+        IN r17, 0x26    ; R17 = TCNT; // TCNT0 should read 0x0
+        IN r18, 0x26    ; R18 = TCNT; // TCNT0 should read 0x0
+        LDI r16, 0x2    ; OCR0A = 0x2; // TCNT0 should read 0x0
+        OUT 0x27, r16   ; // TCNT0 should read 0x1
+        NOP             ; // TCNT0 should read 0x2
+        IN r19, 0x26    ; R19 = TCNT; // TCNT0 should read 0x1
+      `);
+
+      const cpu = new CPU(program);
+      new AVRTimer(cpu, timer0Config);
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      expect(cpu.readData(R17)).toEqual(0);
+      expect(cpu.readData(R18)).toEqual(0);
+      expect(cpu.readData(R19)).toEqual(0x1);
+    });
+
+    it('should not overrun when TOP < current value in Phase Correct mode (issue #119)', () => {
+      const { program, instructionCount } = asmProgram(`
+        ; Set waveform generation mode (WGM) to PWM, Phase Correct
+        LDI r16, 0x01   ; TCCR0A = (1 << WGM00);
+        OUT 0x24, r16
+        LDI r16, 0x09   ; TCCR0B = (1 << WGM02) | (1 << CS00);
+        OUT 0x25, r16
+        LDI r16, 0xff   ; TCNT0 = 0xff;
+        OUT 0x26, r16
+
+        IN r17, 0x26    ; R17 = TCNT; // TCNT0 should read 255
+      `);
+
+      const cpu = new CPU(program);
+      const timer = new AVRTimer(cpu, timer0Config);
+
+      const runner = new TestProgramRunner(cpu);
+      runner.runInstructions(instructionCount);
+
+      expect(cpu.readData(R17)).toEqual(255);
+      expect(timer.debugTCNT).toEqual(0); // TCNT should wrap
+    });
   });
 
   describe('16 bit timers', () => {
