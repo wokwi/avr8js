@@ -85,7 +85,6 @@ export class CPU {
   }
 
   reset() {
-    this.data.fill(0);
     this.SP = this.data.length - 1;
     this.pc = 0;
     this.pendingInterrupts.fill(null);
