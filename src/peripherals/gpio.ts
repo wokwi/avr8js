@@ -210,6 +210,7 @@ export class AVRIOPort {
   private lastValue: u8 = 0;
   private lastDdr: u8 = 0;
   private lastPin: u8 = 0;
+  openCollector: u8 = 0;
 
   constructor(private cpu: CPU, readonly portConfig: Readonly<AVRPortConfig>) {
     cpu.gpioPorts.add(this);
@@ -317,10 +318,12 @@ export class AVRIOPort {
     const ddr = this.cpu.data[this.portConfig.DDR];
     const port = this.cpu.data[this.portConfig.PORT];
     const bitMask = 1 << index;
+    const openState = port & bitMask ? PinState.InputPullUp : PinState.Input;
+    const highValue = this.openCollector & bitMask ? openState : PinState.High;
     if (ddr & bitMask) {
-      return this.lastValue & bitMask ? PinState.High : PinState.Low;
+      return this.lastValue & bitMask ? highValue : PinState.Low;
     } else {
-      return port & bitMask ? PinState.InputPullUp : PinState.Input;
+      return openState;
     }
   }
 
