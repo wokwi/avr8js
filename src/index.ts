@@ -4,37 +4,30 @@
  * Copyright (C) 2019, 2020, Uri Shaked
  */
 
-export { CPU, CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
+export { CPU } from './cpu/cpu';
+export type { CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
-export {
+export { adcConfig, atmega328Channels, AVRADC } from './peripherals/adc';
+export type {
   ADCConfig,
-  adcConfig,
   ADCMuxConfiguration,
   ADCMuxInput,
   ADCMuxInputType,
   ADCReference,
-  atmega328Channels,
-  AVRADC,
 } from './peripherals/adc';
-export {
-  AVRTimer,
-  AVRTimerConfig,
-  timer0Config,
-  timer1Config,
-  timer2Config,
-} from './peripherals/timer';
+export { AVRClock, clockConfig } from './peripherals/clock';
+export type { AVRClockConfig } from './peripherals/clock';
+export { AVREEPROM, eepromConfig, EEPROMMemoryBackend } from './peripherals/eeprom';
+export type { EEPROMBackend, AVREEPROMConfig } from './peripherals/eeprom';
 export {
   AVRIOPort,
-  GPIOListener,
-  AVRPortConfig,
-  AVRPinChangeInterrupt,
-  AVRExternalInterrupt,
+  INT0,
+  INT1,
   PCINT0,
   PCINT1,
   PCINT2,
-  INT0,
-  INT1,
+  PinState,
   portAConfig,
   portBConfig,
   portCConfig,
@@ -46,18 +39,18 @@ export {
   portJConfig,
   portKConfig,
   portLConfig,
-  PinState,
 } from './peripherals/gpio';
-export { AVRUSART, usart0Config } from './peripherals/usart';
-export {
-  AVREEPROM,
-  AVREEPROMConfig,
-  EEPROMBackend,
-  EEPROMMemoryBackend,
-  eepromConfig,
-} from './peripherals/eeprom';
+export type {
+  AVRExternalInterrupt,
+  AVRPinChangeInterrupt,
+  AVRPortConfig,
+  GPIOListener,
+} from './peripherals/gpio';
+export { AVRSPI, spiConfig } from './peripherals/spi';
+export type { SPIConfig, SPITransferCallback } from './peripherals/spi';
+export { AVRTimer, timer0Config, timer1Config, timer2Config } from './peripherals/timer';
+export type { AVRTimerConfig } from './peripherals/timer';
 export * from './peripherals/twi';
-export { spiConfig, SPIConfig, SPITransferCallback, AVRSPI } from './peripherals/spi';
-export { AVRClock, AVRClockConfig, clockConfig } from './peripherals/clock';
-export { AVRWatchdog, watchdogConfig, WatchdogConfig } from './peripherals/watchdog';
+export { AVRUSART, usart0Config } from './peripherals/usart';
 export { AVRUSI } from './peripherals/usi';
+export { AVRWatchdog, watchdogConfig } from './peripherals/watchdog';
