@@ -13,7 +13,6 @@ It's the heart- but not the whole body- of the Arduino simulator at [https://wok
 ## Example Applications Using `AVR8js`
 
 * [Wokwi Arduino Simulator](https://wokwi.com) - Arduino simulator with a choice of hardware that can be wired up dynamically in your browser!
-* [Wokwi Playgrounds](https://github.com/wokwi/wokwi-playgrounds) - pre-configured Arduino circuits with notes and goals. A starting point for an online lesson system.
 * [avr8js-electron playground](https://github.com/arcostasi/avr8js-electron-playground) - a Downloadable Electron Arduino simulator app
 * [AVR8js-Falstad](https://markmegarry.github.io/AVR8js-Falstad/) - combining the Falstad circuit simulator with AVR8js!
 * [The Engineering Physics Department of Dawson College's Arduino Course](https://tawjaw.github.io/Arduino-Robot-Virtual-Lab/) - an introduction to Arduino with a focus on robotics
