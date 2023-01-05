@@ -3,7 +3,7 @@
  * Part of AVR8js
  * Reference: http://ww1.microchip.com/downloads/en/DeviceDoc/ATmega48A-PA-88A-PA-168A-PA-328-P-DS-DS40002061A.pdf
  *
- * Copyright (C) 2019, 2020, 2021 Uri Shaked
+ * Copyright (C) 2019-2023 Uri Shaked
  */
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
