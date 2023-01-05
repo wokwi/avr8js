@@ -1,4 +1,4 @@
-import { CPU } from './cpu';
+import { AVRClockEventCallback, CPU } from './cpu';
 
 type ITestEvent = [number, number]; // Expected cycles, actual cycles
 
@@ -47,7 +47,7 @@ describe('cpu', () => {
       it('should update the number of cycles for the given clock event', () => {
         const cpu = new CPU(new Uint16Array(1024), 0x1000);
         const events: ITestEvent[] = [];
-        const callbacks = [];
+        const callbacks: AVRClockEventCallback[] = [];
         for (const i of [1, 4, 10]) {
           callbacks[i] = cpu.addClockEvent(() => events.push([i, cpu.cycles]), i);
         }
@@ -68,7 +68,7 @@ describe('cpu', () => {
         it('should remove the given clock event', () => {
           const cpu = new CPU(new Uint16Array(1024), 0x1000);
           const events: ITestEvent[] = [];
-          const callbacks = [];
+          const callbacks: AVRClockEventCallback[] = [];
           for (const i of [1, 4, 10]) {
             callbacks[i] = cpu.addClockEvent(() => events.push([i, cpu.cycles]), i);
           }

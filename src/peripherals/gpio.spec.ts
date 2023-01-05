@@ -137,7 +137,7 @@ describe('GPIO', () => {
       cpu.writeData(DDRB, 0x0f);
       port.removeListener(listener);
       cpu.writeData(PORTB, 0x99);
-      expect(listener).toBeCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 
