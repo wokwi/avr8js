@@ -9,11 +9,18 @@ import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 
 export interface AVRExternalInterrupt {
-  EICRA: u8;
-  EICRB: u8;
+  /** either EICRA or EICRB, depending on which register holds the ISCx0/ISCx1 bits for this interrupt */
+  EICR: u8;
   EIMSK: u8;
   EIFR: u8;
+
+  /* Offset of the ISCx0/ISCx1 bits in the EICRx register */
+  iscOffset: u8;
+
+  /** Bit index in the EIMSK / EIFR registers */
   index: u8; // 0..7
+
+  /** Interrupt vector index */
   interrupt: u8;
 }
 
@@ -39,20 +46,20 @@ export interface AVRPortConfig {
 }
 
 export const INT0: AVRExternalInterrupt = {
-  EICRA: 0x69,
-  EICRB: 0,
+  EICR: 0x69,
   EIMSK: 0x3d,
   EIFR: 0x3c,
   index: 0,
+  iscOffset: 0,
   interrupt: 2,
 };
 
 export const INT1: AVRExternalInterrupt = {
-  EICRA: 0x69,
-  EICRB: 0,
+  EICR: 0x69,
   EIMSK: 0x3d,
   EIFR: 0x3c,
   index: 1,
+  iscOffset: 2,
   interrupt: 4,
 };
 
@@ -254,10 +261,10 @@ export class AVRIOPort {
           }
         : null
     );
-    const EICRA = externalInterrupts.find((item) => item && item.EICRA)?.EICRA ?? 0;
-    this.attachInterruptHook(EICRA);
-    const EICRB = externalInterrupts.find((item) => item && item.EICRB)?.EICRB ?? 0;
-    this.attachInterruptHook(EICRB);
+    const EICR = new Set(externalInterrupts.map((item) => item?.EICR));
+    for (const EICRx of EICR) {
+      this.attachInterruptHook(EICRx || 0);
+    }
     const EIMSK = externalInterrupts.find((item) => item && item.EIMSK)?.EIMSK ?? 0;
     this.attachInterruptHook(EIMSK, 'mask');
     const EIFR = externalInterrupts.find((item) => item && item.EIFR)?.EIFR ?? 0;
@@ -394,11 +401,9 @@ export class AVRIOPort {
     const externalConfig = externalInterrupts[pin];
     const external = externalInts[pin];
     if (external && externalConfig) {
-      const { index, EICRA, EICRB, EIMSK } = externalConfig;
+      const { EIMSK, index, EICR, iscOffset } = externalConfig;
       if (cpu.data[EIMSK] & (1 << index)) {
-        const configRegister = index >= 4 ? EICRB : EICRA;
-        const configShift = (index % 4) * 2;
-        const configuration = (cpu.data[configRegister] >> configShift) & 0x3;
+        const configuration = (cpu.data[EICR] >> iscOffset) & 0x3;
         let generateInterrupt = false;
         external.constant = false;
         switch (configuration) {
@@ -469,13 +474,11 @@ export class AVRIOPort {
         continue;
       }
       const pinValue = !!(this.lastPin & (1 << pin));
-      const { index, EICRA, EICRB, EIMSK, EIFR, interrupt } = external;
+      const { EIFR, EIMSK, index, EICR, iscOffset, interrupt } = external;
       if (!(cpu.data[EIMSK] & (1 << index)) || pinValue) {
         continue;
       }
-      const configRegister = index >= 4 ? EICRB : EICRA;
-      const configShift = (index % 4) * 2;
-      const configuration = (cpu.data[configRegister] >> configShift) & 0x3;
+      const configuration = (cpu.data[EICR] >> iscOffset) & 0x3;
       if (configuration === InterruptMode.LowLevel) {
         cpu.queueInterrupt({
           address: interrupt,
