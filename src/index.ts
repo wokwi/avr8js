@@ -8,18 +8,18 @@ export { CPU } from './cpu/cpu';
 export type { CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
-export { adcConfig, atmega328Channels, AVRADC } from './peripherals/adc';
-export type {
-  ADCConfig,
-  ADCMuxConfiguration,
-  ADCMuxInput,
+export {
+  adcConfig,
   ADCMuxInputType,
   ADCReference,
+  atmega328Channels,
+  AVRADC,
 } from './peripherals/adc';
+export type { ADCConfig, ADCMuxConfiguration, ADCMuxInput } from './peripherals/adc';
 export { AVRClock, clockConfig } from './peripherals/clock';
 export type { AVRClockConfig } from './peripherals/clock';
 export { AVREEPROM, eepromConfig, EEPROMMemoryBackend } from './peripherals/eeprom';
-export type { EEPROMBackend, AVREEPROMConfig } from './peripherals/eeprom';
+export type { AVREEPROMConfig, EEPROMBackend } from './peripherals/eeprom';
 export {
   AVRIOPort,
   INT0,
@@ -54,3 +54,4 @@ export * from './peripherals/twi';
 export { AVRUSART, usart0Config } from './peripherals/usart';
 export { AVRUSI } from './peripherals/usi';
 export { AVRWatchdog, watchdogConfig } from './peripherals/watchdog';
+export type { WatchdogConfig } from './peripherals/watchdog';
