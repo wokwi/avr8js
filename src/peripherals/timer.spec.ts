@@ -1,7 +1,13 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { AVRIOPort, PinOverrideMode, portBConfig, portDConfig } from './gpio';
-import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
+import { AVRIOPort, PinOverrideMode } from './gpio';
+import { portBConfig, portDConfig } from './gpio_atmega328p';
+import { AVRTimer } from './timer';
+import {
+  atmega328pTimer0Config,
+  atmega328pTimer1Config,
+  atmega328pTimer2Config,
+} from './timer_atmega328p';
 
 // CPU registers
 const R1 = 1;
@@ -78,7 +84,7 @@ const nopOpCode = '0000';
 describe('timer', () => {
   it('should update timer every tick when prescaler is 1', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
     cpu.tick();
@@ -90,7 +96,7 @@ describe('timer', () => {
 
   it('should update timer every 64 ticks when prescaler is 3', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCCR0B, CS01 | CS00); // Set prescaler to 64
     cpu.cycles = 1;
     cpu.tick();
@@ -102,7 +108,7 @@ describe('timer', () => {
 
   it('should not update timer if it has been disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCCR0B, 0); // No prescaler (timer disabled)
     cpu.cycles = 1;
     cpu.tick();
@@ -114,7 +120,7 @@ describe('timer', () => {
 
   it('should set the TOV flag when timer wraps above TOP value', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
 
@@ -131,7 +137,7 @@ describe('timer', () => {
 
   it('should set the TOV if timer overflows past TOP without reaching TOP', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xfe);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
@@ -145,7 +151,7 @@ describe('timer', () => {
 
   it('should clear the TOV flag when writing 1 to the TOV bit, and not trigger the interrupt', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
@@ -159,7 +165,7 @@ describe('timer', () => {
 
   it('should set TOV if timer overflows in FAST PWM mode', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
@@ -175,7 +181,7 @@ describe('timer', () => {
 
   it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
@@ -194,7 +200,7 @@ describe('timer', () => {
   it('should support overriding TIFR/TOV and TIMSK/TOIE bits (issue #64)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
     new AVRTimer(cpu, {
-      ...timer0Config,
+      ...atmega328pTimer0Config,
 
       // The following values correspond ATtiny85 config:
       TOV: 2,
@@ -221,7 +227,7 @@ describe('timer', () => {
 
   it('should not generate an overflow interrupt when global interrupts disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
@@ -237,7 +243,7 @@ describe('timer', () => {
 
   it('should not generate an overflow interrupt when TOIE0 is clear', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
     cpu.cycles = 1;
@@ -253,7 +259,7 @@ describe('timer', () => {
 
   it('should set OCF0A/B flags when OCRA/B == 0 and the timer equals to OCRA (issue #74)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xff);
     cpu.writeData(OCR0A, 0x0);
     cpu.writeData(OCR0B, 0x0);
@@ -271,7 +277,7 @@ describe('timer', () => {
 
   it('should set the OCF1A flag when OCR1A == 120 and the timer overflowed past 120 in WGM mode 15 (issue #94)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer1Config);
+    new AVRTimer(cpu, atmega328pTimer1Config);
     cpu.writeData(TCNT1, 118);
     cpu.writeData(OCR1A, 120);
     cpu.writeData(OCR1B, 4); // To avoid getting the OCF1B flag set
@@ -289,7 +295,7 @@ describe('timer', () => {
 
   it('should set OCF0A flag when timer equals OCRA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x10);
     cpu.writeData(OCR0A, 0x11);
     cpu.writeData(TCCR0A, 0x0); // WGM: Normal
@@ -305,7 +311,7 @@ describe('timer', () => {
 
   it('should reset the counter in CTC mode if it equals to OCRA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x10);
     cpu.writeData(OCR0A, 0x11);
     cpu.writeData(TCCR0A, WGM01); // WGM: CTC
@@ -322,7 +328,7 @@ describe('timer', () => {
 
   it('should not set the TOV bit when TOP < MAX in CTC mode (issue #75)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x1e);
     cpu.writeData(OCR0A, 0x1f);
     cpu.writeData(TCCR0A, WGM01); // WGM: CTC
@@ -340,7 +346,7 @@ describe('timer', () => {
 
   it('should set the TOV bit when TOP == MAX in CTC mode (issue #75)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xfe);
     cpu.writeData(OCR0A, 0xff);
     cpu.writeData(TCCR0A, WGM01); // WGM: CTC
@@ -361,7 +367,7 @@ describe('timer', () => {
 
   it('should not set the TOV bit twice on overflow (issue #80)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0xfe);
     cpu.writeData(OCR0A, 0xff);
     cpu.writeData(TCCR0A, WGM01); // WGM: CTC
@@ -383,7 +389,7 @@ describe('timer', () => {
 
   it('should set OCF0B flag when timer equals OCRB', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x10);
     cpu.writeData(OCR0B, 0x11);
     cpu.writeData(TCCR0A, 0x0); // WGM: (Normal)
@@ -399,7 +405,7 @@ describe('timer', () => {
 
   it('should generate Timer Compare A interrupt when TCNT0 == TCNTA', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x20);
     cpu.writeData(OCR0A, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
@@ -418,7 +424,7 @@ describe('timer', () => {
 
   it('should not generate Timer Compare A interrupt when OCIEA is disabled', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x20);
     cpu.writeData(OCR0A, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
@@ -436,7 +442,7 @@ describe('timer', () => {
 
   it('should generate Timer Compare B interrupt when TCNT0 == TCNTB', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCNT0, 0x20);
     cpu.writeData(OCR0B, 0x21);
     cpu.writeData(TCCR0B, CS00); // Set prescaler to 1
@@ -465,7 +471,7 @@ describe('timer', () => {
       IN r17, 0x26    ; r17 <- TCNT
     `);
     const cpu = new CPU(program);
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.data[R17]).toEqual(0x31);
@@ -473,7 +479,7 @@ describe('timer', () => {
 
   it('timer2 should count every 256 ticks when prescaler is 6 (issue #5)', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer2Config);
+    new AVRTimer(cpu, atmega328pTimer2Config);
     cpu.writeData(TCCR2B, CS22 | CS21); // Set prescaler to 256
     cpu.cycles = 1;
     cpu.tick();
@@ -497,7 +503,7 @@ describe('timer', () => {
       LDS r1, 0x46      ; r1 <- TCNT0 (2 cycles)
     `);
     const cpu = new CPU(program);
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.data[R1]).toEqual(2);
@@ -515,7 +521,7 @@ describe('timer', () => {
       LDS r17, 0xb2   ; TCNT should equal 2 at this point
     `);
     const cpu = new CPU(program);
-    new AVRTimer(cpu, timer2Config);
+    new AVRTimer(cpu, atmega328pTimer2Config);
     const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.readData(R17)).toEqual(2);
@@ -531,7 +537,7 @@ describe('timer', () => {
       LDS r17, 0xb2   ; TCNT2 should equal 2 at this point (not counting the NOP)
   `);
     const cpu = new CPU(program);
-    new AVRTimer(cpu, timer2Config);
+    new AVRTimer(cpu, atmega328pTimer2Config);
     const runner = new TestProgramRunner(cpu);
     runner.runInstructions(instructionCount);
     expect(cpu.readData(R17)).toEqual(2);
@@ -539,7 +545,7 @@ describe('timer', () => {
 
   it('should clear OC0B pin when writing 1 to FOC0B', () => {
     const cpu = new CPU(new Uint16Array(0x1000));
-    new AVRTimer(cpu, timer0Config);
+    new AVRTimer(cpu, atmega328pTimer0Config);
     cpu.writeData(TCCR0A, COM0B1);
 
     // Listen to Port B's internal callback
@@ -576,7 +582,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -629,7 +635,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -675,7 +681,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -718,7 +724,7 @@ describe('timer', () => {
         IN r22, 0x26   ; TCNT0 will be 1 (end of test)
       `);
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
 
@@ -749,7 +755,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -796,7 +802,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -829,7 +835,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -857,7 +863,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
@@ -900,7 +906,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -928,7 +934,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -952,7 +958,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      const timer = new AVRTimer(cpu, timer0Config);
+      const timer = new AVRTimer(cpu, atmega328pTimer0Config);
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -965,7 +971,7 @@ describe('timer', () => {
   describe('16 bit timers', () => {
     it('should increment 16-bit TCNT by 1', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCNT1H, 0x22); // TCNT1 <- 0x2233
       cpu.writeData(TCNT1, 0x33); // ...
       const timerLow = cpu.readData(TCNT1);
@@ -983,7 +989,7 @@ describe('timer', () => {
 
     it('should set OCF0A flag when timer equals OCRA (16 bit mode)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCNT1H, 0x10); // TCNT1 <- 0x10ee
       cpu.writeData(TCNT1, 0xee); // ...
       cpu.writeData(OCR1AH, 0x10); // OCR1 <- 0x10ef
@@ -1005,7 +1011,7 @@ describe('timer', () => {
       const OCR1CH = 0x8d;
       const OCF1C = 1 << 3;
       new AVRTimer(cpu, {
-        ...timer1Config,
+        ...atmega328pTimer1Config,
         OCRC: OCR1C,
         OCFC: OCF1C,
       });
@@ -1026,7 +1032,7 @@ describe('timer', () => {
 
     it('should generate an overflow interrupt if timer overflows and interrupts enabled', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCCR1A, 0x3); // TCCR1A <- WGM10 | WGM11 (Fast PWM, 10-bit)
       cpu.writeData(TCCR1B, 0x9); // TCCR1B <- WGM12 | CS10
       cpu.writeData(TIMSK1, 0x1); // TIMSK1: TOIE1
@@ -1048,7 +1054,7 @@ describe('timer', () => {
 
     it('should reset the timer once it reaches ICR value in mode 12', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCNT1H, 0x50); // TCNT1 <- 0x500f
       cpu.writeData(TCNT1, 0x0f); // ...
       cpu.writeData(ICR1H, 0x50); // ICR1 <- 0x5010
@@ -1066,7 +1072,7 @@ describe('timer', () => {
 
     it('should not update the high byte of TCNT if written after the low byte (issue #37)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCNT1, 0x22);
       cpu.writeData(TCNT1H, 0x55);
       cpu.cycles = 1;
@@ -1078,7 +1084,7 @@ describe('timer', () => {
 
     it('reading from TCNT1H before TCNT1L should return old value (issue #37)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCNT1H, 0xff);
       cpu.writeData(TCNT1, 0xff);
       cpu.writeData(TCCR1B, WGM12 | CS10); // Set prescaler to 1, WGM: CTC
@@ -1114,7 +1120,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
 
       // Listen to Port B's internal callback
       const portB = new AVRIOPort(cpu, portBConfig);
@@ -1155,7 +1161,7 @@ describe('timer', () => {
 
       const cpu = new CPU(program);
       new AVRTimer(cpu, {
-        ...timer1Config,
+        ...atmega328pTimer1Config,
         OCRC: OCR1C,
         OCFC: OCF1C,
         compPortC: portBConfig.PORT,
@@ -1182,7 +1188,7 @@ describe('timer', () => {
     it('should toggle OC1C on when writing 1 to FOC1C', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       new AVRTimer(cpu, {
-        ...timer1Config,
+        ...atmega328pTimer1Config,
         OCRC: OCR1C,
         OCFC: OCF1C,
         compPortC: portBConfig.PORT,
@@ -1202,7 +1208,7 @@ describe('timer', () => {
     it('should not toggle OC1C on when writing 1 to FOC1C in PWM mode', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       new AVRTimer(cpu, {
-        ...timer1Config,
+        ...atmega328pTimer1Config,
         OCRC: OCR1C,
         OCFC: OCF1C,
         compPortC: portBConfig.PORT,
@@ -1251,7 +1257,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -1287,7 +1293,7 @@ describe('timer', () => {
       `);
 
       const cpu = new CPU(program);
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -1300,7 +1306,7 @@ describe('timer', () => {
 
     it('should mask the unused bits of OCR1A when using fixed top values', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
-      new AVRTimer(cpu, timer1Config);
+      new AVRTimer(cpu, atmega328pTimer1Config);
       cpu.writeData(TCCR1A, WGM10 | WGM11); // WGM: FastPWM, top 0x3ff
       cpu.writeData(TCCR1B, WGM12);
       cpu.writeData(OCR1AH, 0xff);
@@ -1314,7 +1320,7 @@ describe('timer', () => {
     it('should count on the falling edge of T0 when CS=110', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const port = new AVRIOPort(cpu, portDConfig);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
       cpu.writeData(TCCR0B, CS02 | CS01); // Count on falling edge
       cpu.cycles = 1;
       cpu.tick();
@@ -1333,7 +1339,7 @@ describe('timer', () => {
     it('should count on the rising edge of T0 when CS=111', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       const port = new AVRIOPort(cpu, portDConfig);
-      new AVRTimer(cpu, timer0Config);
+      new AVRTimer(cpu, atmega328pTimer0Config);
       cpu.writeData(TCCR0B, CS02 | CS01 | CS00); // Count on rising edge
       cpu.cycles = 1;
       cpu.tick();
