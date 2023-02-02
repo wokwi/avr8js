@@ -8,13 +8,8 @@ export { CPU } from './cpu/cpu';
 export type { CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
-export {
-  adcConfig,
-  ADCMuxInputType,
-  ADCReference,
-  atmega328Channels,
-  AVRADC,
-} from './peripherals/adc';
+export { ADCMuxInputType, ADCReference, AVRADC } from './peripherals/adc';
+export { atmega328AdcConfig, atmega328Channels } from './peripherals/adc_atmega328p';
 export type { ADCConfig, ADCMuxConfiguration, ADCMuxInput } from './peripherals/adc';
 export { AVRClock, clockConfig } from './peripherals/clock';
 export type { AVRClockConfig } from './peripherals/clock';
@@ -63,9 +58,9 @@ export { AVRSPI, spiConfig } from './peripherals/spi';
 export type { SPIConfig, SPITransferCallback } from './peripherals/spi';
 export { AVRTimer } from './peripherals/timer';
 export {
-  atmega328pTimer0Config as atmega329pTimer0Config,
-  atmega328pTimer1Config as atmega329pTimer1Config,
-  atmega328pTimer2Config as atmega329pTimer2Config,
+  atmega328pTimer0Config,
+  atmega328pTimer1Config,
+  atmega328pTimer2Config,
 } from './peripherals/timer_atmega328p';
 export type { AVRTimerConfig } from './peripherals/timer';
 export * from './peripherals/twi';

@@ -25,6 +25,7 @@
     "build:demo": "vite build demo",
     "prepare": "husky install && npm run build",
     "start": "vite demo",
+    "start2": "vite clidemo",
     "lint": "eslint src/**/*.ts demo/**/*.ts",
     "test": "npm run lint && jest",
     "test:watch": "jest --watch",

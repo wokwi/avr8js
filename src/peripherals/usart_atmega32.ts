@@ -6,8 +6,8 @@ export const atmega32Usart0Config: USARTConfig = {
   txCompleteInterrupt: 0x1e,
   UCSRA: 0x2b,
   UCSRB: 0x2a,
-  UCSRC: 0x40, // <----------- TODO
+  UCSRC: 0x40,
   UBRRL: 0x29,
-  UBRRH: 0x40, // <----------- TODO
+  UBRRH: 0x40,
   UDR: 0x2c,
 };

@@ -7,7 +7,7 @@
  */
 
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
-import { u8 } from '../types';
+import { u16, u8 } from '../types';
 
 export interface USARTConfig {
   rxCompleteInterrupt: u8;
@@ -58,11 +58,11 @@ const UCSRB_UCSZ2 = 0x4; // Character Size 2
 const UCSRB_RXB8 = 0x2; // Receive Data Bit 8
 const UCSRB_TXB8 = 0x1; // Transmit Data Bit 8
 const UCSRB_CFG_MASK = UCSRB_UCSZ2 | UCSRB_RXEN | UCSRB_TXEN;
-const UCSRC_UMSEL1 = 0x80; // USART Mode Select 1
-const UCSRC_UMSEL0 = 0x40; // USART Mode Select 0
-const UCSRC_UPM1 = 0x20; // Parity Mode 1
-const UCSRC_UPM0 = 0x10; // Parity Mode 0
-const UCSRC_USBS = 0x8; // Stop Bit Select
+const UCSRC_URSEL = 0x80; // Register select
+const UCSRC_UMSEL = 0x40; // Mode USART Mode Select
+const UCSRC_UPM1 = 0x20; // Parity mode 1
+const UCSRC_UPM0 = 0x10; // Parity mode 1
+const UCSRC_USBS = 0x8; // Stop bit select
 const UCSRC_UCSZ1 = 0x4; // Character Size 1
 const UCSRC_UCSZ0 = 0x2; // Character Size 0
 const UCSRC_UCPOL = 0x1; // Clock Polarity
@@ -75,11 +75,16 @@ const rxMasks = {
   8: 0xff,
   9: 0xff,
 };
+
 export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
   public onLineTransmit: USARTLineTransmitCallback | null = null;
   public onRxComplete: (() => void) | null = null;
   public onConfigurationChange: USARTConfigurationChangeCallback | null = null;
+
+  private UBRRH: u8 = 0;
+  private UCSRC: u8 = 0;
+  private lastUbrrhReadCycle = 0;
 
   private rxBusyValue = false;
   private rxByte = 0;
@@ -136,11 +141,8 @@ export class AVRUSART {
       }
       return true;
     };
-    this.cpu.writeHooks[config.UCSRC] = (value) => {
-      cpu.data[config.UCSRC] = value;
-      this.onConfigurationChange?.();
-      return true;
-    };
+    this.cpu.writeHooks[config.UCSRC] = (value) => this.writeUCSRCOrUBRRH(value);
+    this.cpu.readHooks[config.UCSRC] = () => this.readUCSRCOrUBRRH();
     this.cpu.readHooks[config.UDR] = () => {
       const mask = rxMasks[this.bitsPerChar] ?? 0xff;
       const result = this.rxByte & mask;
@@ -168,11 +170,8 @@ export class AVRUSART {
       this.cpu.clearInterrupt(this.TXC);
       this.cpu.clearInterrupt(this.UDRE);
     };
-    this.cpu.writeHooks[config.UBRRH] = (value) => {
-      this.cpu.data[config.UBRRH] = value;
-      this.onConfigurationChange?.();
-      return true;
-    };
+    this.cpu.writeHooks[config.UBRRH] = (value) => this.writeUCSRCOrUBRRH(value);
+    this.cpu.readHooks[config.UBRRH] = () => this.readUCSRCOrUBRRH();
     this.cpu.writeHooks[config.UBRRL] = (value) => {
       this.cpu.data[config.UBRRL] = value;
       this.onConfigurationChange?.();
@@ -183,10 +182,11 @@ export class AVRUSART {
   reset() {
     this.cpu.data[this.config.UCSRA] = UCSRA_UDRE;
     this.cpu.data[this.config.UCSRB] = 0;
-    this.cpu.data[this.config.UCSRC] = UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
+    this.UCSRC = UCSRC_URSEL | UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
     this.rxBusyValue = false;
     this.rxByte = 0;
     this.lineBuffer = '';
+    this.lastUbrrhReadCycle = 0;
   }
 
   get rxBusy() {
@@ -212,14 +212,33 @@ export class AVRUSART {
     }
   }
 
+  // Reference ATmega32 datasheet section "Accessing UBRRH/ UCSRC Registers"
+  private writeUCSRCOrUBRRH(value: number) {
+    if (value & UCSRC_URSEL) {
+      this.UCSRC = value;
+    } else {
+      this.UBRRH = value;
+    }
+    this.onConfigurationChange?.();
+    return true;
+  }
+
+  private readUCSRCOrUBRRH() {
+    if (this.lastUbrrhReadCycle === this.cpu.cycles - 1) {
+      return this.UCSRC;
+    }
+    this.lastUbrrhReadCycle = this.cpu.cycles;
+    return this.UBRRH;
+  }
+
   private get cyclesPerChar() {
     const symbolsPerChar = 1 + this.bitsPerChar + this.stopBits + (this.parityEnabled ? 1 : 0);
     return (this.UBRR + 1) * this.multiplier * symbolsPerChar;
   }
 
   private get UBRR() {
-    const { UBRRH, UBRRL } = this.config;
-    return (this.cpu.data[UBRRH] << 8) | this.cpu.data[UBRRL];
+    const { UBRRL } = this.config;
+    return (this.UBRRH << 8) | this.cpu.data[UBRRL];
   }
 
   private get multiplier() {
@@ -240,7 +259,7 @@ export class AVRUSART {
 
   get bitsPerChar() {
     const ucsz =
-      ((this.cpu.data[this.config.UCSRC] & (UCSRC_UCSZ1 | UCSRC_UCSZ0)) >> 1) |
+      ((this.UCSRC & (UCSRC_UCSZ1 | UCSRC_UCSZ0)) >> 1) |
       (this.cpu.data[this.config.UCSRB] & UCSRB_UCSZ2);
     switch (ucsz) {
       case 0:
@@ -258,14 +277,14 @@ export class AVRUSART {
   }
 
   get stopBits() {
-    return this.cpu.data[this.config.UCSRC] & UCSRC_USBS ? 2 : 1;
+    return this.UCSRC & UCSRC_USBS ? 2 : 1;
   }
 
   get parityEnabled() {
-    return this.cpu.data[this.config.UCSRC] & UCSRC_UPM1 ? true : false;
+    return this.UCSRC & UCSRC_UPM1 ? true : false;
   }
 
   get parityOdd() {
-    return this.cpu.data[this.config.UCSRC] & UCSRC_UPM0 ? true : false;
+    return this.UCSRC & UCSRC_UPM0 ? true : false;
   }
 }
