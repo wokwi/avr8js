@@ -64,7 +64,7 @@ export {
 } from './peripherals/timer_atmega328p';
 export type { AVRTimerConfig } from './peripherals/timer';
 export * from './peripherals/twi';
-export { AVRUSART, usart0Config } from './peripherals/usart';
+export { AVRUSART, atmega328pUsart0Config } from './peripherals/usart_atmega328p';
 export { AVRUSI } from './peripherals/usi';
 export { AVRWatchdog, watchdogConfig } from './peripherals/watchdog';
 export type { WatchdogConfig } from './peripherals/watchdog';
