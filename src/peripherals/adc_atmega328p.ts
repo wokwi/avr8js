@@ -14,7 +14,7 @@ export const atmega328Channels: ADCMuxConfiguration = {
   15: { type: ADCMuxInputType.Constant, voltage: 0 },
 };
 
-export const atmega328AdcConfig: ADCConfig = {
+export const adcConfig: ADCConfig = {
   ADMUX: 0x7c,
   ADCSRA: 0x7a,
   ADCSRB: 0x7b,

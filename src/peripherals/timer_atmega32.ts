@@ -1,4 +1,4 @@
-import { atmega32PortBConfig, atmega32PortDConfig } from './gpio_atmega32';
+import { portBConfig, portDConfig } from './gpio_atmega32';
 import { AVRTimerConfig, TimerDividers } from './timer';
 
 const atmega32TimerDividers: TimerDividers = {
@@ -12,7 +12,7 @@ const atmega32TimerDividers: TimerDividers = {
   7: 0, // Ditto
 };
 
-export const atmga32Timer0Config: AVRTimerConfig = {
+export const timer0Config: AVRTimerConfig = {
   bits: 8,
   dividers: atmega32TimerDividers,
 
@@ -48,7 +48,7 @@ export const atmga32Timer0Config: AVRTimerConfig = {
   OCIEC: 0, // No OCFC on Atmega32,
 
   // Output compare pins
-  compPortA: atmega32PortBConfig.PORT,
+  compPortA: portBConfig.PORT,
   compPinA: 3,
   compPortB: 0, // Not available
   compPinB: 0, // Not available
@@ -59,7 +59,7 @@ export const atmga32Timer0Config: AVRTimerConfig = {
   externalClockPin: 0, // Unimplement ? Not available
 };
 
-export const atmga32Timer1Config: AVRTimerConfig = {
+export const timer1Config: AVRTimerConfig = {
   bits: 16,
   dividers: atmega32TimerDividers,
 
@@ -95,9 +95,9 @@ export const atmga32Timer1Config: AVRTimerConfig = {
   OCIEC: 0, // No OCFC on Atmega32,
 
   // Output compare pins
-  compPortA: atmega32PortDConfig.PORT,
+  compPortA: portDConfig.PORT,
   compPinA: 5,
-  compPortB: atmega32PortDConfig.PORT,
+  compPortB: portDConfig.PORT,
   compPinB: 4,
   compPortC: 0, // Not available
   compPinC: 0, // Not available
@@ -106,7 +106,7 @@ export const atmga32Timer1Config: AVRTimerConfig = {
   externalClockPin: 0, // Unimplemented ? Not available
 };
 
-export const atmga32Timer2Config: AVRTimerConfig = {
+export const timer2Config: AVRTimerConfig = {
   bits: 8,
   dividers: atmega32TimerDividers,
 
@@ -142,7 +142,7 @@ export const atmga32Timer2Config: AVRTimerConfig = {
   OCIEC: 0, // No OCFC on Atmega32,
 
   // Output compare pins
-  compPortA: atmega32PortBConfig.PORT,
+  compPortA: portBConfig.PORT,
   compPinA: 3,
   compPortB: 0, // Not available
   compPinB: 0, // Not available

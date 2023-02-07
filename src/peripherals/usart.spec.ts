@@ -1,5 +1,6 @@
 import { CPU } from '../cpu/cpu';
-import { AVRUSART, atmega328pUsart0Config } from './usart_atmega328p';
+import { AVRUSART } from './usart';
+import { usart0Config } from './usart_atmega328p';
 
 const FREQ_16MHZ = 16e6;
 const FREQ_11_0529MHZ = 11059200;
@@ -38,7 +39,7 @@ const UCSZ2 = 4;
 describe('USART', () => {
   it('should correctly calculate the baudRate from UBRR', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_11_0529MHZ);
+    const usart = new AVRUSART(cpu, usart0Config, FREQ_11_0529MHZ);
     cpu.writeData(UBRR0H, 0);
     cpu.writeData(UBRR0L, 5);
     expect(usart.baudRate).toEqual(115200);
@@ -46,7 +47,7 @@ describe('USART', () => {
 
   it('should correctly calculate the baudRate from UBRR in double-speed mode', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
     cpu.writeData(UBRR0H, 3);
     cpu.writeData(UBRR0L, 64);
     cpu.writeData(UCSR0A, U2X0);
@@ -55,7 +56,7 @@ describe('USART', () => {
 
   it('should call onConfigurationChange when the baudRate changes', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
     const onConfigurationChange = jest.fn();
     usart.onConfigurationChange = onConfigurationChange;
 
@@ -74,35 +75,35 @@ describe('USART', () => {
   describe('bitsPerChar', () => {
     it('should return 5-bits per byte when UCSZ = 0', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, 0);
       expect(usart.bitsPerChar).toEqual(5);
     });
 
     it('should return 6-bits per byte when UCSZ = 1', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, UCSZ0);
       expect(usart.bitsPerChar).toEqual(6);
     });
 
     it('should return 7-bits per byte when UCSZ = 2', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, UCSZ1);
       expect(usart.bitsPerChar).toEqual(7);
     });
 
     it('should return 8-bits per byte when UCSZ = 3', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
       expect(usart.bitsPerChar).toEqual(8);
     });
 
     it('should return 9-bits per byte when UCSZ = 7', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
       cpu.writeData(UCSR0B, UCSZ2);
       expect(usart.bitsPerChar).toEqual(9);
@@ -110,7 +111,7 @@ describe('USART', () => {
 
     it('should call onConfigurationChange when bitsPerChar change', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       const onConfigurationChange = jest.fn();
       usart.onConfigurationChange = onConfigurationChange;
 
@@ -130,13 +131,13 @@ describe('USART', () => {
   describe('stopBits', () => {
     it('should return 1 when USBS = 0', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       expect(usart.stopBits).toEqual(1);
     });
 
     it('should return 2 when USBS = 1', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, USBS);
       expect(usart.stopBits).toEqual(2);
     });
@@ -145,13 +146,13 @@ describe('USART', () => {
   describe('parityEnabled', () => {
     it('should return false when UPM1 = 0', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       expect(usart.parityEnabled).toEqual(false);
     });
 
     it('should return true when UPM1 = 1', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, UPM1);
       expect(usart.parityEnabled).toEqual(true);
     });
@@ -160,13 +161,13 @@ describe('USART', () => {
   describe('parityOdd', () => {
     it('should return false when UPM0 = 0', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       expect(usart.parityOdd).toEqual(false);
     });
 
     it('should return true when UPM0 = 1', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0C, UPM0);
       expect(usart.parityOdd).toEqual(true);
     });
@@ -174,7 +175,7 @@ describe('USART', () => {
 
   it('should invoke onByteTransmit when UDR0 is written to', () => {
     const cpu = new CPU(new Uint16Array(1024));
-    const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+    const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
     usart.onByteTransmit = jest.fn();
     cpu.writeData(UCSR0B, TXEN);
     cpu.writeData(UDR0, 0x61);
@@ -184,7 +185,7 @@ describe('USART', () => {
   describe('txEnable/rxEnable', () => {
     it('txEnable should equal true when the transitter is enabled', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       usart.onByteTransmit = jest.fn();
       expect(usart.txEnable).toEqual(false);
       cpu.writeData(UCSR0B, TXEN);
@@ -193,7 +194,7 @@ describe('USART', () => {
 
     it('rxEnable should equal true when the transitter is enabled', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       usart.onByteTransmit = jest.fn();
       expect(usart.rxEnable).toEqual(false);
       cpu.writeData(UCSR0B, RXEN);
@@ -204,7 +205,7 @@ describe('USART', () => {
   describe('tick()', () => {
     it('should trigger data register empty interrupt if UDRE is set', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, UDRIE | TXEN);
       cpu.data[SREG] = 0x80; // SREG: I-------
       cpu.tick();
@@ -215,7 +216,7 @@ describe('USART', () => {
 
     it('should trigger data TX Complete interrupt if TXCIE is set', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXCIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0x80; // SREG: I-------
@@ -228,7 +229,7 @@ describe('USART', () => {
 
     it('should not trigger data TX Complete interrupt if UDR was not written to', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXCIE | TXEN);
       cpu.data[SREG] = 0x80; // SREG: I-------
       cpu.tick();
@@ -238,7 +239,7 @@ describe('USART', () => {
 
     it('should not trigger any interrupt if interrupts are disabled', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, UDRIE | TXEN);
       cpu.writeData(UDR0, 0x61);
       cpu.data[SREG] = 0; // SREG: 0 (disable interrupts)
@@ -253,7 +254,7 @@ describe('USART', () => {
   describe('onLineTransmit', () => {
     it('should call onLineTransmit with the current line buffer after every newline', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       usart.onLineTransmit = jest.fn();
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UDR0, 0x48); // 'H'
@@ -267,7 +268,7 @@ describe('USART', () => {
 
     it('should not call onLineTransmit if no newline was received', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       usart.onLineTransmit = jest.fn();
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UDR0, 0x48); // 'H'
@@ -277,7 +278,7 @@ describe('USART', () => {
 
     it('should clear the line buffer after each call to onLineTransmit', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       usart.onLineTransmit = jest.fn();
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UDR0, 0x48); // 'H'
@@ -296,7 +297,7 @@ describe('USART', () => {
   describe('writeByte', () => {
     it('should return false if called when RX is busy', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, RXEN);
       cpu.writeData(UBRR0L, 103); // baud: 9600
       expect(usart.writeByte(10)).toEqual(true);
@@ -309,7 +310,7 @@ describe('USART', () => {
   describe('Integration tests', () => {
     it('should set the TXC bit after ~1.04mS when baud rate set to 9600', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UBRR0L, 103); // baud: 9600
       cpu.writeData(UDR0, 0x48); // 'H'
@@ -323,7 +324,7 @@ describe('USART', () => {
 
     it('should be ready to recieve the next byte after ~1.04ms when baudrate set to 9600', () => {
       const cpu = new CPU(new Uint16Array(1024));
-      const usart = new AVRUSART(cpu, atmega328pUsart0Config, FREQ_16MHZ);
+      const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
       const rxCompleteCallback = jest.fn();
       usart.onRxComplete = rxCompleteCallback;
       cpu.writeData(UCSR0B, RXEN);

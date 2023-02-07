@@ -27,7 +27,7 @@ const timer01Dividers: TimerDividers = {
   7: 0, // Ditto
 };
 
-export const atmega328pTimer0Config: AVRTimerConfig = {
+export const timer0Config: AVRTimerConfig = {
   bits: 8,
   captureInterrupt: 0, // not available
   compAInterrupt: 0x1c,
@@ -56,7 +56,7 @@ export const atmega328pTimer0Config: AVRTimerConfig = {
   ...defaultTimerBits,
 };
 
-export const atmega328pTimer1Config: AVRTimerConfig = {
+export const timer1Config: AVRTimerConfig = {
   bits: 16,
   captureInterrupt: 0x14,
   compAInterrupt: 0x16,
@@ -85,7 +85,7 @@ export const atmega328pTimer1Config: AVRTimerConfig = {
   ...defaultTimerBits,
 };
 
-export const atmega328pTimer2Config: AVRTimerConfig = {
+export const timer2Config: AVRTimerConfig = {
   bits: 8,
   captureInterrupt: 0, // not available
   compAInterrupt: 0x0e,

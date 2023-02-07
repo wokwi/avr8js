@@ -8,9 +8,9 @@
 import { CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 import { standardUartRegisterBits, USARTConfig } from './usart';
-import { AVRUSART } from './usart_atmega328p';
+import { AVRUSART } from './usart';
 
-export const atmega32Usart0Config: USARTConfig = {
+export const usart0Config: USARTConfig = {
   rxCompleteInterrupt: 0x1a,
   dataRegisterEmptyInterrupt: 0x1c,
   txCompleteInterrupt: 0x1e,

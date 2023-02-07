@@ -35,7 +35,7 @@ export const atmega32Channels: ADCMuxConfiguration = {
   31: { type: ADCMuxInputType.Constant, voltage: 0 },
 };
 
-export const atmega32AdcConfig: ADCConfig = {
+export const adcConfig: ADCConfig = {
   ADMUX: 0x27,
   ADCSRA: 0x26,
   ADCSRB: 0, // Not aviliable on ATmega32
