@@ -29,6 +29,7 @@ export const usart0Config: USARTConfig = {
 
 //
 // In the Atmega32 (and ATmega16, but not ATmega64):
+// https://ww1.microchip.com/downloads/en/DeviceDoc/doc2503.pdf
 // Reference ATmega32 datasheet section "Accessing UBRRH/ UCSRC Registers"
 //
 // The UBRRH Register shares the same I/O location as the UCSRC Register. Therefore some
@@ -56,7 +57,7 @@ export class AVRUSARTATmega32 extends AVRUSART {
 
   private writeUCSRCOrUBRRH(value: number) {
     if (value & this.config.UCSRC_URSEL) {
-      this.UCSRC = value;
+      this.UCSRC = value & ~this.config.UCSRC_URSEL;
     } else {
       this.UBRRH = value;
     }
@@ -64,11 +65,25 @@ export class AVRUSARTATmega32 extends AVRUSART {
     return true;
   }
 
+  // See Atmega32 Datasheet
+  // https://ww1.microchip.com/downloads/en/DeviceDoc/doc2503.pdf
+  //  Reading the I/O location once returns the UBRRH Register contents.
+  //  If the register location was read in previous system clock cycle,
+  //  reading the register in the current clock cycle will return the UCSRC contents.
+  //
   private readUCSRCOrUBRRH() {
-    if (this.lastUbrrhReadCycle === this.cpu.cycles - 1) {
+    if (this.cpu.cycles > 0 && this.lastUbrrhReadCycle === this.cpu.cycles - 1) {
       return this.UCSRC;
     }
     this.lastUbrrhReadCycle = this.cpu.cycles;
     return this.UBRRH;
+  }
+
+  get Ubrrh() {
+    return this.UBRRH;
+  }
+
+  get Ucsrc() {
+    return this.UCSRC;
   }
 }
