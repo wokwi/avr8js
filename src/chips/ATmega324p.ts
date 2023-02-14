@@ -1,9 +1,8 @@
 import { adcConfig } from '../peripherals/adc_atmega324p';
 import { clockConfig } from '../peripherals/clock';
 import { eepromConfig } from '../peripherals/eeprom_atmega324p';
-import { portAConfig } from '../peripherals/gpio_atmega2560';
-import { portBConfig, portCConfig, portDConfig } from '../peripherals/gpio_atmega328p';
-import { spiConfig } from '../peripherals/spi';
+import { portAConfig, portBConfig, portCConfig, portDConfig } from '../peripherals/gpio_atmega324p';
+import { spiConfig } from '../peripherals/spi_atmega324p';
 import { timer0Config, timer1Config, timer2Config } from '../peripherals/timer_atmega324p';
 import { twiConfig } from '../peripherals/twi_atmega324p';
 import { usart0Config } from '../peripherals/usart_atmega324p';
@@ -14,7 +13,7 @@ export const ATmega324p: Chip = {
   ramSize: 0x800,
   eepromSize: 0x400,
   registerSpace: 0x100,
-  defaultFrequency: 16e6,
+  defaultFrequency: 20e6,
   clock: clockConfig,
   eeprom: eepromConfig,
   gpio: { A: portAConfig, B: portBConfig, C: portCConfig, D: portDConfig },
