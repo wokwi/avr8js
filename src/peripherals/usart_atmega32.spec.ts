@@ -31,10 +31,21 @@ describe('ATmege32 USART', () => {
       const usart = new AVRUSARTATmega32(cpu, usart0Config, FREQ_16MHZ);
       cpu.writeData(usart0Config.UCSRC, usart0Config.UCSRC_URSEL | 0x40);
       cpu.writeData(usart0Config.UCSRC, 0x0a);
-      cpu.cycles += 1;
       expect(cpu.readData(usart0Config.UCSRC)).toEqual(0x0a);
       cpu.cycles += 1;
       expect(cpu.readData(usart0Config.UCSRC)).toEqual(0x40);
+    });
+
+    it('resets the sequential read after multiple cycles', () => {
+      const cpu = new CPU(new Uint16Array(1024));
+      cpu.cycles = 100;
+      const usart = new AVRUSARTATmega32(cpu, usart0Config, FREQ_16MHZ);
+      cpu.writeData(usart0Config.UCSRC, usart0Config.UCSRC_URSEL | 0x40);
+      cpu.writeData(usart0Config.UCSRC, 0x0a);
+      expect(cpu.readData(usart0Config.UCSRC)).toEqual(0x0a);
+      cpu.cycles += 1;
+      cpu.cycles += 1;
+      expect(cpu.readData(usart0Config.UCSRC)).toEqual(0x0a);
     });
   });
 });
