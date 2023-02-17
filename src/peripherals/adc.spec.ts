@@ -1,7 +1,7 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRADC, ADCMuxInputType } from './adc';
-import { atmega328AdcConfig } from './adc_atmega328p';
+import { adcConfig } from './adc_atmega328p';
 
 const R16 = 16;
 const R17 = 17;
@@ -49,7 +49,7 @@ describe('ADC', () => {
     break
   `);
     const cpu = new CPU(program);
-    const adc = new AVRADC(cpu, atmega328AdcConfig);
+    const adc = new AVRADC(cpu, adcConfig);
     const runner = new TestProgramRunner(cpu);
 
     const adcReadSpy = jest.spyOn(adc, 'onADCRead');
@@ -110,7 +110,7 @@ describe('ADC', () => {
     break
   `);
     const cpu = new CPU(program);
-    const adc = new AVRADC(cpu, atmega328AdcConfig);
+    const adc = new AVRADC(cpu, adcConfig);
     const runner = new TestProgramRunner(cpu, () => {
       /* do nothing on break */
     });
