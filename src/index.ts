@@ -52,3 +52,8 @@ export { usart0Config } from './peripherals/usart_atmega328p';
 export { AVRUSI } from './peripherals/usi';
 export { AVRWatchdog, watchdogConfig } from './peripherals/watchdog';
 export type { WatchdogConfig } from './peripherals/watchdog';
+export { ATmega324p } from './chips/ATmega324p';
+export { ATmega32 } from './chips/ATmega32';
+export { ATmega328p } from './chips/ATmega328p';
+export { ATmega2560 } from './chips/ATmega2560';
+export { createAVR } from './create-avr';

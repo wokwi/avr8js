@@ -16,7 +16,7 @@ import { twiConfig } from '../peripherals/twi';
 import { usart0Config } from '../peripherals/usart_atmega328p';
 import { Chip } from './chip';
 
-export const ATmega324p: Chip = {
+export const ATmega2560: Chip = {
   flashSize: 0x40000,
   ramSize: 0x2000,
   eepromSize: 0x1000,

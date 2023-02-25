@@ -10,11 +10,26 @@ import { AVRUSART } from './peripherals/usart';
 
 export interface CreateAVROptions {
   eepromBackend?: EEPROMBackend;
+  program?: Uint16Array;
+  clockSpeedHz?: number;
 }
 
-export function createAVR(config: Chip, options: CreateAVROptions = {}) {
-  const frequency = config.defaultFrequency;
-  const cpu = new CPU(new Uint16Array(config.flashSize / 2), config.ramSize);
+export interface AVR {
+  cpu: CPU;
+  timers: AVRTimer[];
+  clock: AVRClock;
+  eeprom?: AVREEPROM;
+  spi: AVRSPI[];
+  usart: AVRUSART[];
+  twi: AVRTWI[];
+  gpio: {
+    [key: string]: AVRIOPort;
+  };
+}
+
+export function createAVR(config: Chip, options: CreateAVROptions = {}): AVR {
+  const frequency = options.clockSpeedHz ?? config.defaultFrequency;
+  const cpu = new CPU(options.program ?? new Uint16Array(config.flashSize / 2), config.ramSize);
   const timers = config.timers.map((timerConfig) => new AVRTimer(cpu, timerConfig));
   const clock = new AVRClock(cpu, frequency, config.clock);
   const eeprom =
