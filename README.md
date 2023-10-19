@@ -4,7 +4,7 @@ This is a JavaScript library that implementats the AVR 8-bit architecture.
 
 It's the heart- but not the whole body- of the Arduino simulator at [https://wokwi.com](https://wokwi.com).
 
-[![Build Status](https://travis-ci.org/wokwi/avr8js.png?branch=master)](https://travis-ci.org/wokwi/avr8js)
+[![Build Status](../../workflows/ci/badge.svg)](https://github.com/wokwi/avr8js/actions/workflows/ci.yml)
 [![NPM Version](https://img.shields.io/npm/v/avr8js)](https://www.npmjs.com/package/avr8js)
 ![License: MIT](https://img.shields.io/npm/l/avr8js)
 ![Types: TypeScript](https://img.shields.io/npm/types/avr8js)
