@@ -1,7 +1,9 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { AVRIOPort, PinOverrideMode, portBConfig, portDConfig } from './gpio';
-import { AVRTimer, timer0Config, timer1Config, timer2Config } from './timer';
+import { AVRIOPort, PinOverrideMode } from './gpio';
+import { portBConfig, portDConfig } from './gpio_atmega328p';
+import { AVRTimer } from './timer';
+import { timer0Config, timer1Config, timer2Config } from './timer_atmega328p';
 
 // CPU registers
 const R1 = 1;

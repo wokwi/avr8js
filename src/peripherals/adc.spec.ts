@@ -1,6 +1,7 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { AVRADC, adcConfig, ADCMuxInputType } from './adc';
+import { AVRADC, ADCMuxInputType } from './adc';
+import { adcConfig } from './adc_atmega328p';
 
 const R16 = 16;
 const R17 = 17;

@@ -9,7 +9,69 @@
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 
-export interface USARTConfig {
+interface USARTRegisterBits {
+  // UCSRA bits
+  UCSRA_RXC: u8; // USART Receive Complete
+  UCSRA_TXC: u8; // USART Transmit Complete
+  UCSRA_UDRE: u8; // USART Data Register Empty
+  UCSRA_FE: u8; // Frame Error
+  UCSRA_DOR: u8; // Data OverRun
+  UCSRA_UPE: u8; // USART Parity Error
+  UCSRA_U2X: u8; // Double the USART Transmission Speed
+  UCSRA_MPCM: u8; // Multi-processor Communication Mode
+
+  // UCSRB bits
+  UCSRB_RXCIE: u8; // RX Complete Interrupt Enable
+  UCSRB_TXCIE: u8; // TX Complete Interrupt Enable
+  UCSRB_UDRIE: u8; // USART Data Register Empty Interrupt Enable
+  UCSRB_RXEN: u8; // Receiver Enable
+  UCSRB_TXEN: u8; // Transmitter Enable
+  UCSRB_UCSZ2: u8; // Character Size 2
+  UCSRB_RXB8: u8; // Receive Data Bit 8
+  UCSRB_TXB8: u8; // Transmit Data Bit 8
+
+  // UCSRC bits
+  UCSRC_URSEL: u8; // Register select, 0 = unsupported
+  UCSRC_UMSEL1: u8; // USART Mode Select 1, 0 = unsupported
+  UCSRC_UMSEL0: u8; // USART Mode Select 0
+  UCSRC_UPM1: u8; // Parity Mode 1
+  UCSRC_UPM0: u8; // Parity Mode 0
+  UCSRC_USBS: u8; // Stop Bit Select
+  UCSRC_UCSZ1: u8; // Character Size 1
+  UCSRC_UCSZ0: u8; // Character Size 0
+  UCSRC_UCPOL: u8; // Clock Polarity
+}
+
+// Bits shared amongst "many" AVRs: 328p, 2650, 16, 32, and 64
+export const standardUartRegisterBits: Omit<USARTRegisterBits, 'UCSRC_URSEL' | 'UCSRC_UMSEL1'> = {
+  UCSRA_RXC: 0x80,
+  UCSRA_TXC: 0x40,
+  UCSRA_UDRE: 0x20,
+  UCSRA_FE: 0x10,
+  UCSRA_DOR: 0x8,
+  UCSRA_UPE: 0x4,
+  UCSRA_U2X: 0x2,
+  UCSRA_MPCM: 0x1,
+
+  UCSRB_RXCIE: 0x80,
+  UCSRB_TXCIE: 0x40,
+  UCSRB_UDRIE: 0x20,
+  UCSRB_RXEN: 0x10,
+  UCSRB_TXEN: 0x8,
+  UCSRB_UCSZ2: 0x4,
+  UCSRB_RXB8: 0x2,
+  UCSRB_TXB8: 0x1,
+
+  UCSRC_UMSEL0: 0x40,
+  UCSRC_UPM1: 0x20,
+  UCSRC_UPM0: 0x10,
+  UCSRC_USBS: 0x8,
+  UCSRC_UCSZ1: 0x4,
+  UCSRC_UCSZ0: 0x2,
+  UCSRC_UCPOL: 0x1,
+};
+
+export interface USARTConfig extends USARTRegisterBits {
   rxCompleteInterrupt: u8;
   dataRegisterEmptyInterrupt: u8;
   txCompleteInterrupt: u8;
@@ -22,51 +84,9 @@ export interface USARTConfig {
   UDR: u8;
 }
 
-export const usart0Config: USARTConfig = {
-  rxCompleteInterrupt: 0x24,
-  dataRegisterEmptyInterrupt: 0x26,
-  txCompleteInterrupt: 0x28,
-  UCSRA: 0xc0,
-  UCSRB: 0xc1,
-  UCSRC: 0xc2,
-  UBRRL: 0xc4,
-  UBRRH: 0xc5,
-  UDR: 0xc6,
-};
-
 export type USARTTransmitCallback = (value: u8) => void;
 export type USARTLineTransmitCallback = (value: string) => void;
 export type USARTConfigurationChangeCallback = () => void;
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// Register bits:
-const UCSRA_RXC = 0x80; // USART Receive Complete
-const UCSRA_TXC = 0x40; // USART Transmit Complete
-const UCSRA_UDRE = 0x20; // USART Data Register Empty
-const UCSRA_FE = 0x10; // Frame Error
-const UCSRA_DOR = 0x8; // Data OverRun
-const UCSRA_UPE = 0x4; // USART Parity Error
-const UCSRA_U2X = 0x2; // Double the USART Transmission Speed
-const UCSRA_MPCM = 0x1; // Multi-processor Communication Mode
-const UCSRA_CFG_MASK = UCSRA_U2X;
-const UCSRB_RXCIE = 0x80; // RX Complete Interrupt Enable
-const UCSRB_TXCIE = 0x40; // TX Complete Interrupt Enable
-const UCSRB_UDRIE = 0x20; // USART Data Register Empty Interrupt Enable
-const UCSRB_RXEN = 0x10; // Receiver Enable
-const UCSRB_TXEN = 0x8; // Transmitter Enable
-const UCSRB_UCSZ2 = 0x4; // Character Size 2
-const UCSRB_RXB8 = 0x2; // Receive Data Bit 8
-const UCSRB_TXB8 = 0x1; // Transmit Data Bit 8
-const UCSRB_CFG_MASK = UCSRB_UCSZ2 | UCSRB_RXEN | UCSRB_TXEN;
-const UCSRC_UMSEL1 = 0x80; // USART Mode Select 1
-const UCSRC_UMSEL0 = 0x40; // USART Mode Select 0
-const UCSRC_UPM1 = 0x20; // Parity Mode 1
-const UCSRC_UPM0 = 0x10; // Parity Mode 0
-const UCSRC_USBS = 0x8; // Stop Bit Select
-const UCSRC_UCSZ1 = 0x4; // Character Size 1
-const UCSRC_UCSZ0 = 0x2; // Character Size 0
-const UCSRC_UCPOL = 0x1; // Clock Polarity
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 const rxMasks = {
   5: 0x1f,
@@ -75,6 +95,7 @@ const rxMasks = {
   8: 0xff,
   9: 0xff,
 };
+
 export class AVRUSART {
   public onByteTransmit: USARTTransmitCallback | null = null;
   public onLineTransmit: USARTLineTransmitCallback | null = null;
@@ -85,34 +106,38 @@ export class AVRUSART {
   private rxByte = 0;
   private lineBuffer = '';
 
-  // Interrupts
   private RXC: AVRInterruptConfig = {
     address: this.config.rxCompleteInterrupt,
     flagRegister: this.config.UCSRA,
-    flagMask: UCSRA_RXC,
+    flagMask: this.config.UCSRA_RXC,
     enableRegister: this.config.UCSRB,
-    enableMask: UCSRB_RXCIE,
+    enableMask: this.config.UCSRB_RXCIE,
     constant: true,
   };
   private UDRE: AVRInterruptConfig = {
     address: this.config.dataRegisterEmptyInterrupt,
     flagRegister: this.config.UCSRA,
-    flagMask: UCSRA_UDRE,
+    flagMask: this.config.UCSRA_UDRE,
     enableRegister: this.config.UCSRB,
-    enableMask: UCSRB_UDRIE,
+    enableMask: this.config.UCSRB_UDRIE,
   };
   private TXC: AVRInterruptConfig = {
     address: this.config.txCompleteInterrupt,
     flagRegister: this.config.UCSRA,
-    flagMask: UCSRA_TXC,
+    flagMask: this.config.UCSRA_TXC,
     enableRegister: this.config.UCSRB,
-    enableMask: UCSRB_TXCIE,
+    enableMask: this.config.UCSRB_TXCIE,
   };
 
-  constructor(private cpu: CPU, private config: USARTConfig, private freqHz: number) {
+  constructor(protected cpu: CPU, protected config: USARTConfig, protected freqHz: number) {
+    const UCSRA_CFG_MASK = this.config.UCSRA_U2X;
+    const UCSRB_CFG_MASK =
+      this.config.UCSRB_UCSZ2 | this.config.UCSRB_RXEN | this.config.UCSRB_TXEN;
+    const UCSRC_CFG_MASK =
+      this.config.UCSRB_UCSZ2 | this.config.UCSRB_RXEN | this.config.UCSRB_TXEN;
     this.reset();
     this.cpu.writeHooks[config.UCSRA] = (value, oldValue) => {
-      cpu.data[config.UCSRA] = value & (UCSRA_MPCM | UCSRA_U2X);
+      cpu.data[config.UCSRA] = value & (this.config.UCSRA_MPCM | this.config.UCSRA_U2X);
       cpu.clearInterruptByFlag(this.TXC, value);
       if ((value & UCSRA_CFG_MASK) !== (oldValue & UCSRA_CFG_MASK)) {
         this.onConfigurationChange?.();
@@ -123,11 +148,10 @@ export class AVRUSART {
       cpu.updateInterruptEnable(this.RXC, value);
       cpu.updateInterruptEnable(this.UDRE, value);
       cpu.updateInterruptEnable(this.TXC, value);
-      if (value & UCSRB_RXEN && oldValue & UCSRB_RXEN) {
+      if (value & this.config.UCSRB_RXEN && oldValue & this.config.UCSRB_RXEN) {
         cpu.clearInterrupt(this.RXC);
       }
-      if (value & UCSRB_TXEN && !(oldValue & UCSRB_TXEN)) {
-        // Enabling the transmission - mark UDR as empty
+      if (value & this.config.UCSRB_TXEN && !(oldValue & this.config.UCSRB_TXEN)) {
         cpu.setInterruptFlag(this.UDRE);
       }
       cpu.data[config.UCSRB] = value;
@@ -181,9 +205,9 @@ export class AVRUSART {
   }
 
   reset() {
-    this.cpu.data[this.config.UCSRA] = UCSRA_UDRE;
+    this.cpu.data[this.config.UCSRA] = this.config.UCSRA_UDRE;
     this.cpu.data[this.config.UCSRB] = 0;
-    this.cpu.data[this.config.UCSRC] = UCSRC_UCSZ1 | UCSRC_UCSZ0; // default: 8 bits per byte
+    this.cpu.data[this.config.UCSRC] = this.config.UCSRC_UCSZ1 | this.config.UCSRC_UCSZ0;
     this.rxBusyValue = false;
     this.rxByte = 0;
     this.lineBuffer = '';
@@ -223,15 +247,15 @@ export class AVRUSART {
   }
 
   private get multiplier() {
-    return this.cpu.data[this.config.UCSRA] & UCSRA_U2X ? 8 : 16;
+    return this.cpu.data[this.config.UCSRA] & this.config.UCSRA_U2X ? 8 : 16;
   }
 
   get rxEnable() {
-    return !!(this.cpu.data[this.config.UCSRB] & UCSRB_RXEN);
+    return !!(this.cpu.data[this.config.UCSRB] & this.config.UCSRB_RXEN);
   }
 
   get txEnable() {
-    return !!(this.cpu.data[this.config.UCSRB] & UCSRB_TXEN);
+    return !!(this.cpu.data[this.config.UCSRB] & this.config.UCSRB_TXEN);
   }
 
   get baudRate() {
@@ -240,8 +264,9 @@ export class AVRUSART {
 
   get bitsPerChar() {
     const ucsz =
-      ((this.cpu.data[this.config.UCSRC] & (UCSRC_UCSZ1 | UCSRC_UCSZ0)) >> 1) |
-      (this.cpu.data[this.config.UCSRB] & UCSRB_UCSZ2);
+      ((this.cpu.data[this.config.UCSRC] & (this.config.UCSRC_UCSZ1 | this.config.UCSRC_UCSZ0)) >>
+        1) |
+      (this.cpu.data[this.config.UCSRB] & this.config.UCSRB_UCSZ2);
     switch (ucsz) {
       case 0:
         return 5;
@@ -251,21 +276,21 @@ export class AVRUSART {
         return 7;
       case 3:
         return 8;
-      default: // 4..6 are reserved
+      default:
       case 7:
         return 9;
     }
   }
 
   get stopBits() {
-    return this.cpu.data[this.config.UCSRC] & UCSRC_USBS ? 2 : 1;
+    return this.cpu.data[this.config.UCSRC] & this.config.UCSRC_USBS ? 2 : 1;
   }
 
   get parityEnabled() {
-    return this.cpu.data[this.config.UCSRC] & UCSRC_UPM1 ? true : false;
+    return this.cpu.data[this.config.UCSRC] & this.config.UCSRC_UPM1 ? true : false;
   }
 
   get parityOdd() {
-    return this.cpu.data[this.config.UCSRC] & UCSRC_UPM0 ? true : false;
+    return this.cpu.data[this.config.UCSRC] & this.config.UCSRC_UPM0 ? true : false;
   }
 }

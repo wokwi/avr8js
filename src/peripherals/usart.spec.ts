@@ -1,5 +1,6 @@
 import { CPU } from '../cpu/cpu';
-import { AVRUSART, usart0Config } from './usart';
+import { AVRUSART } from './usart';
+import { usart0Config } from './usart_atmega328p';
 
 const FREQ_16MHZ = 16e6;
 const FREQ_11_0529MHZ = 11059200;

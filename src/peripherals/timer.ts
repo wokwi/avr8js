@@ -7,18 +7,7 @@
  */
 
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
-import { AVRIOPort, PinOverrideMode, portBConfig, portDConfig } from './gpio';
-
-const timer01Dividers = {
-  0: 0,
-  1: 1,
-  2: 8,
-  3: 64,
-  4: 256,
-  5: 1024,
-  6: 0, // External clock - see ExternalClockMode
-  7: 0, // Ditto
-};
+import { AVRIOPort, PinOverrideMode } from './gpio';
 
 enum ExternalClockMode {
   FallingEdge = 6,
@@ -28,7 +17,7 @@ enum ExternalClockMode {
 type u8 = number;
 type u16 = number;
 
-interface TimerDividers {
+export interface TimerDividers {
   0: number;
   1: number;
   2: number;
@@ -46,38 +35,38 @@ export interface AVRTimerConfig {
   // Interrupt vectors
   captureInterrupt: u8;
   compAInterrupt: u8;
-  compBInterrupt: u8;
+  compBInterrupt: u8; // Optional, 0 = unused
   compCInterrupt: u8; // Optional, 0 = unused
   ovfInterrupt: u8;
 
   // Register addresses
   TIFR: u8;
   OCRA: u8;
-  OCRB: u8;
+  OCRB: u8; // Optional, 0 = unused
   OCRC: u8; // Optional, 0 = unused
   ICR: u8;
   TCNT: u8;
   TCCRA: u8;
-  TCCRB: u8;
-  TCCRC: u8;
+  TCCRB: u8; // Optional, 0 = unused
+  TCCRC: u8; // Optional, 0 = unused
   TIMSK: u8;
 
   // TIFR bits
   TOV: u8;
   OCFA: u8;
-  OCFB: u8;
+  OCFB: u8; // Optional, if compBInterrupt != 0
   OCFC: u8; // Optional, if compCInterrupt != 0
 
   // TIMSK bits
   TOIE: u8;
   OCIEA: u8;
-  OCIEB: u8;
+  OCIEB: u8; // Optional, if compBInterrupt != 0
   OCIEC: u8; // Optional, if compCInterrupt != 0
 
   // Output compare pins
   compPortA: u16;
   compPinA: u8;
-  compPortB: u16;
+  compPortB: u16; // Optional, 0 = unused
   compPinB: u8;
   compPortC: u16; // Optional, 0 = unused
   compPinC: u16;
@@ -86,117 +75,6 @@ export interface AVRTimerConfig {
   externalClockPort: u16;
   externalClockPin: u8;
 }
-
-/** These are differnet for some devices (e.g. ATtiny85) */
-const defaultTimerBits = {
-  // TIFR bits
-  TOV: 1,
-  OCFA: 2,
-  OCFB: 4,
-  OCFC: 0, // Unused
-
-  // TIMSK bits
-  TOIE: 1,
-  OCIEA: 2,
-  OCIEB: 4,
-  OCIEC: 0, // Unused
-};
-
-export const timer0Config: AVRTimerConfig = {
-  bits: 8,
-  captureInterrupt: 0, // not available
-  compAInterrupt: 0x1c,
-  compBInterrupt: 0x1e,
-  compCInterrupt: 0,
-  ovfInterrupt: 0x20,
-  TIFR: 0x35,
-  OCRA: 0x47,
-  OCRB: 0x48,
-  OCRC: 0, // not available
-  ICR: 0, // not available
-  TCNT: 0x46,
-  TCCRA: 0x44,
-  TCCRB: 0x45,
-  TCCRC: 0, // not available
-  TIMSK: 0x6e,
-  dividers: timer01Dividers,
-  compPortA: portDConfig.PORT,
-  compPinA: 6,
-  compPortB: portDConfig.PORT,
-  compPinB: 5,
-  compPortC: 0, // Not available
-  compPinC: 0,
-  externalClockPort: portDConfig.PORT,
-  externalClockPin: 4,
-  ...defaultTimerBits,
-};
-
-export const timer1Config: AVRTimerConfig = {
-  bits: 16,
-  captureInterrupt: 0x14,
-  compAInterrupt: 0x16,
-  compBInterrupt: 0x18,
-  compCInterrupt: 0,
-  ovfInterrupt: 0x1a,
-  TIFR: 0x36,
-  OCRA: 0x88,
-  OCRB: 0x8a,
-  OCRC: 0, // not available
-  ICR: 0x86,
-  TCNT: 0x84,
-  TCCRA: 0x80,
-  TCCRB: 0x81,
-  TCCRC: 0x82,
-  TIMSK: 0x6f,
-  dividers: timer01Dividers,
-  compPortA: portBConfig.PORT,
-  compPinA: 1,
-  compPortB: portBConfig.PORT,
-  compPinB: 2,
-  compPortC: 0, // Not available
-  compPinC: 0,
-  externalClockPort: portDConfig.PORT,
-  externalClockPin: 5,
-  ...defaultTimerBits,
-};
-
-export const timer2Config: AVRTimerConfig = {
-  bits: 8,
-  captureInterrupt: 0, // not available
-  compAInterrupt: 0x0e,
-  compBInterrupt: 0x10,
-  compCInterrupt: 0,
-  ovfInterrupt: 0x12,
-  TIFR: 0x37,
-  OCRA: 0xb3,
-  OCRB: 0xb4,
-  OCRC: 0, // not available
-  ICR: 0, // not available
-  TCNT: 0xb2,
-  TCCRA: 0xb0,
-  TCCRB: 0xb1,
-  TCCRC: 0, // not available
-  TIMSK: 0x70,
-  dividers: {
-    0: 0,
-    1: 1,
-    2: 8,
-    3: 32,
-    4: 64,
-    5: 128,
-    6: 256,
-    7: 1024,
-  },
-  compPortA: portBConfig.PORT,
-  compPinA: 3,
-  compPortB: portDConfig.PORT,
-  compPinB: 3,
-  compPortC: 0, // Not available
-  compPinC: 0,
-  externalClockPort: 0, // Not available
-  externalClockPin: 0,
-  ...defaultTimerBits,
-};
 
 /* All the following types and constants are related to WGM (Waveform Generation Mode) bits: */
 enum TimerMode {
@@ -289,6 +167,7 @@ export class AVRTimer {
   private nextOcrA: u16 = 0;
   private ocrB: u16 = 0;
   private nextOcrB: u16 = 0;
+  private hasOCRB = this.config.OCRB > 0;
   private hasOCRC = this.config.OCRC > 0;
   private ocrC: u16 = 0;
   private nextOcrC: u16 = 0;
@@ -367,12 +246,14 @@ export class AVRTimer {
         this.ocrA = this.nextOcrA;
       }
     };
-    this.cpu.writeHooks[config.OCRB] = (value: u8) => {
-      this.nextOcrB = (this.highByteTemp << 8) | value;
-      if (this.ocrUpdateMode === OCRUpdateMode.Immediate) {
-        this.ocrB = this.nextOcrB;
-      }
-    };
+    if (this.hasOCRB) {
+      this.cpu.writeHooks[config.OCRB] = (value: u8) => {
+        this.nextOcrB = (this.highByteTemp << 8) | value;
+        if (this.ocrUpdateMode === OCRUpdateMode.Immediate) {
+          this.ocrB = this.nextOcrB;
+        }
+      };
+    }
     if (this.hasOCRC) {
       this.cpu.writeHooks[config.OCRC] = (value: u8) => {
         this.nextOcrC = (this.highByteTemp << 8) | value;
@@ -406,18 +287,20 @@ export class AVRTimer {
       this.updateWGMConfig();
       return true;
     };
-    cpu.writeHooks[config.TCCRB] = (value) => {
-      if (!config.TCCRC) {
-        this.checkForceCompare(value);
-        value &= ~(FOCA | FOCB);
-      }
-      this.cpu.data[config.TCCRB] = value;
-      this.updateDivider = true;
-      this.cpu.clearClockEvent(this.count);
-      this.cpu.addClockEvent(this.count, 0);
-      this.updateWGMConfig();
-      return true;
-    };
+    if (config.TCCRB) {
+      cpu.writeHooks[config.TCCRB] = (value) => {
+        if (!config.TCCRC) {
+          this.checkForceCompare(value);
+          value &= ~(FOCA | FOCB);
+        }
+        this.cpu.data[config.TCCRB] = value;
+        this.updateDivider = true;
+        this.cpu.clearClockEvent(this.count);
+        this.cpu.addClockEvent(this.count, 0);
+        this.updateWGMConfig();
+        return true;
+      };
+    }
     if (config.TCCRC) {
       cpu.writeHooks[config.TCCRC] = (value) => {
         this.checkForceCompare(value);
@@ -525,13 +408,15 @@ export class AVRTimer {
       this.updateCompA(this.compA ? PinOverrideMode.Enable : PinOverrideMode.None);
     }
 
-    const prevCompB = this.compB;
-    this.compB = ((TCCRA >> 4) & 0x3) as CompBitsValue;
-    if (this.compB === 1 && pwmMode) {
-      this.compB = 0; // Reserved, according to the datasheet
-    }
-    if (!!prevCompB !== !!this.compB) {
-      this.updateCompB(this.compB ? PinOverrideMode.Enable : PinOverrideMode.None);
+    if (this.hasOCRB) {
+      const prevCompB = this.compB;
+      this.compB = ((TCCRA >> 4) & 0x3) as CompBitsValue;
+      if (this.compB === 1 && pwmMode) {
+        this.compB = 0; // Reserved, according to the datasheet
+      }
+      if (!!prevCompB !== !!this.compB) {
+        this.updateCompB(this.compB ? PinOverrideMode.Enable : PinOverrideMode.None);
+      }
     }
 
     if (this.hasOCRC) {
@@ -700,7 +585,7 @@ export class AVRTimer {
   }
 
   private timerUpdated(value: number, prevValue: number) {
-    const { ocrA, ocrB, ocrC, hasOCRC } = this;
+    const { ocrA, ocrB, ocrC, hasOCRB, hasOCRC } = this;
     const overflow = prevValue > value;
     if (((prevValue < ocrA || overflow) && value >= ocrA) || (prevValue < ocrA && overflow)) {
       this.cpu.setInterruptFlag(this.OCFA);
@@ -708,7 +593,10 @@ export class AVRTimer {
         this.updateCompPin(this.compA, 'A');
       }
     }
-    if (((prevValue < ocrB || overflow) && value >= ocrB) || (prevValue < ocrB && overflow)) {
+    if (
+      hasOCRB &&
+      (((prevValue < ocrB || overflow) && value >= ocrB) || (prevValue < ocrB && overflow))
+    ) {
       this.cpu.setInterruptFlag(this.OCFB);
       if (this.compB) {
         this.updateCompPin(this.compB, 'B');

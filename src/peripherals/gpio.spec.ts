@@ -1,6 +1,7 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { AVRIOPort, portBConfig, PinState, portDConfig, PinOverrideMode } from './gpio';
+import { AVRIOPort, PinState, PinOverrideMode } from './gpio';
+import { portBConfig, portDConfig } from './gpio_atmega328p';
 
 // CPU registers
 const SREG = 95;

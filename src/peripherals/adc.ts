@@ -37,13 +37,34 @@ export type ADCMuxInput =
 
 export type ADCMuxConfiguration = { [key: number]: ADCMuxInput };
 
+// ATMega32 vs 328p: 32 has No ADCSRB. 32 has MUX4 in ADCSRA, only difference
+// 2650: MUX5 exists in ADCSRB
+
 export interface ADCConfig {
+  // Register addresses
   ADMUX: u8;
   ADCSRA: u8;
-  ADCSRB: u8;
+  ADCSRB: u8; // Optional, 0 = unsupported
   ADCL: u8;
   ADCH: u8;
-  DIDR0: u8;
+
+  // ADCSRA bits
+  ADPS_MASK: u8;
+  ADIE: u8;
+  ADIF: u8;
+  ADSC: u8;
+  ADEN: u8;
+
+  // ADMUX bits
+  MUX_MASK: u8;
+  REFS_SHIFT: u8;
+  REFS_MASK: u8;
+  REFS2: u8; // Optional, 0 = unsupported
+  ADLAR: u8;
+
+  // ADCSRB bits
+  MUX5: u8; // Optional, 0 = unsupported. Also not used if ADCSRB === 0
+
   adcInterrupt: u8;
   numChannels: u8;
   muxInputMask: u8;
@@ -51,57 +72,10 @@ export interface ADCConfig {
   adcReferences: ADCReference[];
 }
 
-export const atmega328Channels: ADCMuxConfiguration = {
-  0: { type: ADCMuxInputType.SingleEnded, channel: 0 },
-  1: { type: ADCMuxInputType.SingleEnded, channel: 1 },
-  2: { type: ADCMuxInputType.SingleEnded, channel: 2 },
-  3: { type: ADCMuxInputType.SingleEnded, channel: 3 },
-  4: { type: ADCMuxInputType.SingleEnded, channel: 4 },
-  5: { type: ADCMuxInputType.SingleEnded, channel: 5 },
-  6: { type: ADCMuxInputType.SingleEnded, channel: 6 },
-  7: { type: ADCMuxInputType.SingleEnded, channel: 7 },
-  8: { type: ADCMuxInputType.Temperature },
-  14: { type: ADCMuxInputType.Constant, voltage: 1.1 },
-  15: { type: ADCMuxInputType.Constant, voltage: 0 },
-};
-
 const fallbackMuxInput = {
   type: ADCMuxInputType.Constant,
   voltage: 0,
 };
-
-export const adcConfig: ADCConfig = {
-  ADMUX: 0x7c,
-  ADCSRA: 0x7a,
-  ADCSRB: 0x7b,
-  ADCL: 0x78,
-  ADCH: 0x79,
-  DIDR0: 0x7e,
-  adcInterrupt: 0x2a,
-  numChannels: 8,
-  muxInputMask: 0xf,
-  muxChannels: atmega328Channels,
-  adcReferences: [
-    ADCReference.AREF,
-    ADCReference.AVCC,
-    ADCReference.Reserved,
-    ADCReference.Internal1V1,
-  ],
-};
-
-// Register bits:
-const ADPS_MASK = 0x7;
-const ADIE = 0x8;
-const ADIF = 0x10;
-const ADSC = 0x40;
-const ADEN = 0x80;
-
-const MUX_MASK = 0x1f;
-const ADLAR = 0x20;
-const MUX5 = 0x8;
-const REFS2 = 0x8;
-const REFS_MASK = 0x3;
-const REFS_SHIFT = 6;
 
 export class AVRADC {
   /**
@@ -116,6 +90,8 @@ export class AVRADC {
 
   /** AREF Reference voltage */
   aref = 5;
+
+  private hasADCSRB = this.config.ADCSRB > 0;
 
   /**
    * Invoked whenever the code performs an ADC read.
@@ -158,26 +134,26 @@ export class AVRADC {
   private ADC: AVRInterruptConfig = {
     address: this.config.adcInterrupt,
     flagRegister: this.config.ADCSRA,
-    flagMask: ADIF,
+    flagMask: this.config.ADIF,
     enableRegister: this.config.ADCSRA,
-    enableMask: ADIE,
+    enableMask: this.config.ADIE,
   };
 
   constructor(private cpu: CPU, private config: ADCConfig) {
     cpu.writeHooks[config.ADCSRA] = (value, oldValue) => {
-      if (value & ADEN && !(oldValue && ADEN)) {
+      if (value & this.config.ADEN && !(oldValue && this.config.ADEN)) {
         this.conversionCycles = 25;
       }
       cpu.data[config.ADCSRA] = value;
       cpu.updateInterruptEnable(this.ADC, value);
-      if (!this.converting && value & ADSC) {
-        if (!(value & ADEN)) {
+      if (!this.converting && value & this.config.ADSC) {
+        if (!(value & this.config.ADEN)) {
           // Special case: reading while the ADC is not enabled should return 0
           this.cpu.addClockEvent(() => this.completeADCRead(0), this.sampleCycles);
           return true;
         }
-        let channel = this.cpu.data[this.config.ADMUX] & MUX_MASK;
-        if (cpu.data[config.ADCSRB] & MUX5) {
+        let channel = this.cpu.data[this.config.ADMUX] & this.config.MUX_MASK;
+        if (this.hasADCSRB && cpu.data[config.ADCSRB] & this.config.MUX5) {
           channel |= 0x20;
         }
         channel &= config.muxInputMask;
@@ -193,21 +169,21 @@ export class AVRADC {
     const { ADCL, ADCH, ADMUX, ADCSRA } = this.config;
     this.converting = false;
     this.conversionCycles = 13;
-    if (this.cpu.data[ADMUX] & ADLAR) {
+    if (this.cpu.data[ADMUX] & this.config.ADLAR) {
       this.cpu.data[ADCL] = (value << 6) & 0xff;
       this.cpu.data[ADCH] = value >> 2;
     } else {
       this.cpu.data[ADCL] = value & 0xff;
       this.cpu.data[ADCH] = (value >> 8) & 0x3;
     }
-    this.cpu.data[ADCSRA] &= ~ADSC;
+    this.cpu.data[ADCSRA] &= ~this.config.ADSC;
     this.cpu.setInterruptFlag(this.ADC);
   }
 
   get prescaler() {
     const { ADCSRA } = this.config;
     const adcsra = this.cpu.data[ADCSRA];
-    const adps = adcsra & ADPS_MASK;
+    const adps = adcsra & this.config.ADPS_MASK;
     switch (adps) {
       case 0:
       case 1:
@@ -230,8 +206,8 @@ export class AVRADC {
 
   get referenceVoltageType() {
     const { ADMUX, adcReferences } = this.config;
-    let refs = (this.cpu.data[ADMUX] >> REFS_SHIFT) & REFS_MASK;
-    if (adcReferences.length > 4 && this.cpu.data[ADMUX] & REFS2) {
+    let refs = (this.cpu.data[ADMUX] >> this.config.REFS_SHIFT) & this.config.REFS_MASK;
+    if (adcReferences.length > 4 && this.cpu.data[ADMUX] & this.config.REFS2) {
       refs |= 0x4;
     }
     return adcReferences[refs] ?? ADCReference.Reserved;
