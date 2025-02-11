@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 const url = 'https://hexi.wokwi.com';
 
 export interface HexiResult {

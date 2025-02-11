@@ -1,7 +1,10 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import { CPU } from './cpu';
 import { avrInstruction } from './instruction';
 import { assemble } from '../utils/assembler';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const r0 = 0;
 const r1 = 1;

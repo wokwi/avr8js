@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 /**
  * AVR8 Watchdog Timer Test Suite
  * Part of AVR8js

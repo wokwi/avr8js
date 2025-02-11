@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import { describe, expect, it } from 'vitest';
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';

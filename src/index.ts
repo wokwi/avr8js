@@ -1,8 +1,5 @@
-/**
- * AVR8js
- *
- * Copyright (C) 2019, 2020, Uri Shaked
- */
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
 
 export { CPU } from './cpu/cpu';
 export type { CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';

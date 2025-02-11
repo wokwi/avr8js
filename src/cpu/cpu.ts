@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 /**
  * AVR 8 CPU data structures
  * Part of AVR8js

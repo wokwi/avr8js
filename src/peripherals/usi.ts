@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { AVRIOPort } from './gpio';
 

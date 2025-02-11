@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import { CPU } from '../cpu/cpu';
 import { assemble } from './assembler';
 import { avrInstruction } from '../cpu/instruction';

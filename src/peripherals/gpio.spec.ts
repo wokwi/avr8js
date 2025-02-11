@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRIOPort, portBConfig, PinState, portDConfig, PinOverrideMode } from './gpio';

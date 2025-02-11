@@ -91,4 +91,4 @@ For more information, please check the [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
-Copyright (C) 2019-2023 Uri Shaked. The code is released under the terms of the MIT license.
+Copyright (C) 2019-2025 Uri Shaked. The code is released under the terms of the MIT license.

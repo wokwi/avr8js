@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 /**
  * Minimal Intel HEX loader
  * Part of AVR8js

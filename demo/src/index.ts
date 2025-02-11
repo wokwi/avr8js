@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import '@wokwi/elements';
 import { LEDElement } from '@wokwi/elements';
 import { PinState } from 'avr8js';

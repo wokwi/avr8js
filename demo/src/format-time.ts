@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 function zeroPad(value: number, length: number) {
   let sval = value.toString();
   while (sval.length < length) {

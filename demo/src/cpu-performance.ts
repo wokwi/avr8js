@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 import { CPU } from 'avr8js';
 
 export class CPUPerformance {

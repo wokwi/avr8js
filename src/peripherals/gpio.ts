@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) Uri Shaked and contributors
+
 /**
  * AVR-8 GPIO Port implementation
  * Part of AVR8js
@@ -5,6 +8,7 @@
  *
  * Copyright (C) 2019-2023 Uri Shaked
  */
+
 import { AVRInterruptConfig, CPU } from '../cpu/cpu';
 import { u8 } from '../types';
 
