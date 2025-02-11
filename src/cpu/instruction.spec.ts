@@ -1,6 +1,7 @@
 import { CPU } from './cpu';
 import { avrInstruction } from './instruction';
 import { assemble } from '../utils/assembler';
+import { describe, it, expect, vi } from 'vitest';
 
 const r0 = 0;
 const r1 = 1;
@@ -1118,7 +1119,7 @@ describe('avrInstruction', () => {
 
   it('should execute `WDR` instruction and call `cpu.onWatchdogReset`', () => {
     loadProgram('WDR');
-    cpu.onWatchdogReset = jest.fn();
+    cpu.onWatchdogReset = vi.fn();
     expect(cpu.onWatchdogReset).not.toHaveBeenCalled();
     avrInstruction(cpu);
     expect(cpu.onWatchdogReset).toHaveBeenCalled();

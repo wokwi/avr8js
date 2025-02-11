@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from 'vitest';
 import { CPU } from '../cpu/cpu';
 import { AVRUSART, usart0Config } from './usart';
 
@@ -56,7 +57,7 @@ describe('USART', () => {
   it('should call onConfigurationChange when the baudRate changes', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    const onConfigurationChange = jest.fn();
+    const onConfigurationChange = vi.fn();
     usart.onConfigurationChange = onConfigurationChange;
 
     cpu.writeData(UBRR0H, 0);
@@ -111,7 +112,7 @@ describe('USART', () => {
     it('should call onConfigurationChange when bitsPerChar change', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      const onConfigurationChange = jest.fn();
+      const onConfigurationChange = vi.fn();
       usart.onConfigurationChange = onConfigurationChange;
 
       cpu.writeData(UCSR0C, UCSZ0 | UCSZ1);
@@ -175,7 +176,7 @@ describe('USART', () => {
   it('should invoke onByteTransmit when UDR0 is written to', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-    usart.onByteTransmit = jest.fn();
+    usart.onByteTransmit = vi.fn();
     cpu.writeData(UCSR0B, TXEN);
     cpu.writeData(UDR0, 0x61);
     expect(usart.onByteTransmit).toHaveBeenCalledWith(0x61);
@@ -185,7 +186,7 @@ describe('USART', () => {
     it('txEnable should equal true when the transitter is enabled', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      usart.onByteTransmit = jest.fn();
+      usart.onByteTransmit = vi.fn();
       expect(usart.txEnable).toEqual(false);
       cpu.writeData(UCSR0B, TXEN);
       expect(usart.txEnable).toEqual(true);
@@ -194,7 +195,7 @@ describe('USART', () => {
     it('rxEnable should equal true when the transitter is enabled', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      usart.onByteTransmit = jest.fn();
+      usart.onByteTransmit = vi.fn();
       expect(usart.rxEnable).toEqual(false);
       cpu.writeData(UCSR0B, RXEN);
       expect(usart.rxEnable).toEqual(true);
@@ -254,7 +255,7 @@ describe('USART', () => {
     it('should call onLineTransmit with the current line buffer after every newline', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      usart.onLineTransmit = jest.fn();
+      usart.onLineTransmit = vi.fn();
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UDR0, 0x48); // 'H'
       cpu.writeData(UDR0, 0x65); // 'e'
@@ -268,7 +269,7 @@ describe('USART', () => {
     it('should not call onLineTransmit if no newline was received', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      usart.onLineTransmit = jest.fn();
+      usart.onLineTransmit = vi.fn();
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UDR0, 0x48); // 'H'
       cpu.writeData(UDR0, 0x69); // 'i'
@@ -278,7 +279,7 @@ describe('USART', () => {
     it('should clear the line buffer after each call to onLineTransmit', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      usart.onLineTransmit = jest.fn();
+      usart.onLineTransmit = vi.fn();
       cpu.writeData(UCSR0B, TXEN);
       cpu.writeData(UDR0, 0x48); // 'H'
       cpu.writeData(UDR0, 0x69); // 'i'
@@ -324,7 +325,7 @@ describe('USART', () => {
     it('should be ready to recieve the next byte after ~1.04ms when baudrate set to 9600', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const usart = new AVRUSART(cpu, usart0Config, FREQ_16MHZ);
-      const rxCompleteCallback = jest.fn();
+      const rxCompleteCallback = vi.fn();
       usart.onRxComplete = rxCompleteCallback;
       cpu.writeData(UCSR0B, RXEN);
       cpu.writeData(UBRR0L, 103); // baud: 9600

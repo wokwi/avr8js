@@ -1,6 +1,7 @@
+import { describe, expect, it, vi } from 'vitest';
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { AVRADC, adcConfig, ADCMuxInputType } from './adc';
+import { adcConfig, ADCMuxInputType, AVRADC } from './adc';
 
 const R16 = 16;
 const R17 = 17;
@@ -51,7 +52,7 @@ describe('ADC', () => {
     const adc = new AVRADC(cpu, adcConfig);
     const runner = new TestProgramRunner(cpu);
 
-    const adcReadSpy = jest.spyOn(adc, 'onADCRead');
+    const adcReadSpy = vi.spyOn(adc, 'onADCRead');
     adc.channelValues[0] = 2.56; // should result in 2.56/5*1024 = 524
 
     // Setup
@@ -114,7 +115,7 @@ describe('ADC', () => {
       /* do nothing on break */
     });
 
-    const adcReadSpy = jest.spyOn(adc, 'onADCRead');
+    const adcReadSpy = vi.spyOn(adc, 'onADCRead');
     adc.channelValues[0] = 2.56; // should result in 2.56/5*1024 = 524
 
     // Setup

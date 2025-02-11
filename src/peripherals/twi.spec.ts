@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from 'vitest';
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRTWI, twiConfig } from './twi';
@@ -61,7 +62,7 @@ describe('TWI', () => {
     it('should call the startEvent handler when TWSTA bit is written 1', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
-      jest.spyOn(twi.eventHandler, 'start');
+      vi.spyOn(twi.eventHandler, 'start');
       cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
       cpu.cycles++;
       cpu.tick();
@@ -78,14 +79,14 @@ describe('TWI', () => {
       cpu.tick();
 
       // Repeated start
-      jest.spyOn(twi.eventHandler, 'start');
+      vi.spyOn(twi.eventHandler, 'start');
       cpu.writeData(TWCR, TWINT | TWSTA | TWEN);
       cpu.cycles++;
       cpu.tick();
       expect(twi.eventHandler.start).toHaveBeenCalledWith(true);
 
       // Now try to connect...
-      jest.spyOn(twi.eventHandler, 'connectToSlave');
+      vi.spyOn(twi.eventHandler, 'connectToSlave');
       cpu.writeData(TWDR, 0x80); // Address 0x40, write mode
       cpu.writeData(TWCR, TWINT | TWEN);
       cpu.cycles++;
@@ -199,11 +200,11 @@ describe('TWI', () => {
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
       const runner = new TestProgramRunner(cpu, onTestBreak);
       twi.eventHandler = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        connectToSlave: jest.fn(),
-        writeByte: jest.fn(),
-        readByte: jest.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        connectToSlave: vi.fn(),
+        writeByte: vi.fn(),
+        readByte: vi.fn(),
       };
 
       // Step 1: wait for start condition
@@ -368,11 +369,11 @@ describe('TWI', () => {
       const twi = new AVRTWI(cpu, twiConfig, FREQ_16MHZ);
       const runner = new TestProgramRunner(cpu, onTestBreak);
       twi.eventHandler = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        connectToSlave: jest.fn(),
-        writeByte: jest.fn(),
-        readByte: jest.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        connectToSlave: vi.fn(),
+        writeByte: vi.fn(),
+        readByte: vi.fn(),
       };
 
       // Step 1: wait for start condition

@@ -5,6 +5,7 @@
  * Copyright (C) 2021 Uri Shaked
  */
 
+import { describe, expect, it } from 'vitest';
 import { AVRClock, clockConfig } from '..';
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';

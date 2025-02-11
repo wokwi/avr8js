@@ -1,6 +1,7 @@
+import { describe, expect, it } from 'vitest';
 import { CPU } from '../cpu/cpu';
-import { AVREEPROM, EEPROMMemoryBackend } from './eeprom';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
+import { AVREEPROM, EEPROMMemoryBackend } from './eeprom';
 
 // EEPROM Registers
 const EECR = 0x3f;

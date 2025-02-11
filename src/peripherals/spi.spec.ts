@@ -1,6 +1,7 @@
+import { describe, expect, it, vi } from 'vitest';
 import { CPU } from '../cpu/cpu';
-import { AVRSPI, spiConfig } from './spi';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
+import { AVRSPI, spiConfig } from './spi';
 
 const FREQ_16MHZ = 16e6;
 
@@ -99,7 +100,7 @@ describe('SPI', () => {
   it('should call the `onByteTransfer` callback when initiating an SPI trasfer by writing to SPDR', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
-    spi.onByte = jest.fn();
+    spi.onByte = vi.fn();
 
     cpu.writeData(SPCR, SPE | MSTR);
     cpu.writeData(SPDR, 0x8f);
@@ -110,7 +111,7 @@ describe('SPI', () => {
   it('should ignore SPDR writes when the SPE bit in SPCR is clear', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const spi = new AVRSPI(cpu, spiConfig, FREQ_16MHZ);
-    spi.onByte = jest.fn();
+    spi.onByte = vi.fn();
 
     cpu.writeData(SPCR, MSTR);
     cpu.writeData(SPDR, 0x8f);

@@ -1,6 +1,7 @@
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRIOPort, portBConfig, PinState, portDConfig, PinOverrideMode } from './gpio';
+import { describe, it, expect, vi } from 'vitest';
 
 // CPU registers
 const SREG = 95;
@@ -41,7 +42,7 @@ describe('GPIO', () => {
   it('should invoke the listeners when the port is written to', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const port = new AVRIOPort(cpu, portBConfig);
-    const listener = jest.fn();
+    const listener = vi.fn();
     cpu.writeData(DDRB, 0x0f);
     port.addListener(listener);
     cpu.writeData(PORTB, 0x55);
@@ -52,7 +53,7 @@ describe('GPIO', () => {
   it('should invoke the listeners when DDR changes (issue #28)', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const port = new AVRIOPort(cpu, portBConfig);
-    const listener = jest.fn();
+    const listener = vi.fn();
     cpu.writeData(PORTB, 0x55);
     port.addListener(listener);
     cpu.writeData(DDRB, 0xf0);
@@ -62,7 +63,7 @@ describe('GPIO', () => {
   it('should invoke the listeners when pullup register enabled (issue #62)', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const port = new AVRIOPort(cpu, portBConfig);
-    const listener = jest.fn();
+    const listener = vi.fn();
     port.addListener(listener);
     cpu.writeData(PORTB, 0x55);
     expect(listener).toHaveBeenCalledWith(0x55, 0);
@@ -71,7 +72,7 @@ describe('GPIO', () => {
   it('should toggle the pin when writing to the PIN register', () => {
     const cpu = new CPU(new Uint16Array(1024));
     const port = new AVRIOPort(cpu, portBConfig);
-    const listener = jest.fn();
+    const listener = vi.fn();
     port.addListener(listener);
     cpu.writeData(DDRB, 0x0f);
     cpu.writeData(PORTB, 0x55);
@@ -101,7 +102,7 @@ describe('GPIO', () => {
     const portD = new AVRIOPort(cpu, portDConfig);
     const runner = new TestProgramRunner(cpu);
 
-    const listener = jest.fn();
+    const listener = vi.fn();
     portD.addListener(listener);
 
     // Setup: pins 6, 3 are output, set to HIGH
@@ -132,7 +133,7 @@ describe('GPIO', () => {
     it('should remove the given listener', () => {
       const cpu = new CPU(new Uint16Array(1024));
       const port = new AVRIOPort(cpu, portBConfig);
-      const listener = jest.fn();
+      const listener = vi.fn();
       port.addListener(listener);
       cpu.writeData(DDRB, 0x0f);
       port.removeListener(listener);
@@ -176,7 +177,7 @@ describe('GPIO', () => {
       // Related issue: https://github.com/wokwi/avr8js/issues/9
       const cpu = new CPU(new Uint16Array(1024));
       const port = new AVRIOPort(cpu, portBConfig);
-      const listener = jest.fn(() => {
+      const listener = vi.fn(() => {
         expect(port.pinState(PB0)).toBe(PinState.High);
       });
       expect(port.pinState(PB0)).toBe(PinState.Input);
@@ -190,7 +191,7 @@ describe('GPIO', () => {
       // Related issue: https://github.com/wokwi/avr8js/issues/47
       const cpu = new CPU(new Uint16Array(1024));
       const port = new AVRIOPort(cpu, portBConfig);
-      const listener = jest.fn(() => {
+      const listener = vi.fn(() => {
         expect(port.pinState(PB0)).toBe(PinState.Low);
       });
       expect(port.pinState(PB0)).toBe(PinState.Input);

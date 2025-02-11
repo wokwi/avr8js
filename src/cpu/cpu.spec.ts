@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { AVRClockEventCallback, CPU } from './cpu';
 
 type ITestEvent = [number, number]; // Expected cycles, actual cycles

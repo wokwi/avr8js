@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from 'vitest';
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
 import { AVRIOPort, PinOverrideMode, portBConfig, portDConfig } from './gpio';
@@ -544,7 +545,7 @@ describe('timer', () => {
 
     // Listen to Port B's internal callback
     const portD = new AVRIOPort(cpu, portDConfig);
-    const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+    const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
     cpu.writeData(TCCR0B, FOC0B);
 
@@ -580,7 +581,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
@@ -633,7 +634,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
@@ -679,7 +680,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
@@ -753,7 +754,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
       const runner = new TestProgramRunner(cpu);
@@ -800,7 +801,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
 
@@ -833,7 +834,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -861,7 +862,7 @@ describe('timer', () => {
 
       // Listen to Port D's internal callback
       const portD = new AVRIOPort(cpu, portDConfig);
-      const gpioCallback = jest.spyOn(portD, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portD, 'timerOverridePin');
 
       const runner = new TestProgramRunner(cpu);
       runner.runInstructions(instructionCount);
@@ -921,7 +922,7 @@ describe('timer', () => {
 
         IN r17, 0x26    ; R17 = TCNT; // TCNT0 should read 0x0
         IN r18, 0x26    ; R18 = TCNT; // TCNT0 should read 0x0
-        LDI r16, 0x2    ; OCR0A = 0x2; // TCNT0 should read 0x0
+        LDI r16, 0x2    ; OCR0A = 0x2; // TCNT0 should read 0x1
         OUT 0x27, r16   ; // TCNT0 should read 0x1
         NOP             ; // TCNT0 should read 0x2
         IN r19, 0x26    ; R19 = TCNT; // TCNT0 should read 0x1
@@ -1118,7 +1119,7 @@ describe('timer', () => {
 
       // Listen to Port B's internal callback
       const portB = new AVRIOPort(cpu, portBConfig);
-      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portB, 'timerOverridePin');
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
       const runner = new TestProgramRunner(cpu);
@@ -1164,7 +1165,7 @@ describe('timer', () => {
 
       // Listen to Port B's internal callback
       const portB = new AVRIOPort(cpu, portBConfig);
-      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portB, 'timerOverridePin');
 
       const nopCount = lines.filter((line) => line.bytes == nopOpCode).length;
       const runner = new TestProgramRunner(cpu);
@@ -1192,7 +1193,7 @@ describe('timer', () => {
 
       // Listen to Port B's internal callback
       const portB = new AVRIOPort(cpu, portBConfig);
-      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portB, 'timerOverridePin');
 
       cpu.writeData(TCCR1C, FOC1C);
 
@@ -1212,7 +1213,7 @@ describe('timer', () => {
 
       // Listen to Port B's internal callback
       const portB = new AVRIOPort(cpu, portBConfig);
-      const gpioCallback = jest.spyOn(portB, 'timerOverridePin');
+      const gpioCallback = vi.spyOn(portB, 'timerOverridePin');
 
       cpu.writeData(TCCR1C, FOC1C);
 

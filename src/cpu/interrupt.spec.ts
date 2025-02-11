@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { CPU } from './cpu';
 import { avrInterrupt } from './interrupt';
 
