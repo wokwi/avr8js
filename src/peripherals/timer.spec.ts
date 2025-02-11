@@ -982,7 +982,7 @@ describe('timer', () => {
       expect(cpu.dataView.getUint16(TCNT1, true)).toEqual(0x2234); // TCNT1 should increment
     });
 
-    it('should set OCF0A flag when timer equals OCRA (16 bit mode)', () => {
+    it('should set OCF1A flag when timer equals OCRA (16 bit mode)', () => {
       const cpu = new CPU(new Uint16Array(0x1000));
       new AVRTimer(cpu, timer1Config);
       cpu.writeData(TCNT1H, 0x10); // TCNT1 <- 0x10ee
