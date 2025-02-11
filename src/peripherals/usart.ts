@@ -109,7 +109,11 @@ export class AVRUSART {
     enableMask: UCSRB_TXCIE,
   };
 
-  constructor(private cpu: CPU, private config: USARTConfig, private freqHz: number) {
+  constructor(
+    private cpu: CPU,
+    private config: USARTConfig,
+    private freqHz: number,
+  ) {
     this.reset();
     this.cpu.writeHooks[config.UCSRA] = (value, oldValue) => {
       cpu.data[config.UCSRA] = value & (UCSRA_MPCM | UCSRA_U2X);

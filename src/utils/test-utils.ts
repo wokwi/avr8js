@@ -19,7 +19,7 @@ const defaultOnBreak = () => {
 export class TestProgramRunner {
   constructor(
     private readonly cpu: CPU,
-    private readonly onBreak: (cpu: CPU) => void = defaultOnBreak
+    private readonly onBreak: (cpu: CPU) => void = defaultOnBreak,
   ) {}
 
   runInstructions(count: number) {

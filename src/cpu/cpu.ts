@@ -80,7 +80,10 @@ export class CPU {
   nextInterrupt: i16 = -1;
   maxInterrupt: i16 = 0;
 
-  constructor(public progMem: Uint16Array, private sramBytes = 8192) {
+  constructor(
+    public progMem: Uint16Array,
+    private sramBytes = 8192,
+  ) {
     this.reset();
   }
 

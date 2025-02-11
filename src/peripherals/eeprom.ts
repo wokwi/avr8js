@@ -85,7 +85,7 @@ export class AVREEPROM {
   constructor(
     private cpu: CPU,
     private backend: EEPROMBackend,
-    private config: AVREEPROMConfig = eepromConfig
+    private config: AVREEPROMConfig = eepromConfig,
   ) {
     this.cpu.writeHooks[this.config.EECR] = (eecr) => {
       const { EEARH, EEARL, EECR, EEDR } = this.config;

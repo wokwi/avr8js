@@ -342,7 +342,10 @@ export class AVRTimer {
     enableMask: this.config.OCIEC,
   };
 
-  constructor(private cpu: CPU, private config: AVRTimerConfig) {
+  constructor(
+    private cpu: CPU,
+    private config: AVRTimerConfig,
+  ) {
     this.updateWGMConfig();
     this.cpu.readHooks[config.TCNT] = (addr: u8) => {
       this.count(false);

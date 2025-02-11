@@ -6,7 +6,10 @@ export class CPUPerformance {
   private samples = new Float32Array(64);
   private sampleIndex = 0;
 
-  constructor(private cpu: CPU, private MHZ: number) {}
+  constructor(
+    private cpu: CPU,
+    private MHZ: number,
+  ) {}
 
   reset() {
     this.prevTime = 0;

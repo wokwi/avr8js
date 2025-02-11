@@ -63,7 +63,11 @@ export class AVRSPI {
     enableMask: SPCR_SPIE,
   };
 
-  constructor(private cpu: CPU, private config: SPIConfig, private freqHz: number) {
+  constructor(
+    private cpu: CPU,
+    private config: SPIConfig,
+    private freqHz: number,
+  ) {
     const { SPCR, SPSR, SPDR } = config;
     cpu.writeHooks[SPDR] = (value: u8) => {
       if (!(cpu.data[SPCR] & SPCR_SPE)) {

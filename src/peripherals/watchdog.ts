@@ -57,7 +57,11 @@ export class AVRWatchdog {
     enableMask: WDTCSR_WDIE,
   };
 
-  constructor(private cpu: CPU, private config: WatchdogConfig, private clock: AVRClock) {
+  constructor(
+    private cpu: CPU,
+    private config: WatchdogConfig,
+    private clock: AVRClock,
+  ) {
     const { WDTCSR } = config;
     this.cpu.onWatchdogReset = () => {
       this.resetWatchdog();

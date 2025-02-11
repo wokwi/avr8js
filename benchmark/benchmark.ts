@@ -78,7 +78,7 @@ export function createBenchmark(benchmarkName: string): Benchmark {
               // As a sanity if duration_ms is 0 just double the count.
               profile.iterationCount << 1,
               // Otherwise try to guess how many iterations we have to do to get the right time.
-              Math.round((MIN_SAMPLE_DURATION / durationMs) * profile.iterationCount)
+              Math.round((MIN_SAMPLE_DURATION / durationMs) * profile.iterationCount),
             );
             profile.noImprovementCount = 0;
             runAgain = true;
@@ -120,7 +120,7 @@ export function createBenchmark(benchmarkName: string): Benchmark {
           const percent = (100 - (profile.bestTime / fastest.bestTime) * 100).toFixed(0);
           return '  ' + profile.profileName + ': ' + time + ' ' + unit + '(' + percent + '%)';
         })
-        .join('\n')}`
+        .join('\n')}`,
     );
   };
   return benchmark;

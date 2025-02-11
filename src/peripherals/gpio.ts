@@ -219,7 +219,10 @@ export class AVRIOPort {
   private lastPin: u8 = 0;
   openCollector: u8 = 0;
 
-  constructor(private cpu: CPU, readonly portConfig: Readonly<AVRPortConfig>) {
+  constructor(
+    private cpu: CPU,
+    readonly portConfig: Readonly<AVRPortConfig>,
+  ) {
     cpu.gpioPorts.add(this);
     cpu.gpioByPort[portConfig.PORT] = this;
 
@@ -259,7 +262,7 @@ export class AVRIOPort {
             enableRegister: externalConfig.EIMSK,
             enableMask: 1 << externalConfig.index,
           }
-        : null
+        : null,
     );
     const EICR = new Set(externalInterrupts.map((item) => item?.EICR));
     for (const EICRx of EICR) {

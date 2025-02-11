@@ -35,7 +35,7 @@ export class AVRClock {
   constructor(
     private cpu: CPU,
     private baseFreqHz: u32,
-    private config: AVRClockConfig = clockConfig
+    private config: AVRClockConfig = clockConfig,
   ) {
     this.cpu.writeHooks[this.config.CLKPR] = (clkpr) => {
       if ((!this.clockEnabledCycles || this.clockEnabledCycles < cpu.cycles) && clkpr === CLKPCE) {

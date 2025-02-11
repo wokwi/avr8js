@@ -105,7 +105,11 @@ export class AVRTWI {
     enableMask: TWCR_TWIE,
   };
 
-  constructor(private cpu: CPU, private config: TWIConfig, private freqHz: number) {
+  constructor(
+    private cpu: CPU,
+    private config: TWIConfig,
+    private freqHz: number,
+  ) {
     this.updateStatus(STATUS_TWI_IDLE);
     this.cpu.writeHooks[config.TWCR] = (value) => {
       this.cpu.data[config.TWCR] = value;

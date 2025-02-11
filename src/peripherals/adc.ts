@@ -163,7 +163,10 @@ export class AVRADC {
     enableMask: ADIE,
   };
 
-  constructor(private cpu: CPU, private config: ADCConfig) {
+  constructor(
+    private cpu: CPU,
+    private config: ADCConfig,
+  ) {
     cpu.writeHooks[config.ADCSRA] = (value, oldValue) => {
       if (value & ADEN && !(oldValue && ADEN)) {
         this.conversionCycles = 25;
