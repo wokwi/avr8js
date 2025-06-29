@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        node: ['22', '20', '18']
+        node: ['24', '22', '20', '18']
     name: Node ${{ matrix.node }} CI
     steps:
       - uses: actions/checkout@v4
