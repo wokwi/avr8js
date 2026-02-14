@@ -23,9 +23,9 @@
   "scripts": {
     "build": "rimraf dist && tsc --sourceMap false && tsc -m commonjs --outDir dist/cjs --sourceMap false",
     "build:demo": "vite build demo",
-    "prepare": "husky install && npm run build",
+    "prepare": "husky && npm run build",
     "start": "vite demo",
-    "lint": "eslint src/**/*.ts demo/**/*.ts",
+    "lint": "eslint src/ demo/",
     "test": "npm run lint && vitest run",
     "test:watch": "vitest",
     "benchmark:prepare": "tsx benchmark/convert-instructions.ts",
@@ -35,32 +35,31 @@
     "dist"
   ],
   "devDependencies": {
-    "@types/node": "^18.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.48.0",
-    "@typescript-eslint/parser": "^5.48.0",
-    "@wokwi/elements": "^0.16.2",
-    "eslint": "^8.31.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-json": "^3.1.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "husky": "^6.0.0",
-    "lint-staged": "^9.5.0",
-    "prettier": "^3.5.0",
-    "rimraf": "^3.0.2",
-    "tsx": "^4.19.2",
-    "typescript": "^4.9.4",
-    "vite": "^6.0.0",
-    "vitest": "^3.2.4"
+    "@types/node": "^22.0.0",
+    "@wokwi/elements": "^1.9.1",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-json": "^4.0.1",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "prettier-plugin-organize-imports": "^4.1.0",
+    "rimraf": "^6.1.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
       "eslint --fix",
-      "prettier --write",
-      "git add"
+      "prettier --write"
     ]
   },
   "engines": {
-    "node": ">= 18.0.0",
+    "node": ">= 20.19.0",
     "npm": ">= 10.0.0"
   },
   "alias": {
