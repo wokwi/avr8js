@@ -50,7 +50,6 @@ const led12 = document.querySelector<LEDElement>('wokwi-led[color=red]');
 // Set up toolbar
 let runner: AVRRunner;
 
-/* eslint-disable @typescript-eslint/no-use-before-define */
 const runButton = document.querySelector('#run-button');
 runButton.addEventListener('click', compileAndRun);
 const stopButton = document.querySelector('#stop-button');

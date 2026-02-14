@@ -6,16 +6,16 @@ export type { CPUMemoryHook, CPUMemoryHooks } from './cpu/cpu';
 export { avrInstruction } from './cpu/instruction';
 export { avrInterrupt } from './cpu/interrupt';
 export {
-  adcConfig,
   ADCMuxInputType,
   ADCReference,
-  atmega328Channels,
   AVRADC,
+  adcConfig,
+  atmega328Channels,
 } from './peripherals/adc';
 export type { ADCConfig, ADCMuxConfiguration, ADCMuxInput } from './peripherals/adc';
 export { AVRClock, clockConfig } from './peripherals/clock';
 export type { AVRClockConfig } from './peripherals/clock';
-export { AVREEPROM, eepromConfig, EEPROMMemoryBackend } from './peripherals/eeprom';
+export { AVREEPROM, EEPROMMemoryBackend, eepromConfig } from './peripherals/eeprom';
 export type { AVREEPROMConfig, EEPROMBackend } from './peripherals/eeprom';
 export {
   AVRIOPort,

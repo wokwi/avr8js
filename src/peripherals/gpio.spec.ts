@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) Uri Shaked and contributors
 
+import { describe, expect, it, vi } from 'vitest';
 import { CPU } from '../cpu/cpu';
 import { asmProgram, TestProgramRunner } from '../utils/test-utils';
-import { AVRIOPort, portBConfig, PinState, portDConfig, PinOverrideMode } from './gpio';
-import { describe, it, expect, vi } from 'vitest';
+import { AVRIOPort, PinOverrideMode, PinState, portBConfig, portDConfig } from './gpio';
 
 // CPU registers
 const SREG = 95;

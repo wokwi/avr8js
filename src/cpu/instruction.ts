@@ -13,8 +13,8 @@
  * Copyright (C) 2019, 2020 Uri Shaked
  */
 
-import { CPU } from './cpu';
 import { u16 } from '../types';
+import { CPU } from './cpu';
 
 function isTwoWordInstruction(opcode: u16) {
   return (

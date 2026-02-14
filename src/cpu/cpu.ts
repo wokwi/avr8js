@@ -9,7 +9,7 @@
  */
 
 import { AVRIOPort } from '../peripherals/gpio';
-import { u32, u16, u8, i16 } from '../types';
+import { i16, u16, u32, u8 } from '../types';
 import { avrInterrupt } from './interrupt';
 
 const registerSpace = 0x100;
@@ -262,7 +262,6 @@ export class CPU {
 
     const { nextInterrupt } = this;
     if (this.interruptsEnabled && nextInterrupt >= 0) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const interrupt = this.pendingInterrupts[nextInterrupt]!;
       avrInterrupt(this, interrupt.address);
       if (!interrupt.constant) {
