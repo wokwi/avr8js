@@ -47,6 +47,8 @@ export { AVRSPI, spiConfig } from './peripherals/spi';
 export type { SPIConfig, SPITransferCallback } from './peripherals/spi';
 export { AVRTimer, timer0Config, timer1Config, timer2Config } from './peripherals/timer';
 export type { AVRTimerConfig } from './peripherals/timer';
+export { ATtinyTimer1, attinyTimer1Config } from './peripherals/timer-attiny';
+export type { ATtinyTimer1Config } from './peripherals/timer-attiny';
 export * from './peripherals/twi';
 export { AVRUSART, usart0Config } from './peripherals/usart';
 export { AVRUSI } from './peripherals/usi';
