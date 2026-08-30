@@ -171,7 +171,7 @@ export class AVRADC {
     private config: ADCConfig,
   ) {
     cpu.writeHooks[config.ADCSRA] = (value, oldValue) => {
-      if (value & ADEN && !(oldValue && ADEN)) {
+      if (value & ADEN && !(oldValue & ADEN)) {
         this.conversionCycles = 25;
       }
       cpu.data[config.ADCSRA] = value;
