@@ -57,7 +57,7 @@ describe('Clock', () => {
       cpu.writeData(CLKPC, CLKPCE);
       cpu.writeData(CLKPC, 2); // Divide by 4 (2^2)
       cpu.cycles = 16e6;
-      expect(clock.timeMillis).toEqual(4000); // 4 seconds
+      expect(clock.timeMicros).toEqual(4e6); // 4 seconds
     });
 
     it('should return current number of milliseconds, derived from base freq + prescaler', () => {
@@ -66,7 +66,7 @@ describe('Clock', () => {
       cpu.writeData(CLKPC, CLKPCE);
       cpu.writeData(CLKPC, 2); // Divide by 4 (2^2)
       cpu.cycles = 16e6;
-      expect(clock.timeMicros).toEqual(4e6); // 4 seconds
+      expect(clock.timeMillis).toEqual(4000); // 4 seconds
     });
 
     it('should return current number of nanoseconds, derived from base freq + prescaler', () => {
