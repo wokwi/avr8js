@@ -45,7 +45,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= (R ^ r) & (d ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= sum & 256 ? 1 : 0;
-    sreg |= 1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
+    sreg |= 8 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xfc00) === 0xc00) {
     /* ADD, 0000 11rd dddd rrrr */
@@ -59,7 +59,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= (R ^ r) & (R ^ d) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= (d + r) & 256 ? 1 : 0;
-    sreg |= 1 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
+    sreg |= 8 & ((d & r) | (r & ~R) | (~R & d)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xff00) === 0x9600) {
     /* ADIW, 1001 0110 KKdd KKKK */
@@ -175,7 +175,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= 0 !== ((val1 ^ val2) & (val1 ^ R) & 128) ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= val2 > val1 ? 1 : 0;
-    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    sreg |= 8 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xfc00) === 0x400) {
     /* CPC, 0000 01rd dddd rrrr */
@@ -187,7 +187,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= 128 & r ? 4 : 0;
     sreg |= (arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= 1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
+    sreg |= 8 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xf000) === 0x3000) {
     /* CPI, 0011 KKKK dddd KKKK */
@@ -200,7 +200,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= (arg1 ^ arg2) & (arg1 ^ r) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= arg2 > arg1 ? 1 : 0;
-    sreg |= 1 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
+    sreg |= 8 & ((~arg1 & arg2) | (arg2 & r) | (r & ~arg1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xfc00) === 0x1000) {
     /* CPSE, 0001 00rd dddd rrrr */
@@ -289,7 +289,7 @@ export function avrInstruction(cpu: CPU) {
     const v2 = cpu.data[(opcode & 7) + 16];
     const R = (v1 * v2) << 1;
     cpu.dataView.setInt16(0, R, true);
-    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 2 : 0) | ((v1 * v2) & 0x8000 ? 1 : 0);
+    cpu.data[95] = (cpu.data[95] & 0xfc) | (0xffff & R ? 0 : 2) | ((v1 * v2) & 0x8000 ? 1 : 0);
     cpu.cycles++;
   } else if (opcode === 0x9509) {
     /* ICALL, 1001 0101 0000 1001 */
@@ -481,7 +481,7 @@ export function avrInstruction(cpu: CPU) {
     /* NEG, 1001 010d dddd 0001 */
     const d = (opcode & 0x1f0) >> 4;
     const value = cpu.data[d];
-    const R = 0 - value;
+    const R = (0 - value) & 255;
     cpu.data[d] = R;
     let sreg = cpu.data[95] & 0xc0;
     sreg |= R ? 0 : 2;
@@ -489,7 +489,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= 128 === R ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= R ? 1 : 0;
-    sreg |= 1 & (R | value) ? 0x20 : 0;
+    sreg |= 8 & (R | value) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if (opcode === 0) {
     /* NOP, 0000 0000 0000 0000 */
@@ -589,7 +589,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= 128 & R ? 4 : 0;
     sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    sreg |= 8 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xf000) === 0x4000) {
     /* SBCI, 0100 KKKK dddd KKKK */
@@ -602,7 +602,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= 128 & R ? 4 : 0;
     sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
-    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    sreg |= 8 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xff00) === 0x9a00) {
     /* SBI, 1001 1010 AAAA Abbb */
@@ -635,13 +635,12 @@ export function avrInstruction(cpu: CPU) {
     const l = (opcode & 0xf) | ((opcode & 0xc0) >> 2);
     const R = a - l;
     cpu.dataView.setUint16(i, R, true);
-    let sreg = cpu.data[95] & 0xc0;
+    let sreg = cpu.data[95] & 0xe0;
     sreg |= R ? 0 : 2;
     sreg |= 0x8000 & R ? 4 : 0;
     sreg |= a & ~R & 0x8000 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= l > a ? 1 : 0;
-    sreg |= 1 & ((~a & l) | (l & R) | (R & ~a)) ? 0x20 : 0;
     cpu.data[95] = sreg;
     cpu.cycles++;
   } else if ((opcode & 0xfe08) === 0xfc00) {
@@ -763,7 +762,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= val2 > val1 ? 1 : 0;
-    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    sreg |= 8 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xf000) === 0x5000) {
     /* SUBI, 0101 KKKK dddd KKKK */
@@ -777,7 +776,7 @@ export function avrInstruction(cpu: CPU) {
     sreg |= (val1 ^ val2) & (val1 ^ R) & 128 ? 8 : 0;
     sreg |= ((sreg >> 2) & 1) ^ ((sreg >> 3) & 1) ? 0x10 : 0;
     sreg |= val2 > val1 ? 1 : 0;
-    sreg |= 1 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
+    sreg |= 8 & ((~val1 & val2) | (val2 & R) | (R & ~val1)) ? 0x20 : 0;
     cpu.data[95] = sreg;
   } else if ((opcode & 0xfe0f) === 0x9402) {
     /* SWAP, 1001 010d dddd 0010 */

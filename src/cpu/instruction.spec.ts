@@ -119,6 +119,29 @@ describe('avrInstruction', () => {
     expect(cpu.data[SREG]).toEqual(SREG_H | SREG_Z | SREG_C);
   });
 
+  it.each([
+    { instruction: 'ADC r16, r17', value1: 8, value2: 8, expected: SREG_H },
+    { instruction: 'ADD r16, r17', value1: 8, value2: 8, expected: SREG_H },
+    { instruction: 'ADD r16, r17', value1: 1, value2: 1, expected: 0 },
+    { instruction: 'CP r16, r17', value1: 0, value2: 8, expected: SREG_H },
+    { instruction: 'CPC r16, r17', value1: 0, value2: 8, expected: SREG_H },
+    { instruction: 'CPI r16, 8', value1: 0, value2: 0, expected: SREG_H },
+    { instruction: 'SBC r16, r17', value1: 0, value2: 8, expected: SREG_H },
+    { instruction: 'SBCI r16, 8', value1: 0, value2: 0, expected: SREG_H },
+    { instruction: 'SUB r16, r17', value1: 0, value2: 8, expected: SREG_H },
+    { instruction: 'SUBI r16, 8', value1: 0, value2: 0, expected: SREG_H },
+    { instruction: 'NEG r16', value1: 8, value2: 0, expected: SREG_H },
+  ])(
+    'should calculate H from bit 3 for `$instruction`',
+    ({ instruction, value1, value2, expected }) => {
+      loadProgram(instruction);
+      cpu.data[r16] = value1;
+      cpu.data[r17] = value2;
+      avrInstruction(cpu);
+      expect(cpu.data[SREG] & SREG_H).toEqual(expected);
+    },
+  );
+
   /**
    * ADIW, AND, ANDI, ASR
    */
@@ -733,6 +756,18 @@ describe('avrInstruction', () => {
     expect(cpu.data[SREG]).toEqual(SREG_C);
   });
 
+  it.each([
+    { value1: 2, value2: 3, result: 12, expected: 0 },
+    { value1: 0, value2: 3, result: 0, expected: SREG_Z },
+  ])('should update Z for `FMULSU r16, r17`', ({ value1, value2, result, expected }) => {
+    loadProgram('FMULSU r16, r17');
+    cpu.data[r16] = value1;
+    cpu.data[r17] = value2;
+    avrInstruction(cpu);
+    expect(cpu.dataView.getInt16(0, true)).toEqual(result);
+    expect(cpu.data[SREG]).toEqual(expected);
+  });
+
   it('should execute `NEG r20` instruction', () => {
     loadProgram('NEG r20');
     cpu.data[r20] = 0x56;
@@ -740,7 +775,15 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[20]).toEqual(0xaa);
-    expect(cpu.data[SREG]).toEqual(SREG_S | SREG_N | SREG_C);
+    expect(cpu.data[SREG]).toEqual(SREG_H | SREG_S | SREG_N | SREG_C);
+  });
+
+  it('should set V when negating 0x80', () => {
+    loadProgram('NEG r20');
+    cpu.data[r20] = 0x80;
+    avrInstruction(cpu);
+    expect(cpu.data[r20]).toEqual(0x80);
+    expect(cpu.data[SREG]).toEqual(SREG_V | SREG_N | SREG_C);
   });
 
   it('should execute `NOP` instruction', () => {
@@ -958,6 +1001,15 @@ describe('avrInstruction', () => {
    * SLEEP, SPM, SPM #2
    */
 
+  it('should preserve H when executing `SBIW r24, 2`', () => {
+    loadProgram('SBIW r24, 2');
+    cpu.dataView.setUint16(r24, 2, true);
+    cpu.data[SREG] = SREG_H;
+    avrInstruction(cpu);
+    expect(cpu.dataView.getUint16(r24, true)).toEqual(0);
+    expect(cpu.data[SREG]).toEqual(SREG_H | SREG_Z);
+  });
+
   it('should execute `ST X, r1` instruction', () => {
     loadProgram('ST X, r1');
     cpu.data[r1] = 0x5a;
@@ -1100,7 +1152,7 @@ describe('avrInstruction', () => {
     expect(cpu.pc).toEqual(1);
     expect(cpu.cycles).toEqual(1);
     expect(cpu.data[r0]).toEqual(246);
-    expect(cpu.data[SREG]).toEqual(SREG_S | SREG_N | SREG_C);
+    expect(cpu.data[SREG]).toEqual(SREG_H | SREG_S | SREG_N | SREG_C);
   });
 
   /**
