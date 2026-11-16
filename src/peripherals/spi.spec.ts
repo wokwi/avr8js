@@ -20,8 +20,8 @@ const SPDR = 0x4e;
 // Register bit names
 const SPR0 = 1;
 const SPR1 = 2;
-const CPOL = 4;
-const CPHA = 8;
+const CPOL = 8;
+const CPHA = 4;
 const MSTR = 0x10;
 const DORD = 0x20;
 const SPE = 0x40;
