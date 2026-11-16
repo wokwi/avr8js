@@ -128,7 +128,7 @@ export class AVRSPI {
   get spiMode() {
     const CPHA = this.cpu.data[this.config.SPCR] & SPCR_CPHA;
     const CPOL = this.cpu.data[this.config.SPCR] & SPCR_CPOL;
-    return ((CPHA ? 2 : 0) | (CPOL ? 1 : 0)) as 0 | 1 | 2 | 3;
+    return ((CPOL ? 2 : 0) | (CPHA ? 1 : 0)) as 0 | 1 | 2 | 3;
   }
 
   /**
